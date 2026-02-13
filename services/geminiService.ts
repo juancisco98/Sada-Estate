@@ -1,13 +1,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { VoiceCommandResponse, Property, Professional } from "../types";
 
-// Initialize Gemini Client
-const apiKey = process.env.API_KEY || '';
-console.log(`[Gemini] Initializing with API key: ${apiKey ? apiKey.substring(0, 10) + '...' : '⚠️ EMPTY KEY'}`);
-const ai = new GoogleGenAI({ apiKey });
+// Initialize Gemini Client lazily to prevent crash if key is missing at top level
+let aiInstance: any = null;
+
+const getAiClient = () => {
+  if (aiInstance) return aiInstance;
+
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+  if (!apiKey) {
+    console.warn('[Gemini] ⚠️ No API key found. AI features will be disabled.');
+    return null;
+  }
+
+  console.log(`[Gemini] ✅ Initializing client with key: ${apiKey.substring(0, 10)}...`);
+  aiInstance = new GoogleGenAI({ apiKey });
+  return aiInstance;
+};
 
 const MODEL_FAST = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-console.log(`[Gemini] Using model: ${MODEL_FAST}`);
+console.log(`[Gemini] Using model config: ${MODEL_FAST}`);
 
 // Cache for AI estimations — avoids different results on re-click
 const estimationCache = new Map<string, any>();
@@ -105,6 +117,11 @@ export const parseVoiceCommand = async (
       "data": { ... }
     }
     `;
+
+    const ai = getAiClient();
+    if (!ai) {
+      throw new Error('Gemini AI not initialized (missing API key)');
+    }
 
     const response = await ai.models.generateContent({
       model: MODEL_FAST,
@@ -210,6 +227,11 @@ export const estimateFinancials = async (address: string, country: string = 'Arg
     }
 
     console.log(`[Gemini] 📡 Sending request to model "${MODEL_FAST}"...`);
+
+    const ai = getAiClient();
+    if (!ai) {
+      throw new Error('Gemini AI not initialized (missing API key)');
+    }
 
     const response = await ai.models.generateContent({
       model: MODEL_FAST,
