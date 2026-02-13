@@ -1,0 +1,8 @@
+{
+  "name": "SV Propiedades",
+  "description": "Una herramienta de gestión inmobiliaria 'Cero Fallos' para propietarios, con interfaz inspirada en mapas y asistente de voz inteligente.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}

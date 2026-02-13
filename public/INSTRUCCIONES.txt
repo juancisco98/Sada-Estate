@@ -1,0 +1,20 @@
+INSTRUCCIONES PARA ACTUALIZAR LOGOS (SV Propiedades)
+====================================================
+
+Se han creado archivos marcadores de posición (placeholders) en la carpeta `public/`.
+Para que la aplicación muestre tus nuevos logos, debes reemplazar estos archivos con tus imágenes reales.
+
+1.  **Logo de la Pantalla de Login**:
+    -   Renombra tu archivo de logo nuevo a `logo-s.svg` (o `logo-s.png` si prefieres, pero tendrás que actualizar `components/AuthScreen.tsx`).
+    -   Reemplaza el archivo `public/logo-s.svg`.
+    -   *Nota*: Si usas PNG, edita `components/AuthScreen.tsx` y cambia `.svg` por `.png`.
+
+2.  **Icono de la App (PWA) y Favicon**:
+    -   Renombra tu archivo de logo (versión cuadrada) a:
+        -   `pwa-192x192.svg`
+        -   `pwa-512x512.svg`
+        -   `favicon.svg`
+    -   Reemplaza los archivos existentes en `public/`.
+    -   *Nota*: Si usas PNG, edita `vite.config.ts` y `index.html` para cambiar `.svg` por `.png` y actualizar los tipos MIME.
+
+IMPORTANTE: El soporte para PWA ya está configurado. Al subir esto a producción (o al instalarlo en local), aparecerá la opción de instalar la app.
