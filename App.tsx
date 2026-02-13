@@ -37,6 +37,7 @@ const App: React.FC = () => {
     handleFinishMaintenance: finishMaintenanceData,
     updatePropertyFields,
     handleDeleteProfessional,
+    handleDeleteProperty,
     maintenanceTasks,
     isLoading
   } = usePropertyData(currentUser?.email || currentUser?.name);
@@ -450,6 +451,7 @@ const App: React.FC = () => {
                 onEdit={handleOpenEditModal}
                 onUpdateNote={handleUpdateNote}
                 onFinishMaintenance={handleOpenFinishMaintenance}
+                onDelete={handleDeleteProperty}
               />
             )}
 

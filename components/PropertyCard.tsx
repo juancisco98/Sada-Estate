@@ -10,7 +10,8 @@ interface PropertyCardProps {
   onViewDetails: () => void;
   onEdit?: (property: Property) => void;
   onUpdateNote?: (id: string, note: string) => void;
-  onFinishMaintenance?: (property: Property) => void; // New Handler
+  onFinishMaintenance?: (property: Property) => void;
+  onDelete?: (id: string) => void;
 }
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
@@ -19,7 +20,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   onViewDetails,
   onEdit,
   onUpdateNote,
-  onFinishMaintenance
+  onFinishMaintenance,
+  onDelete
 }) => {
   const [noteText, setNoteText] = useState(property.notes || '');
   const [isDirty, setIsDirty] = useState(false);
@@ -134,11 +136,30 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         <img src={property.imageUrl} alt={property.address} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
 
-        <button onClick={onClose} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="absolute top-4 right-4 flex gap-2">
+          {onDelete && (
+            <button
+              onClick={() => {
+                if (window.confirm(`¿Estás seguro de que deseas eliminar la propiedad "${property.address}"? Esta acción no se puede deshacer.`)) {
+                  onDelete(property.id);
+                  onClose();
+                }
+              }}
+              className="bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors"
+              title="Eliminar Propiedad"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
+
+          <button onClick={onClose} className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
         <div className="absolute bottom-4 left-6 text-white">
           <h3 className="text-2xl font-bold shadow-sm">{property.address}</h3>

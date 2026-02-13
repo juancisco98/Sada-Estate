@@ -244,6 +244,28 @@ export const usePropertyData = (currentUserId?: string) => {
         }
     };
 
+    const handleDeleteProperty = async (propertyId: string) => {
+        setProperties(prev => prev.filter(p => p.id !== propertyId));
+
+        try {
+            // Also delete associated maintenance tasks
+            await supabase
+                .from('maintenance_tasks')
+                .delete()
+                .eq('property_id', propertyId);
+
+            const { error } = await supabase
+                .from('properties')
+                .delete()
+                .eq('id', propertyId);
+
+            if (error) console.error('[Supabase] ❌ Error deleting property:', error);
+            else console.log(`[Supabase] ✅ Property deleted: ${propertyId}`);
+        } catch (err) {
+            console.error('[Supabase] ❌ Exception deleting property:', err);
+        }
+    };
+
     // ========== PROFESSIONAL CRUD ==========
 
     const handleSaveProfessional = async (newPro: Professional) => {
@@ -469,6 +491,7 @@ export const usePropertyData = (currentUserId?: string) => {
         handleAssignProfessional,
         handleFinishMaintenance,
         updatePropertyFields,
-        handleDeleteProfessional
+        handleDeleteProfessional,
+        handleDeleteProperty
     };
 };
