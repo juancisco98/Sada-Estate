@@ -1,22 +1,29 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[Supabase] ⚠️ Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in environment variables.');
-    console.error('[Supabase] ⚠️ The app will fall back to mock data.');
-}
+let supabaseInstance: SupabaseClient | null = null;
 
-// Create client safely — even with empty strings, createClient won't crash.
-// Operations will fail gracefully and usePropertyData will catch the errors and fall back to mock data.
-export const supabase: SupabaseClient = createClient(
-    supabaseUrl || 'https://placeholder.supabase.co',
-    supabaseAnonKey || 'placeholder-key'
-);
-
-if (supabaseUrl) {
+if (supabaseUrl && supabaseAnonKey) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
     console.log(`[Supabase] ✅ Client initialized for: ${supabaseUrl}`);
 } else {
-    console.warn('[Supabase] ⚠️ Client initialized with placeholder (no real connection).');
+    console.warn('[Supabase] ⚠️ Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.');
+    console.warn('[Supabase] ⚠️ Running in offline mode with mock data.');
 }
+
+// Export a proxy that won't crash when supabase is null.
+// All .from() calls will return errors caught by usePropertyData's try/catch → fallback to mock data.
+export const supabase: SupabaseClient = supabaseInstance || new Proxy({} as SupabaseClient, {
+    get(_target, prop) {
+        if (prop === 'from') {
+            return () => new Proxy({}, {
+                get() {
+                    return () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } });
+                }
+            });
+        }
+        return () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } });
+    }
+});
