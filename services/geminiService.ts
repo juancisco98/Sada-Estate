@@ -18,7 +18,7 @@ const getAiClient = () => {
   return aiInstance;
 };
 
-const MODEL_FAST = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const MODEL_FAST = process.env.GEMINI_MODEL || 'gemini-1.5-flash-001';
 console.log(`[Gemini] Using model config: ${MODEL_FAST}`);
 
 // Cache for AI estimations — avoids different results on re-click
