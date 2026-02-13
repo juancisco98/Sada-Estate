@@ -401,6 +401,7 @@ const App: React.FC = () => {
                 professionals={professionals}
                 maintenanceTasks={maintenanceTasks} // Pass tasks
                 onAddProperty={handleOpenAddModal}
+                onDeleteProperty={handleDeleteProperty}
               />
             </div>
           </div>
@@ -524,6 +525,7 @@ const App: React.FC = () => {
             setPropertyToEdit(null);
           }}
           onSave={handleSaveProperty}
+          onDelete={handleDeleteProperty}
           professionals={professionals}
         />
       )}

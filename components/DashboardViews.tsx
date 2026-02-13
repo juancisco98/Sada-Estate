@@ -13,7 +13,8 @@ import {
   User,
   CheckCircle,
   AlertCircle,
-  Timer
+  Timer,
+  Trash2
 } from 'lucide-react';
 import FinancialDetailsCard from './FinancialDetailsCard';
 
@@ -85,7 +86,8 @@ interface OverviewViewProps {
   properties?: Property[]; // Allow passing dynamic properties
   professionals?: Professional[];
   maintenanceTasks?: MaintenanceTask[];
-  onAddProperty?: () => void; // New prop
+  onAddProperty?: () => void;
+  onDeleteProperty?: (id: string) => void;
 }
 
 // --- 1. Visión General (Overview) ---
@@ -94,7 +96,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   properties = [],
   professionals = [],
   maintenanceTasks = [],
-  onAddProperty
+  onAddProperty,
+  onDeleteProperty
 }) => {
 
   // Calculate Total Income in USD
@@ -133,6 +136,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return <>{time}</>;
   }
 
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <header className="flex justify-between items-center">
@@ -142,15 +147,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <p className="text-gray-500">Estado de mis propiedades y actividad reciente.</p>
           </div>
         </div>
-        {onAddProperty && (
-          <button
-            onClick={onAddProperty}
-            className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 shadow-lg flex items-center gap-2 px-6"
-          >
-            <span className="font-bold text-lg">+</span>
-            <span className="hidden md:inline font-semibold">Agregar Propiedad</span>
-          </button>
-        )}
+        <div className="flex gap-3">
+          {onDeleteProperty && (
+            <button
+              onClick={() => setIsDeleteMode(!isDeleteMode)}
+              className={`p-3 rounded-full shadow-lg flex items-center gap-2 px-6 transition-all ${isDeleteMode
+                ? 'bg-red-600 text-white hover:bg-red-700 ring-2 ring-red-300'
+                : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'
+                }`}
+            >
+              <Trash2 className="w-5 h-5" />
+              <span className="hidden md:inline font-bold">
+                {isDeleteMode ? 'Cancelar Eliminar' : 'Eliminar Propiedad'}
+              </span>
+            </button>
+          )}
+          {onAddProperty && !isDeleteMode && (
+            <button
+              onClick={onAddProperty}
+              className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 shadow-lg flex items-center gap-2 px-6"
+            >
+              <span className="font-bold text-lg">+</span>
+              <span className="hidden md:inline font-semibold">Agregar Propiedad</span>
+            </button>
+          )}
+        </div>
       </header>
 
       {/* SECTION 1: Property Cards */}
@@ -166,12 +187,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             return (
               <div
                 key={property.id}
-                onClick={() => onEditProperty && onEditProperty(property)}
+                onClick={() => {
+                  if (isDeleteMode) {
+                    if (onDeleteProperty && window.confirm(`¿⚠️ Estás seguro que deseas ELIMINAR definitivamente la propiedad en "${property.address}"?`)) {
+                      onDeleteProperty(property.id);
+                    }
+                  } else {
+                    onEditProperty && onEditProperty(property);
+                  }
+                }}
                 className={`
-                  bg-white rounded-3xl shadow-sm overflow-hidden hover:shadow-lg transition-all cursor-pointer relative group
-                  ${isMaintenance ? 'border-4 border-orange-400 ring-4 ring-orange-100/30' : 'border border-gray-100 hover:border-blue-200'}
+                  bg-white rounded-3xl shadow-sm overflow-hidden transition-all cursor-pointer relative group
+                  ${isDeleteMode
+                    ? 'border-4 border-red-500 ring-4 ring-red-100 scale-95 opacity-90 hover:opacity-100 hover:scale-100 animate-pulse'
+                    : (isMaintenance ? 'border-4 border-orange-400 ring-4 ring-orange-100/30' : 'border border-gray-100 hover:border-blue-200 hover:shadow-lg')
+                  }
                 `}
               >
+                {/* Delete Mode Overlay */}
+                {isDeleteMode && (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-50/50 backdrop-blur-[1px]">
+                    <div className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-2 transform scale-110">
+                      <Trash2 className="w-6 h-6" /> ELIMINAR
+                    </div>
+                  </div>
+                )}
                 {/* Photo Area */}
                 <div className="h-48 w-full bg-gray-200 relative">
                   <img
@@ -179,8 +219,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     alt={property.address}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  {/* Status Badge */}
+                  {/* Status Badge & Delete Button */}
                   <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                    {onDeleteProperty && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`¿Estás seguro de que deseas eliminar la propiedad "${property.address}"?`)) {
+                            onDeleteProperty(property.id);
+                          }
+                        }}
+                        className="bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all active:scale-95"
+                        title="Eliminar Propiedad"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     {property.status === PropertyStatus.CURRENT && (
                       <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
                         <CheckCircle className="w-3 h-3" /> Al día

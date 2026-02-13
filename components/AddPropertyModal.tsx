@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, User, Phone, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Sparkles, Globe, LayoutGrid, Ruler } from 'lucide-react';
+import { X, DollarSign, User, Phone, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Sparkles, Globe, LayoutGrid, Ruler, Trash2 } from 'lucide-react';
 import { Property, PropertyStatus } from '../types';
 import { MOCK_PROFESSIONALS } from '../constants';
 import { getTaxConfig } from '../utils/taxConfig';
@@ -12,6 +12,7 @@ interface AddPropertyModalProps {
   detectedCountry?: string; // Auto-detected from geocoding
   onClose: () => void;
   onSave: (property: Property) => void;
+  onDelete?: (id: string) => void;
   professionals?: any[];
 }
 
@@ -31,6 +32,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   detectedCountry,
   onClose,
   onSave,
+  onDelete,
   professionals = MOCK_PROFESSIONALS
 }) => {
   const isEditing = !!existingProperty;
@@ -216,6 +218,15 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       alert(`Error al calcular con IA: ${error?.message || 'Error desconocido'}. Revisa la consola (F12) para más detalles.`);
     } finally {
       setIsCalculating(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (isEditing && existingProperty && onDelete) {
+      if (window.confirm(`¿Estás seguro de que deseas eliminar la propiedad "${existingProperty.address}"? Esta acción no se puede deshacer.`)) {
+        onDelete(existingProperty.id);
+        onClose();
+      }
     }
   };
 
@@ -638,6 +649,18 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
         {/* Footer */}
         <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3">
+          {/* Delete Button (Only if Editing) */}
+          {isEditing && onDelete && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="bg-red-50 text-red-600 p-3 rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center border border-red-200 shrink-0"
+              title="Eliminar Propiedad"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
+
           <button
             onClick={onClose}
             className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-white hover:shadow-sm transition-all"

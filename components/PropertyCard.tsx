@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Property, PropertyStatus } from '../types';
 import { MOCK_PROFESSIONALS, MOCK_USERS } from '../constants';
 import { getDualCurrencyAmounts, formatCurrency } from '../utils/currency';
-import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign } from 'lucide-react';
+import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2 } from 'lucide-react';
 
 interface PropertyCardProps {
   property: Property;
@@ -145,12 +145,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   onClose();
                 }
               }}
-              className="bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors"
+              className="bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors flex items-center justify-center"
               title="Eliminar Propiedad"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <Trash2 className="w-5 h-5" />
             </button>
           )}
 
@@ -235,7 +233,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col gap-1">
           <div className="flex justify-between items-center text-gray-700">
             <span className="flex items-center gap-2 text-sm font-medium">
-              <Home className="w-4 h-4 text-gray-400" /> Alquiler
+              <Home className="w-4 h-4 text-gray-400" /> Alquiler Mensual
             </span>
             <div className="text-right">
               {(() => {
@@ -256,51 +254,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             </div>
           </div>
 
-          {/* Valuation Helper */}
-          {property.valuation && (
-            <div className="flex justify-between items-center text-gray-500 pt-2 border-t border-gray-200 mt-1">
-              <span className="flex items-center gap-2 text-xs">
-                <DollarSign className="w-3 h-3" /> Valoración
-              </span>
-              <div className="text-right">
-                {(() => {
-                  // Valuation is stored in USD in mocks usually, but let's assume property.currency for consistency if we change logic
-                  // Actually mocks say "// USD mock" for valuation. 
-                  // Let's assume valuation is ALWAYS USD for now as per "parents have apts in US... income is dollars... always calculate value in dollars"
-                  // But wait, "Expenses... always in dollars". 
-                  // Let's treat valuation as USD and show local equivalent if needed.
-                  const valUsd = property.valuation;
-                  // If property is ARS, show ARS equivalent too?
-                  // "En argentina ambos numeros en ARS y en USD."
-                  const amounts = getDualCurrencyAmounts(valUsd, 'USD');
-                  // Wait, getDualCurrencyAmounts takes amount and ORIGINAL currency.
-                  // If valuation is USD:
-                  // Local (USD) -> USD
-                  // USD -> USD
-                  // We need the reverse for ARS.
 
-                  // Let's just use the helper logically.
-                  // If Prop is ARS, we want to see ARS equivalent of the USD valuation.
-                  // 1 USD = 1200 ARS. 
-                  // Val = 100k USD. ARS = 100k * 1200.
-
-                  const isArs = property.currency === 'ARS';
-                  const valArs = isArs ? valUsd * 1200 : valUsd; // Hardcoded rate usage or import constants
-
-                  return (
-                    <>
-                      <span className="text-xs font-bold">{formatCurrency(valUsd, 'USD')}</span>
-                      {isArs && (
-                        <span className="text-[10px] ml-1 text-gray-400">
-                          ({formatCurrency(valArs, 'ARS')})
-                        </span>
-                      )}
-                    </>
-                  )
-                })()}
-              </div>
-            </div>
-          )}
         </div>
         <div className="bg-yellow-50 p-2 rounded-xl border border-yellow-200 mt-4 relative group">
           <div className="flex justify-between items-center mb-1 px-1">
