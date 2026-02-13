@@ -1,12 +1,22 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[Supabase] ⚠️ Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in .env.local');
+    console.error('[Supabase] ⚠️ Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in environment variables.');
+    console.error('[Supabase] ⚠️ The app will fall back to mock data.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create client safely — even with empty strings, createClient won't crash.
+// Operations will fail gracefully and usePropertyData will catch the errors and fall back to mock data.
+export const supabase: SupabaseClient = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    supabaseAnonKey || 'placeholder-key'
+);
 
-console.log(`[Supabase] ✅ Client initialized for: ${supabaseUrl}`);
+if (supabaseUrl) {
+    console.log(`[Supabase] ✅ Client initialized for: ${supabaseUrl}`);
+} else {
+    console.warn('[Supabase] ⚠️ Client initialized with placeholder (no real connection).');
+}
