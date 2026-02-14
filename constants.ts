@@ -33,7 +33,6 @@ export const MOCK_PROPERTIES: Property[] = [
     contractEnd: '2025-12-01',
     lastPaymentDate: '2024-05-05',
     notes: 'El portero se llama José (Turno mañana). Pedir siempre comprobante de transferencia al inquilino.',
-    valuation: 125000, // USD mock
     rooms: 3,
     squareMeters: 72,
     country: 'Argentina',
@@ -51,9 +50,8 @@ export const MOCK_PROPERTIES: Property[] = [
     contractEnd: '2024-10-15',
     lastPaymentDate: '2024-03-10',
     notes: 'Ojo con la humedad del baño. Recordar aumentar semestralmente según ICL.',
-    assignedProfessionalId: 'p1', // Mario Gasista asignado
-    professionalAssignedDate: '2024-05-10', // En obra hace unos días
-    valuation: 98000, // USD mock
+    assignedProfessionalId: 'p1',
+    professionalAssignedDate: '2024-05-10',
     rooms: 2,
     squareMeters: 48,
     country: 'Argentina',
@@ -71,7 +69,6 @@ export const MOCK_PROPERTIES: Property[] = [
     contractEnd: '2024-06-01',
     lastPaymentDate: '2024-04-01',
     notes: 'Llaves en la inmobiliaria. Mostrar solo lunes y viernes.',
-    valuation: 145000, // USD mock
     rooms: 4,
     squareMeters: 95,
     country: 'Argentina',
@@ -88,7 +85,7 @@ export const MOCK_PROPERTIES: Property[] = [
     coordinates: [-34.5936, -58.4239],
     contractEnd: '2026-02-01',
     lastPaymentDate: '2024-05-01',
-    valuation: 180000, // USD mock
+
     rooms: 3,
     squareMeters: 65,
     country: 'Argentina',
@@ -106,7 +103,6 @@ export const MOCK_PROPERTIES: Property[] = [
     contractEnd: '2025-08-01',
     lastPaymentDate: '2024-05-01',
     notes: 'Luxury condo. Handle payments via Zelle.',
-    valuation: 450000, // USD
     rooms: 2,
     squareMeters: 90,
     country: 'USA',

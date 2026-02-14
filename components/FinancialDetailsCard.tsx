@@ -1,29 +1,29 @@
 import React from 'react';
-import { Property, MaintenanceTask } from '../types';
-import { MOCK_MAINTENANCE_TASKS, MOCK_PROFESSIONALS } from '../constants';
+import { Property, MaintenanceTask, Professional } from '../types';
 import { X, TrendingUp, TrendingDown, DollarSign, Receipt, Calendar } from 'lucide-react';
+import { formatCurrency } from '../utils/currency';
 
 interface FinancialDetailsCardProps {
   property: Property;
+  maintenanceTasks: MaintenanceTask[];
+  professionals: Professional[];
   onClose: () => void;
 }
 
-const formatCurrency = (val: number) => `$${val.toLocaleString('es-AR')}`;
-
-const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({ property, onClose }) => {
+const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
+  property,
+  maintenanceTasks,
+  professionals,
+  onClose
+}) => {
   // Filter tasks related to this property
-  const expenses = MOCK_MAINTENANCE_TASKS.filter(task => task.propertyId === property.id);
+  const expenses = maintenanceTasks.filter(task => task.propertyId === property.id);
+  const totalMaintenance = expenses.reduce((acc, task) => acc + (task.cost || task.estimatedCost || 0), 0);
 
-  const totalMaintenance = expenses.reduce((acc, task) => acc + task.estimatedCost, 0);
-
-  // Calculate Taxes
-  const abl = property.taxInfo?.abl || 0;
-  const rentas = property.taxInfo?.rentas || 0;
-  const water = property.taxInfo?.water || 0;
-  const totalTaxes = abl + rentas + water;
-
-  const totalExpenses = totalMaintenance + totalTaxes;
+  const totalExpenses = totalMaintenance;
   const netResult = property.monthlyRent - totalExpenses;
+
+  const displayCurrency = property.currency || 'ARS';
 
   return (
     <div className="fixed inset-0 z-[1300] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -60,7 +60,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({ property, o
               <div className="flex-1 bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Precio/m²</p>
                 <p className="text-xl font-bold text-gray-900">
-                  {formatCurrency(Math.round(property.monthlyRent / property.squareMeters))}
+                  {formatCurrency(Math.round(property.monthlyRent / property.squareMeters), displayCurrency)}
                 </p>
               </div>
             )}
@@ -75,7 +75,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({ property, o
               <TrendingUp className="w-4 h-4" />
               <span className="text-xs font-bold uppercase">Ingreso (Alquiler)</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(property.monthlyRent)}</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(property.monthlyRent, displayCurrency)}</p>
           </div>
 
           {/* Expenses */}
@@ -84,7 +84,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({ property, o
               <TrendingDown className="w-4 h-4" />
               <span className="text-xs font-bold uppercase">Total Gastos</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalExpenses)}</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalExpenses, displayCurrency)}</p>
           </div>
         </div>
 
@@ -97,7 +97,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({ property, o
             <span className="font-medium text-sm text-gray-300">Resultado Neto</span>
           </div>
           <span className={`text-2xl font-bold ${netResult >= 0 ? 'text-white' : 'text-red-400'}`}>
-            {formatCurrency(netResult)}
+            {formatCurrency(netResult, displayCurrency)}
           </span>
         </div>
 
@@ -108,54 +108,10 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({ property, o
           </h3>
 
           <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-            {/* Taxes Section */}
-            {totalTaxes > 0 && (
-              <>
-                {abl > 0 && (
-                  <div className="flex justify-between items-center p-3 rounded-xl border border-indigo-100 bg-indigo-50/50">
-                    <div>
-                      <p className="text-sm font-bold text-indigo-900">ABL (Impuesto Municipal)</p>
-                      <span className="text-[10px] text-indigo-400 flex items-center gap-1">
-                        <Receipt className="w-3 h-3" /> Mensual
-                      </span>
-                    </div>
-                    <span className="font-bold text-indigo-700 text-sm">
-                      - {formatCurrency(abl)}
-                    </span>
-                  </div>
-                )}
-                {rentas > 0 && (
-                  <div className="flex justify-between items-center p-3 rounded-xl border border-indigo-100 bg-indigo-50/50">
-                    <div>
-                      <p className="text-sm font-bold text-indigo-900">Rentas (Inmobiliario)</p>
-                      <span className="text-[10px] text-indigo-400 flex items-center gap-1">
-                        <Receipt className="w-3 h-3" /> Mensual
-                      </span>
-                    </div>
-                    <span className="font-bold text-indigo-700 text-sm">
-                      - {formatCurrency(rentas)}
-                    </span>
-                  </div>
-                )}
-                {water > 0 && (
-                  <div className="flex justify-between items-center p-3 rounded-xl border border-indigo-100 bg-indigo-50/50">
-                    <div>
-                      <p className="text-sm font-bold text-indigo-900">AySA (Agua)</p>
-                      <span className="text-[10px] text-indigo-400 flex items-center gap-1">
-                        <Receipt className="w-3 h-3" /> Mensual
-                      </span>
-                    </div>
-                    <span className="font-bold text-indigo-700 text-sm">
-                      - {formatCurrency(water)}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-
+            {/* Maintenance Expenses */}
             {expenses.length > 0 ? (
               expenses.map(expense => {
-                const professional = MOCK_PROFESSIONALS.find(p => p.id === expense.professionalId);
+                const professional = professionals.find(p => p.id === expense.professionalId);
                 return (
                   <div key={expense.id} className="flex justify-between items-center p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
                     <div>
@@ -170,7 +126,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({ property, o
                       </div>
                     </div>
                     <span className="font-bold text-red-600 text-sm">
-                      - {formatCurrency(expense.estimatedCost)}
+                      - {formatCurrency(expense.cost || expense.estimatedCost, 'USD')}
                     </span>
                   </div>
                 );

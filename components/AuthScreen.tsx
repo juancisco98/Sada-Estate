@@ -124,6 +124,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
           <h1 className="text-3xl font-bold text-white tracking-tight">SV Propiedades</h1>
           <p className="text-blue-200 mt-2 text-sm font-medium">Gestión Inmobiliaria Inteligente</p>
+          <div className="mt-3 inline-flex items-center gap-1.5 bg-amber-500/20 border border-amber-400/30 text-amber-200 text-xs font-semibold px-3 py-1.5 rounded-full">
+            <KeyRound className="w-3.5 h-3.5" />
+            Modo Demo — Autenticación local
+          </div>
         </div>
 
         {view === 'LOGIN' && (

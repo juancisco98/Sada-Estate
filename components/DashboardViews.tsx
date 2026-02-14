@@ -380,20 +380,26 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 // --- 2. Finanzas (Finance) ---
 interface FinanceViewProps {
   properties?: Property[];
+  professionals?: Professional[];
   preSelectedProperty?: Property | null;
   maintenanceTasks?: MaintenanceTask[];
   onClearPreSelection?: () => void;
 }
 
+const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
 export const FinanceView: React.FC<FinanceViewProps> = ({
   properties = [],
+  professionals = [],
   preSelectedProperty = null,
   maintenanceTasks = [],
   onClearPreSelection
 }) => {
   const [selectedFinancialProperty, setSelectedFinancialProperty] = useState<Property | null>(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  // Auto-select property if passed from parent (e.g., from Map Card)
+  // Auto-select property if passed from parent
   useEffect(() => {
     if (preSelectedProperty) {
       setSelectedFinancialProperty(preSelectedProperty);
@@ -405,92 +411,177 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     if (onClearPreSelection) onClearPreSelection();
   };
 
-  // 1. Calculate General Metrics in USD
-  const totalRentIncome = properties.reduce((acc, p) => acc + convertCurrency(p.monthlyRent, p.currency || 'ARS', 'USD'), 0);
+  // --- Separate properties by currency ---
+  const arsProperties = properties.filter(p => (p.currency || 'ARS') === 'ARS');
+  const usdProperties = properties.filter(p => (p.currency || 'ARS') === 'USD');
 
-  // Calculate expenses (Use maintenanceTasks)
-  const allExpenses = maintenanceTasks.reduce((acc, task) => {
+  // --- Monthly income grids (12 months) ---
+  const arsMonthly = Array.from({ length: 12 }, (_, i) => {
+    return arsProperties.reduce((sum, p) => sum + p.monthlyRent, 0);
+  });
+  const usdMonthly = Array.from({ length: 12 }, (_, i) => {
+    return usdProperties.reduce((sum, p) => sum + p.monthlyRent, 0);
+  });
+
+  const arsYearTotal = arsMonthly.reduce((a, b) => a + b, 0);
+  const usdYearTotal = usdMonthly.reduce((a, b) => a + b, 0);
+
+  // --- Annual expenses from maintenance tasks ---
+  const annualExpensesUSD = maintenanceTasks.reduce((acc, task) => {
     const cost = task.cost || task.estimatedCost || 0;
     return acc + cost;
   }, 0);
 
-  const netIncome = totalRentIncome - allExpenses;
+  // --- Net balance ---
+  const arsYearNet = arsYearTotal; // expenses are in USD for now
+  const usdYearNet = usdYearTotal - annualExpensesUSD;
 
-  // 2. Prepare Per-Property Data
+  // --- Per-property financials ---
   const propertyFinancials = properties.map(p => {
-    // Find expenses for this property (USD)
     const propTasks = maintenanceTasks.filter(t => t.propertyId === p.id);
-    const propExpenses = propTasks.reduce((acc, t) => {
-      const cost = t.cost || t.estimatedCost || 0;
-      return acc + cost;
-    }, 0);
-
-    // Convert Rent to USD for Net Result Calculation
-    const rentInUsd = convertCurrency(p.monthlyRent, p.currency || 'ARS', 'USD');
+    const propExpenses = propTasks.reduce((acc, t) => acc + (t.cost || t.estimatedCost || 0), 0);
+    const currency = p.currency || 'ARS';
+    const rentInUsd = currency === 'USD' ? p.monthlyRent : convertCurrency(p.monthlyRent, currency, 'USD');
     const net = rentInUsd - propExpenses;
-
-    return {
-      ...p,
-      expenses: propExpenses,
-      netResult: net,
-      rentInUsd
-    };
+    return { ...p, expenses: propExpenses, netResult: net, rentInUsd };
   });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24 relative">
-      <header>
-        <h2 className="text-3xl font-bold text-gray-900">Bitácora Financiera</h2>
-        <p className="text-gray-500">Balance del mes en curso (Expresado en USD).</p>
+      <header className="flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Bitácora Financiera</h2>
+          <p className="text-gray-500">Ingresos anuales separados por moneda — Año {selectedYear}.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSelectedYear(y => y - 1)}
+            className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <span className="text-lg font-bold text-gray-900 tabular-nums w-16 text-center">{selectedYear}</span>
+          <button
+            onClick={() => setSelectedYear(y => y + 1)}
+            disabled={selectedYear >= currentYear}
+            className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-30"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
       </header>
 
-      {/* Global Dashboard Cards */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Ingresos */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
-          <div className="flex items-center gap-2 text-green-600 mb-2">
-            <TrendingUp className="w-5 h-5" />
-            <span className="text-sm font-bold uppercase">Ingresos Totales (USD)</span>
+      {/* === SUMMARY CARDS === */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 text-blue-600 mb-1">
+            <DollarSign className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase">Ingreso Anual ARS</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{formatCurrency(totalRentIncome, 'USD')}</p>
-          <p className="text-xs text-gray-400 mt-1">Suma de alquileres vigentes</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</p>
+          <p className="text-xs text-gray-400 mt-1">{arsProperties.length} propiedad{arsProperties.length !== 1 ? 'es' : ''}</p>
         </div>
-
-        {/* Gastos */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
-          <div className="flex items-center gap-2 text-red-600 mb-2">
-            <Hammer className="w-5 h-5" />
-            <span className="text-sm font-bold uppercase">Gastos Mantenimiento (USD)</span>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 text-green-600 mb-1">
+            <DollarSign className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase">Ingreso Anual USD</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{formatCurrency(allExpenses, 'USD')}</p>
-          <p className="text-xs text-gray-400 mt-1">Reparaciones y obras activas</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(usdYearTotal, 'USD')}</p>
+          <p className="text-xs text-gray-400 mt-1">{usdProperties.length} propiedad{usdProperties.length !== 1 ? 'es' : ''}</p>
         </div>
-
-        {/* Balance Neto */}
-        <div className="bg-gray-900 p-6 rounded-3xl shadow-lg border border-gray-800 flex flex-col justify-between text-white">
-          <div className="flex items-center gap-2 text-blue-300 mb-2">
-            <DollarSign className="w-5 h-5" />
-            <span className="text-sm font-bold uppercase">Balance Neto (USD)</span>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 text-red-600 mb-1">
+            <Hammer className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase">Gastos Anuales</span>
           </div>
-          <p className="text-3xl font-bold">{formatCurrency(netIncome, 'USD')}</p>
-          <p className="text-xs text-gray-400 mt-1">Disponible en caja</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(annualExpensesUSD, 'USD')}</p>
+          <p className="text-xs text-gray-400 mt-1">Mantenimiento y obras</p>
+        </div>
+        <div className="bg-gray-900 p-5 rounded-2xl shadow-lg text-white">
+          <div className="flex items-center gap-2 text-blue-300 mb-1">
+            <TrendingUp className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase">Balance Neto USD</span>
+          </div>
+          <p className={`text-2xl font-bold ${usdYearNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {formatCurrency(usdYearNet, 'USD')}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Ingresos USD − Gastos</p>
         </div>
       </section>
 
-      {/* Detailed Table per Property */}
+      {/* === MONTHLY GRID: ARS === */}
+      {arsProperties.length > 0 && (
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+                Ingresos Mensuales — ARS
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en pesos argentinos por mes</p>
+            </div>
+            <span className="text-xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</span>
+          </div>
+          <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
+            {arsMonthly.map((amount, i) => {
+              const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
+              return (
+                <div key={i} className={`p-3 text-center ${isCurrent ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}>
+                  <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
+                  <p className={`text-sm font-bold mt-1 ${isCurrent ? 'text-blue-700' : 'text-gray-700'}`}>
+                    {amount > 0 ? formatCurrency(amount, 'ARS') : '—'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* === MONTHLY GRID: USD === */}
+      {usdProperties.length > 0 && (
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
+                Ingresos Mensuales — USD
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en dólares americanos por mes</p>
+            </div>
+            <span className="text-xl font-bold text-gray-900">{formatCurrency(usdYearTotal, 'USD')}</span>
+          </div>
+          <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
+            {usdMonthly.map((amount, i) => {
+              const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
+              return (
+                <div key={i} className={`p-3 text-center ${isCurrent ? 'bg-green-50' : 'hover:bg-gray-50'} transition-colors`}>
+                  <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-green-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
+                  <p className={`text-sm font-bold mt-1 ${isCurrent ? 'text-green-700' : 'text-gray-700'}`}>
+                    {amount > 0 ? formatCurrency(amount, 'USD') : '—'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* === PROPERTY DETAIL TABLE === */}
       <section>
         <h3 className="text-xl font-bold text-gray-900 mb-4">Detalle por Inmueble</h3>
         <p className="text-xs text-gray-400 mb-4">Haga clic en una fila para ver el desglose detallado.</p>
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
                   <th className="p-5 font-semibold">Propiedad / Inquilino</th>
+                  <th className="p-5 font-semibold">Moneda</th>
                   <th className="p-5 font-semibold">Estado</th>
-                  <th className="p-5 font-semibold text-right text-green-700">Ingreso (Alquiler)</th>
-                  <th className="p-5 font-semibold text-right text-red-700">Gastos (Obras)</th>
-                  <th className="p-5 font-semibold text-right">Resultado Neto (USD)</th>
+                  <th className="p-5 font-semibold text-right text-green-700">Alquiler Mensual</th>
+                  <th className="p-5 font-semibold text-right text-red-700">Gastos</th>
+                  <th className="p-5 font-semibold text-right">Neto (USD)</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
@@ -501,11 +592,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
                   >
                     <td className="p-5">
-                      <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors flex items-center gap-2">
-                        {item.address}
-                        <span className="text-[10px] bg-gray-200 text-gray-600 px-1 rounded">{item.country || 'ARG'}</span>
-                      </div>
+                      <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{item.address}</div>
                       <div className="text-gray-500 text-xs">{item.tenantName}</div>
+                    </td>
+                    <td className="p-5">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${(item.currency || 'ARS') === 'USD' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                        {item.currency || 'ARS'}
+                      </span>
                     </td>
                     <td className="p-5">
                       {item.status === PropertyStatus.CURRENT && <span className="text-green-600 font-bold text-xs bg-green-100 px-2 py-1 rounded-full">Al Día</span>}
@@ -514,14 +608,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     </td>
                     <td className="p-5 text-right font-medium text-gray-700">
                       <div>{formatCurrency(item.monthlyRent, item.currency || 'ARS')}</div>
-                      {item.currency !== 'USD' && (
-                        <div className="text-xs text-gray-400">
-                          {formatCurrency(item.rentInUsd, 'USD')}
-                        </div>
+                      {(item.currency || 'ARS') !== 'USD' && (
+                        <div className="text-xs text-gray-400">≈ {formatCurrency(item.rentInUsd, 'USD')}</div>
                       )}
                     </td>
                     <td className="p-5 text-right font-medium text-red-600">
-                      {item.expenses > 0 ? `- ${formatCurrency(item.expenses, 'USD')}` : '-'}
+                      {item.expenses > 0 ? `- ${formatCurrency(item.expenses, 'USD')}` : '—'}
                     </td>
                     <td className="p-5 text-right">
                       <span className={`font-bold ${item.netResult > 0 ? 'text-green-700' : 'text-red-600'}`}>
@@ -533,15 +625,16 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               </tbody>
             </table>
           </div>
-          {/* Summary Footer in Table */}
           <div className="bg-gray-50 p-5 flex justify-end gap-8 border-t border-gray-200">
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase">Total Gastos</p>
-              <p className="font-bold text-red-600">{formatCurrency(allExpenses, 'USD')}</p>
+              <p className="font-bold text-red-600">{formatCurrency(annualExpensesUSD, 'USD')}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase">Resultado Final</p>
-              <p className="font-bold text-gray-900 text-lg">{formatCurrency(netIncome, 'USD')}</p>
+              <p className="text-xs text-gray-500 uppercase">Balance Neto USD</p>
+              <p className={`font-bold text-lg ${usdYearNet >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {formatCurrency(usdYearNet, 'USD')}
+              </p>
             </div>
           </div>
         </div>
@@ -551,6 +644,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
       {selectedFinancialProperty && (
         <FinancialDetailsCard
           property={selectedFinancialProperty}
+          maintenanceTasks={maintenanceTasks}
+          professionals={professionals}
           onClose={handleCloseDetail}
         />
       )}

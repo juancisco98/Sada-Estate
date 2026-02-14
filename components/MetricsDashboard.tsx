@@ -1,100 +1,123 @@
 import React from 'react';
+import { Property, Professional, MaintenanceTask, PropertyStatus } from '../types';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { MOCK_PROFESSIONALS } from '../constants';
-import { Professional } from '../types';
+import { X, TrendingUp, Clock, Users } from 'lucide-react';
+import { formatCurrency, convertCurrency } from '../utils/currency';
 
-const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-white p-3 border border-gray-200 shadow-xl rounded-lg">
-        <p className="font-bold text-gray-800">{data.name}</p>
-        <p className="text-sm text-gray-600">{data.profession}</p>
-        <div className="mt-2 text-xs">
-           <p>Calidad: <b>{data.rating}</b></p>
-           <p>Rapidez: <b>{data.speedRating}</b></p>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
+interface MetricsDashboardProps {
+  properties: Property[];
+  professionals: Professional[];
+  maintenanceTasks: MaintenanceTask[];
+  onClose: () => void;
+}
 
-const MetricsDashboard: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ properties, professionals, maintenanceTasks, onClose }) => {
+
+  // Calculate live metrics
+  const totalMonthlyIncome = properties.reduce((acc, p) => {
+    return acc + convertCurrency(p.monthlyRent, p.currency || 'ARS', 'USD');
+  }, 0);
+
+  const propertiesCount = properties.length;
+  const lateCount = properties.filter(p => p.status === PropertyStatus.LATE).length;
+  const delinquencyRate = propertiesCount > 0 ? Math.round((lateCount / propertiesCount) * 100) : 0;
+
+  const activeMaintenanceCount = maintenanceTasks.filter(t => t.status === 'IN_PROGRESS').length;
+
+  // Scatter data for professional ratings
+  const chartData = professionals
+    .filter(p => p.rating > 0)
+    .map(p => ({
+      name: p.name,
+      quality: p.rating,
+      speed: p.speedRating || p.rating,
+      profession: p.profession,
+    }));
+
+  const getColor = (quality: number, speed: number) => {
+    const avg = (quality + speed) / 2;
+    if (avg >= 4.5) return '#10B981';
+    if (avg >= 3.5) return '#3B82F6';
+    if (avg >= 2.5) return '#F59E0B';
+    return '#EF4444';
+  };
+
   return (
-    <div className="fixed inset-0 bg-gray-50 z-[1050] overflow-y-auto animate-in fade-in duration-300">
-      <div className="max-w-4xl mx-auto p-6 pb-24">
-        <header className="flex justify-between items-center mb-8 sticky top-0 bg-gray-50/95 backdrop-blur py-4 z-10 border-b border-gray-200">
-           <div>
-             <h1 className="text-3xl font-bold text-gray-900">Métricas & Rentabilidad</h1>
-             <p className="text-gray-500 text-lg">Reporte consolidado</p>
-           </div>
-           <button onClick={onClose} className="bg-white p-3 rounded-full shadow-md text-gray-600 hover:bg-gray-100 border border-gray-200">
-             <span className="text-xl font-bold">✕</span>
-           </button>
-        </header>
+    <div className="fixed inset-0 z-[1200] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
 
-        {/* Financial Summary */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-             <h3 className="text-gray-400 font-medium uppercase text-sm mb-2">Ingresos este mes</h3>
-             <div className="flex items-baseline gap-2">
-               <span className="text-4xl font-bold text-gray-900">$1.930.000</span>
-               <span className="text-green-600 font-medium text-sm">▲ 12% vs mes anterior</span>
-             </div>
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Métricas Generales</h2>
+            <p className="text-sm text-gray-500">Resumen operativo en tiempo real</p>
           </div>
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-             <h3 className="text-gray-400 font-medium uppercase text-sm mb-2">Morosidad Global</h3>
-             <div className="flex items-baseline gap-2">
-               <span className="text-4xl font-bold text-red-600">18 días</span>
-               <span className="text-gray-500 font-medium text-sm">Promedio cartera</span>
-             </div>
-          </div>
-        </section>
-
-        {/* Professionals Matrix */}
-        <section className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-10">
-           <h2 className="text-xl font-bold text-gray-900 mb-6">Matriz de Profesionales: Calidad vs. Rapidez</h2>
-           <div className="h-80 w-full">
-             <ResponsiveContainer width="100%" height="100%">
-               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                 <XAxis 
-                    type="number" 
-                    dataKey="speedRating" 
-                    name="Rapidez" 
-                    domain={[0, 5]} 
-                    label={{ value: 'Rapidez (1-5)', position: 'bottom', offset: 0 }}
-                    tick={{fill: '#6b7280'}}
-                 />
-                 <YAxis 
-                    type="number" 
-                    dataKey="rating" 
-                    name="Calidad" 
-                    domain={[0, 5]} 
-                    label={{ value: 'Calidad (1-5)', angle: -90, position: 'left' }}
-                    tick={{fill: '#6b7280'}}
-                 />
-                 <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-                 <Scatter name="Profesionales" data={MOCK_PROFESSIONALS} fill="#3b82f6">
-                    {MOCK_PROFESSIONALS.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.rating > 4.5 ? '#16a34a' : entry.rating < 3 ? '#dc2626' : '#facc15'} />
-                    ))}
-                 </Scatter>
-               </ScatterChart>
-             </ResponsiveContainer>
-           </div>
-           <p className="text-sm text-gray-400 mt-4 text-center">Tamaño de burbuja: Nivel de confianza. Color: Performance General.</p>
-        </section>
-
-        {/* Action Button */}
-        <div className="flex justify-center">
-          <button className="flex items-center gap-3 bg-gray-900 text-white px-8 py-4 rounded-2xl hover:bg-gray-800 transition-colors shadow-lg">
-             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-             </svg>
-             <span className="font-semibold text-lg">Generar Reporte Contador (PDF)</span>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors">
+            <X className="w-5 h-5" />
           </button>
+        </div>
+
+        <div className="p-6 space-y-6 overflow-y-auto">
+          {/* KPI Row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-green-50 p-4 rounded-2xl border border-green-100 text-center">
+              <TrendingUp className="w-5 h-5 mx-auto text-green-600 mb-1" />
+              <p className="text-xs text-green-600 font-bold uppercase">Ingreso Mensual</p>
+              <p className="text-lg font-bold text-gray-900">{formatCurrency(totalMonthlyIncome, 'USD')}</p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-2xl border border-red-100 text-center">
+              <Clock className="w-5 h-5 mx-auto text-red-600 mb-1" />
+              <p className="text-xs text-red-600 font-bold uppercase">Mora</p>
+              <p className="text-lg font-bold text-gray-900">{delinquencyRate}%</p>
+              <p className="text-[10px] text-gray-400">{lateCount} de {propertiesCount}</p>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 text-center">
+              <Users className="w-5 h-5 mx-auto text-orange-600 mb-1" />
+              <p className="text-xs text-orange-600 font-bold uppercase">Obras Activas</p>
+              <p className="text-lg font-bold text-gray-900">{activeMaintenanceCount}</p>
+            </div>
+          </div>
+
+          {/* Professional Scatter Chart */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-2">Mapa de Rendimiento Profesional</h3>
+            <p className="text-xs text-gray-400 mb-4">Calidad vs. Rapidez (solo profesionales calificados)</p>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" dataKey="speed" name="Rapidez" domain={[0, 5]} tick={{ fontSize: 10 }} label={{ value: 'Rapidez', position: 'bottom', fontSize: 10 }} />
+                  <YAxis type="number" dataKey="quality" name="Calidad" domain={[0, 5]} tick={{ fontSize: 10 }} label={{ value: 'Calidad', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+                  <Tooltip
+                    cursor={{ strokeDasharray: '3 3' }}
+                    content={({ active, payload }) => {
+                      if (active && payload?.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 rounded-xl shadow-lg border text-xs">
+                            <p className="font-bold text-gray-900">{d.name}</p>
+                            <p className="text-gray-500">{d.profession}</p>
+                            <p className="text-green-600">Calidad: {d.quality.toFixed(1)}</p>
+                            <p className="text-blue-600">Rapidez: {d.speed.toFixed(1)}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Scatter data={chartData}>
+                    {chartData.map((entry, i) => (
+                      <Cell key={i} fill={getColor(entry.quality, entry.speed)} r={8} />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <p className="text-sm">Sin profesionales calificados aún.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

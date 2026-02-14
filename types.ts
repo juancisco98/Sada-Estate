@@ -5,23 +5,22 @@ export enum PropertyStatus {
   WARNING = 'WARNING', // Próximo a vencer / Vacante (Amarillo)
 }
 
-export interface TaxInfo {
-  // Argentina
-  abl?: number; // Alumbrado, Barrido y Limpieza (ARS)
-  rentas?: number; // Impuesto Inmobiliario (ARS)
-  water?: number; // AySA / Aguas (ARS)
-  // USA
-  propertyTax?: number; // Annual Property Tax / 12 (USD)
-  hoa?: number; // Homeowners Association (USD)
-  insurance?: number; // Property Insurance (USD)
-}
-
 export interface User {
   id: string;
   name: string;
   email: string;
   color: string; // Hex color for visual differentiation
   password?: string; // Simple mock password
+}
+
+export interface Building {
+  id: string;
+  address: string;
+  coordinates: [number, number];
+  country: string;
+  currency: string;
+  imageUrl?: string;
+  notes?: string;
 }
 
 export interface Property {
@@ -35,19 +34,39 @@ export interface Property {
   coordinates: [number, number]; // Lat, Lng
   contractEnd: string;
   lastPaymentDate: string;
-  assignedProfessionalId?: string; // Nuevo: Profesional asignado
-  professionalAssignedDate?: string; // Nuevo: Fecha de inicio de asignación/obra
-  maintenanceTaskDescription?: string; // Nuevo: Descripción de la tarea (ej: Pintura, Gas)
-  notes?: string; // Nuevo: Notas recordatorias del propietario
-  valuation?: number; // Valor estimado de venta
-  taxInfo?: TaxInfo; // Nuevo: Información de impuestos
-  suggestedRent?: number; // Nuevo: Alquiler sugerido por IA
-  lastModifiedBy?: string; // ID del usuario que modificó por última vez
-  rooms?: number; // Nuevo: Cantidad de ambientes
-  squareMeters?: number; // Nuevo: Metros cuadrados totales
-  country: string; // Nuevo: País de la propiedad (ej: 'Argentina', 'USA')
-  currency: string; // Nuevo: Moneda local (ej: 'ARS', 'USD')
-  exchangeRate?: number; // Nuevo: Tipo de cambio específico (opcional)
+  assignedProfessionalId?: string;
+  professionalAssignedDate?: string;
+  maintenanceTaskDescription?: string;
+  notes?: string;
+  lastModifiedBy?: string;
+  rooms?: number;
+  squareMeters?: number;
+  country: string;
+  currency: string;
+  exchangeRate?: number;
+  // Building / Unit
+  buildingId?: string;
+  unitLabel?: string;
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  propertyId: string | null;
+}
+
+export interface TenantPayment {
+  id: string;
+  tenantId: string;
+  propertyId: string | null;
+  amount: number;
+  currency: string;
+  month: number; // 1-12
+  year: number;
+  paidOnTime: boolean;
+  paymentDate: string;
 }
 
 export interface Professional {
@@ -86,8 +105,8 @@ export interface MaintenanceTask {
 export interface ExpenseLog {
   id: string;
   propertyId: string;
-  professionalId?: string; // Optional if generic expense
-  professionalName?: string; // For display if ID not found immediately
+  professionalId?: string;
+  professionalName?: string;
   amount: number;
   description: string;
   date: string;
@@ -96,14 +115,14 @@ export interface ExpenseLog {
 
 export type VoiceIntent =
   | 'REGISTER_EXPENSE'
-  | 'UPDATE_PROPERTY' // Create/Edit/Delete logic
+  | 'UPDATE_PROPERTY'
   | 'CALL_CONTACT'
   | 'NAVIGATE'
   | 'SEARCH_MAP'
   | 'GENERAL_QUERY'
-  | 'EXPLAIN_SCREEN' // Context aware help
-  | 'SELECT_ITEM' // Select a property or pro by name
-  | 'STOP_LISTENING' // Exit command
+  | 'EXPLAIN_SCREEN'
+  | 'SELECT_ITEM'
+  | 'STOP_LISTENING'
   | 'UNKNOWN';
 
 export interface VoiceCommandResponse {
@@ -111,44 +130,29 @@ export interface VoiceCommandResponse {
   responseText: string;
   requiresFollowUp?: boolean;
   data?: {
-    // Shared / Context
     propertyId?: string;
     professionalId?: string;
-
-    // Search / Select
     searchQuery?: string;
     itemType?: 'PROPERTY' | 'PROFESSIONAL';
-
-    // Forms / Modals
-    targetView?: 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'ADD_PROPERTY_MODAL' | 'ADD_PRO_MODAL';
-
-    // Expense
+    targetView?: 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS' | 'ADD_PROPERTY_MODAL' | 'ADD_PRO_MODAL';
     amount?: number;
     description?: string;
-
-    // Actions & Updates
     actionType?:
     | 'CHANGE_RENT'
     | 'ASSIGN_PROFESSIONAL'
     | 'CHANGE_TENANT'
     | 'CREATE_NOTE'
-    | 'SET_VALUE' // Generic field update
-    | 'FINISH_MAINTENANCE' // Finish maintenance task
-    | 'CREATE_NEW'; // For creating new entities
-
-    // Data Payloads
+    | 'SET_VALUE'
+    | 'FINISH_MAINTENANCE'
+    | 'CREATE_NEW';
     newRent?: number;
     newTenant?: string;
     professionalName?: string;
     noteContent?: string;
-    field?: string; // Field to update
-    value?: string | number | boolean; // Value to set
-
-    // Call specific
+    field?: string;
+    value?: string | number | boolean;
     phoneNumber?: string;
     contactName?: string;
-
-    // Geocoding support
     coordinates?: [number, number];
     address?: string;
   };

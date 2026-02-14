@@ -1,20 +1,21 @@
 import React from 'react';
-import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut } from 'lucide-react';
+import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck } from 'lucide-react';
 
-export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS';
+export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   currentView: ViewState;
   onNavigate: (view: ViewState) => void;
-  onLogout?: () => void; // New optional prop for logout
+  onLogout?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavigate, onLogout }) => {
   const menuItems = [
     { id: 'MAP', label: 'Mapa Interactivo', icon: MapIcon },
     { id: 'OVERVIEW', label: 'Visión General', icon: LayoutDashboard },
+    { id: 'TENANTS', label: 'Inquilinos', icon: UserCheck },
     { id: 'FINANCE', label: 'Finanzas', icon: Wallet },
     { id: 'PROFESSIONALS', label: 'Profesionales', icon: Users },
   ];
@@ -52,8 +53,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
                   onClose();
                 }}
                 className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 ${isActive
-                    ? 'bg-blue-50 text-blue-700 shadow-sm font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-blue-50 text-blue-700 shadow-sm font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
               >
                 <item.icon className={`w-6 h-6 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />

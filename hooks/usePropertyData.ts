@@ -1,7 +1,29 @@
 import { useState, useEffect } from 'react';
-import { Property, Professional, PropertyStatus, MaintenanceTask, TaskStatus } from '../types';
+import { Property, Professional, PropertyStatus, MaintenanceTask, TaskStatus, Building } from '../types';
 import { MOCK_PROPERTIES, MOCK_PROFESSIONALS, MOCK_MAINTENANCE_TASKS } from '../constants';
 import { supabase } from '../services/supabaseClient';
+
+// ========== BUILDING MAPPERS ==========
+
+const dbToBuilding = (row: any): Building => ({
+    id: row.id,
+    address: row.address,
+    coordinates: row.coordinates as [number, number],
+    country: row.country,
+    currency: row.currency,
+    imageUrl: row.image_url,
+    notes: row.notes,
+});
+
+const buildingToDb = (b: Building): Record<string, any> => ({
+    id: b.id,
+    address: b.address,
+    coordinates: b.coordinates,
+    country: b.country,
+    currency: b.currency,
+    image_url: b.imageUrl || null,
+    notes: b.notes || null,
+});
 
 // ========== MAPPERS: DB (snake_case) <-> App (camelCase) ==========
 
@@ -20,15 +42,14 @@ const dbToProperty = (row: any): Property => ({
     professionalAssignedDate: row.professional_assigned_date,
     maintenanceTaskDescription: row.maintenance_task_description,
     notes: row.notes,
-    valuation: row.valuation ? Number(row.valuation) : undefined,
-    taxInfo: row.tax_info,
-    suggestedRent: row.suggested_rent ? Number(row.suggested_rent) : undefined,
     lastModifiedBy: row.last_modified_by,
     rooms: row.rooms,
     squareMeters: row.square_meters ? Number(row.square_meters) : undefined,
     country: row.country,
     currency: row.currency,
     exchangeRate: row.exchange_rate ? Number(row.exchange_rate) : undefined,
+    buildingId: row.building_id || undefined,
+    unitLabel: row.unit_label || undefined,
 });
 
 const propertyToDb = (p: Property): Record<string, any> => ({
@@ -46,15 +67,14 @@ const propertyToDb = (p: Property): Record<string, any> => ({
     professional_assigned_date: p.professionalAssignedDate || null,
     maintenance_task_description: p.maintenanceTaskDescription || null,
     notes: p.notes || null,
-    valuation: p.valuation || 0,
-    tax_info: p.taxInfo || {},
-    suggested_rent: p.suggestedRent || null,
     last_modified_by: p.lastModifiedBy || null,
     rooms: p.rooms || null,
     square_meters: p.squareMeters || null,
     country: p.country,
     currency: p.currency,
     exchange_rate: p.exchangeRate || null,
+    building_id: p.buildingId || null,
+    unit_label: p.unitLabel || '',
 });
 
 const dbToProfessional = (row: any): Professional => ({
@@ -109,6 +129,7 @@ export const usePropertyData = (currentUserId?: string) => {
     const [properties, setProperties] = useState<Property[]>([]);
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>([]);
+    const [buildings, setBuildings] = useState<Building[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Load all data from Supabase on mount
@@ -180,6 +201,17 @@ export const usePropertyData = (currentUserId?: string) => {
                 } else {
                     console.log('[Supabase] 📦 No tasks found (starting fresh)');
                     setMaintenanceTasks([]);
+                }
+
+                // Load buildings
+                const { data: buildingsData } = await supabase
+                    .from('buildings')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+
+                if (buildingsData && buildingsData.length > 0) {
+                    setBuildings(buildingsData.map(dbToBuilding));
+                    console.log(`[Supabase] ✅ Loaded ${buildingsData.length} buildings`);
                 }
 
             } catch (error) {
@@ -458,15 +490,14 @@ export const usePropertyData = (currentUserId?: string) => {
         ));
 
         try {
-            // Convert camelCase updates to snake_case for DB
             const dbUpdates: Record<string, any> = {};
             if (updates.monthlyRent !== undefined) dbUpdates.monthly_rent = updates.monthlyRent;
             if (updates.tenantName !== undefined) dbUpdates.tenant_name = updates.tenantName;
             if (updates.tenantPhone !== undefined) dbUpdates.tenant_phone = updates.tenantPhone;
             if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
             if (updates.status !== undefined) dbUpdates.status = updates.status;
-            if (updates.suggestedRent !== undefined) dbUpdates.suggested_rent = updates.suggestedRent;
-            if (updates.taxInfo !== undefined) dbUpdates.tax_info = updates.taxInfo;
+            if (updates.buildingId !== undefined) dbUpdates.building_id = updates.buildingId;
+            if (updates.unitLabel !== undefined) dbUpdates.unit_label = updates.unitLabel;
             dbUpdates.last_modified_by = currentUserId || null;
 
             const { error } = await supabase
@@ -480,10 +511,47 @@ export const usePropertyData = (currentUserId?: string) => {
         }
     };
 
+    // ========== BUILDING CRUD ==========
+
+    const handleSaveBuilding = async (building: Building) => {
+        setBuildings(prev => {
+            const exists = prev.find(b => b.id === building.id);
+            if (exists) return prev.map(b => b.id === building.id ? building : b);
+            return [...prev, building];
+        });
+
+        try {
+            const { error } = await supabase
+                .from('buildings')
+                .upsert(buildingToDb(building), { onConflict: 'id' });
+            if (error) console.error('[Supabase] ❌ Error saving building:', error);
+            else console.log(`[Supabase] ✅ Building saved: ${building.address}`);
+        } catch (err) {
+            console.error('[Supabase] ❌ Exception saving building:', err);
+        }
+    };
+
+    const handleDeleteBuilding = async (buildingId: string) => {
+        setBuildings(prev => prev.filter(b => b.id !== buildingId));
+        // Unlink properties
+        setProperties(prev => prev.map(p =>
+            p.buildingId === buildingId ? { ...p, buildingId: undefined, unitLabel: undefined } : p
+        ));
+
+        try {
+            await supabase.from('properties').update({ building_id: null, unit_label: '' }).eq('building_id', buildingId);
+            const { error } = await supabase.from('buildings').delete().eq('id', buildingId);
+            if (error) console.error('[Supabase] ❌ Error deleting building:', error);
+        } catch (err) {
+            console.error('[Supabase] ❌ Exception deleting building:', err);
+        }
+    };
+
     return {
         properties,
         professionals,
         maintenanceTasks,
+        buildings,
         isLoading,
         handleSaveProperty,
         handleUpdateNote,
@@ -492,6 +560,8 @@ export const usePropertyData = (currentUserId?: string) => {
         handleFinishMaintenance,
         updatePropertyFields,
         handleDeleteProfessional,
-        handleDeleteProperty
+        handleDeleteProperty,
+        handleSaveBuilding,
+        handleDeleteBuilding,
     };
 };

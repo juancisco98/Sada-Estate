@@ -26,6 +26,22 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const recognitionRef = useRef<any>(null);
 
+  // Refs to hold latest values without triggering useEffect re-runs
+  const propertiesRef = useRef(properties);
+  const professionalsRef = useRef(professionals);
+  const onIntentRef = useRef(onIntent);
+  const chatHistoryRef = useRef(chatHistory);
+  const currentViewRef = useRef(currentView);
+  const selectedItemRef = useRef(selectedItem);
+
+  // Keep refs in sync with props/state
+  useEffect(() => { propertiesRef.current = properties; }, [properties]);
+  useEffect(() => { professionalsRef.current = professionals; }, [professionals]);
+  useEffect(() => { onIntentRef.current = onIntent; }, [onIntent]);
+  useEffect(() => { chatHistoryRef.current = chatHistory; }, [chatHistory]);
+  useEffect(() => { currentViewRef.current = currentView; }, [currentView]);
+  useEffect(() => { selectedItemRef.current = selectedItem; }, [selectedItem]);
+
   // Improved Speak function with Callback
   const speak = (text: string, onEnd?: () => void) => {
     if ('speechSynthesis' in window) {
@@ -64,6 +80,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
+  // Initialize SpeechRecognition ONCE on mount
   useEffect(() => {
     const windowObj = window as unknown as IWindow;
     const SpeechRecognition = windowObj.SpeechRecognition || windowObj.webkitSpeechRecognition;
@@ -88,18 +105,21 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         setTranscript(text);
         setIsProcessing(true);
 
+        // Read latest values from refs (avoids stale closures)
+        const currentHistory = chatHistoryRef.current;
+
         // 1. Update History
-        const updatedHistory: ChatMessage[] = [...chatHistory, { role: 'user', content: text }];
+        const updatedHistory: ChatMessage[] = [...currentHistory, { role: 'user', content: text }];
         setChatHistory(updatedHistory);
 
         // 2. Get Intent from AI with FULL CONTEXT
         const result = await parseVoiceCommand(
           text,
-          properties,
-          professionals,
+          propertiesRef.current,
+          professionalsRef.current,
           updatedHistory,
-          currentView,
-          selectedItem
+          currentViewRef.current,
+          selectedItemRef.current
         );
 
         setIsProcessing(false);
@@ -124,12 +144,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
           // Execute Action via Parent
           setTimeout(() => {
-            onIntent(result);
+            onIntentRef.current(result);
 
-            // Auto-clear history on successful "Terminal" actions (Navigation, Search, etc)
-            // We keep history if it's a conversation or query
-            // Auto-clear history on successful "Terminal" actions (Navigation, Search, etc)
-            // We keep history if it's a conversation or query
+            // Auto-clear history on successful "Terminal" actions
             if (['NAVIGATE', 'SEARCH_MAP', 'SELECT_ITEM', 'REGISTER_EXPENSE', 'UPDATE_PROPERTY', 'STOP_LISTENING'].includes(result.intent)) {
               setChatHistory([]);
             }
@@ -151,7 +168,13 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       recognitionRef.current = recognition;
     }
-  }, [properties, professionals, onIntent, chatHistory, currentView, selectedItem]);
+
+    return () => {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch (_) { }
+      }
+    };
+  }, []); // Empty dependency array — initialize ONCE
 
   const toggleListening = () => {
     if (isListening) {

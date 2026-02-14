@@ -12,6 +12,7 @@ import AddProfessionalModal from './components/AddProfessionalModal';
 import AssignProfessionalModal from './components/AssignProfessionalModal';
 import { Property, Professional } from './types';
 import { usePropertyData } from './hooks/usePropertyData';
+import { useTenantData } from './hooks/useTenantData';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useVoiceNavigation } from './hooks/useVoiceNavigation';
 import { useSearch } from './hooks/useSearch';
@@ -20,6 +21,7 @@ import { useSearch } from './hooks/useSearch';
 const OverviewView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.OverviewView })));
 const FinanceView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.FinanceView })));
 const ProfessionalsView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.ProfessionalsView })));
+const TenantsView = lazy(() => import('./components/TenantsView'));
 
 const App: React.FC = () => {
   // Auth State
@@ -33,6 +35,7 @@ const App: React.FC = () => {
   const {
     properties,
     professionals,
+    buildings,
     handleSaveProperty: savePropertyData,
     handleUpdateNote: updateNoteData,
     handleSaveProfessional: saveProfessionalData,
@@ -41,9 +44,20 @@ const App: React.FC = () => {
     updatePropertyFields,
     handleDeleteProfessional,
     handleDeleteProperty,
+    handleSaveBuilding,
     maintenanceTasks,
     isLoading
   } = usePropertyData(currentUser?.email || currentUser?.name);
+
+  // Tenant Data
+  const {
+    tenants,
+    payments,
+    handleSaveTenant,
+    handleDeleteTenant,
+    handleRegisterPayment,
+    getTenantMetrics,
+  } = useTenantData();
 
   // Selection State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -223,6 +237,7 @@ const App: React.FC = () => {
               <Suspense fallback={<div className="p-10 text-center">Cargando finanzas...</div>}>
                 <FinanceView
                   properties={properties}
+                  professionals={professionals}
                   maintenanceTasks={maintenanceTasks}
                   preSelectedProperty={financialPropertyToOpen}
                   onClearPreSelection={() => setFinancialPropertyToOpen(null)}
@@ -242,6 +257,24 @@ const App: React.FC = () => {
                   onAddProfessional={() => setShowAddProModal(true)}
                   onAssignProfessional={(pro) => setAssigningProfessional(pro)}
                   onDeleteProfessional={handleDeleteProfessional}
+                />
+              </Suspense>
+            </div>
+          </div>
+        );
+      case 'TENANTS':
+        return (
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50">
+            <div className="max-w-7xl mx-auto">
+              <Suspense fallback={<div className="p-10 text-center">Cargando inquilinos...</div>}>
+                <TenantsView
+                  tenants={tenants}
+                  payments={payments}
+                  properties={properties}
+                  onSaveTenant={handleSaveTenant}
+                  onDeleteTenant={handleDeleteTenant}
+                  onRegisterPayment={handleRegisterPayment}
+                  getTenantMetrics={getTenantMetrics}
                 />
               </Suspense>
             </div>

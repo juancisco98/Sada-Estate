@@ -1,15 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Property, PropertyStatus } from '../types';
 import { MAP_CENTER } from '../constants';
+import { formatCurrency } from '../utils/currency';
 
 // Fix Leaflet Default Icon issue in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: '',
-  iconUrl: '',
-  shadowUrl: '',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
 interface MapBoardProps {
@@ -47,6 +48,25 @@ const createCustomIcon = (property: Property) => {
     className: 'custom-marker-icon',
     iconSize: [32, 32],
     iconAnchor: [16, 32],
+  });
+};
+
+// Building group icon — larger, distinct violet icon with unit count badge
+const createBuildingIcon = (unitCount: number) => {
+  const html = `
+    <div class="relative w-10 h-10 rounded-xl shadow-lg border-[3px] border-violet-200 bg-violet-600 flex items-center justify-center transform hover:scale-110 transition-transform duration-200">
+      <div class="text-white text-sm font-bold">🏢</div>
+      <div class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border-2 border-violet-600 flex items-center justify-center">
+        <span class="text-[10px] font-black text-violet-700">${unitCount}</span>
+      </div>
+    </div>
+  `;
+
+  return L.divIcon({
+    html: html,
+    className: 'custom-building-icon',
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
   });
 };
 
@@ -119,6 +139,17 @@ const ReturnToStartButton = () => {
   );
 };
 
+// Status dot helper for building popup
+const getStatusDot = (status: PropertyStatus, hasProf: boolean) => {
+  if (hasProf) return 'bg-orange-500';
+  switch (status) {
+    case PropertyStatus.CURRENT: return 'bg-green-500';
+    case PropertyStatus.LATE: return 'bg-red-500';
+    case PropertyStatus.WARNING: return 'bg-yellow-400';
+    default: return 'bg-gray-400';
+  }
+};
+
 const MapBoard: React.FC<MapBoardProps> = ({
   properties,
   onPropertySelect,
@@ -126,6 +157,33 @@ const MapBoard: React.FC<MapBoardProps> = ({
   searchResult,
   onAddProperty
 }) => {
+  // Separate properties into standalone vs building-grouped
+  const { standalone, buildingGroups } = useMemo(() => {
+    const standalone: Property[] = [];
+    const groupMap = new Map<string, Property[]>();
+
+    properties.forEach(prop => {
+      if (prop.buildingId) {
+        const group = groupMap.get(prop.buildingId) || [];
+        group.push(prop);
+        groupMap.set(prop.buildingId, group);
+      } else {
+        standalone.push(prop);
+      }
+    });
+
+    return {
+      standalone,
+      buildingGroups: Array.from(groupMap.entries()).map(([buildingId, units]) => ({
+        buildingId,
+        units,
+        // Use the first unit's coordinates as the building pin location
+        coordinates: units[0].coordinates as [number, number],
+        address: units[0].address.split(',')[0], // Short address
+      })),
+    };
+  }, [properties]);
+
   return (
     <div className="absolute inset-0 w-full h-full z-0">
       <MapContainer
@@ -142,8 +200,8 @@ const MapBoard: React.FC<MapBoardProps> = ({
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
 
-        {/* Existing Properties */}
-        {properties.map(prop => (
+        {/* Standalone Properties (no building) */}
+        {standalone.map(prop => (
           <Marker
             key={prop.id}
             position={prop.coordinates}
@@ -152,6 +210,46 @@ const MapBoard: React.FC<MapBoardProps> = ({
               click: () => onPropertySelect(prop),
             }}
           />
+        ))}
+
+        {/* Building Groups — single pin per building with popup listing units */}
+        {buildingGroups.map(group => (
+          <Marker
+            key={`building-${group.buildingId}`}
+            position={group.coordinates}
+            icon={createBuildingIcon(group.units.length)}
+          >
+            <Popup offset={[0, -20]} closeButton={true} className="custom-popup" maxWidth={280}>
+              <div className="p-1">
+                <p className="font-bold text-gray-900 text-sm mb-1 flex items-center gap-1">
+                  🏢 {group.address}
+                </p>
+                <p className="text-[10px] text-gray-500 mb-2 uppercase font-semibold tracking-wider">
+                  {group.units.length} {group.units.length === 1 ? 'unidad' : 'unidades'}
+                </p>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {group.units.map(unit => (
+                    <button
+                      key={unit.id}
+                      onClick={() => onPropertySelect(unit)}
+                      className="w-full text-left flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors group"
+                    >
+                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusDot(unit.status, !!unit.assignedProfessionalId)}`}></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 truncate">
+                          {unit.unitLabel || unit.id.slice(0, 6)}
+                        </p>
+                        <p className="text-[10px] text-gray-500 truncate">
+                          {unit.tenantName} · {formatCurrency(unit.monthlyRent, unit.currency || 'ARS')}
+                        </p>
+                      </div>
+                      <span className="text-gray-400 group-hover:text-gray-600 text-xs">→</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Popup>
+          </Marker>
         ))}
 
         {/* Search Result Marker */}

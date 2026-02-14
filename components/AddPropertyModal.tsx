@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, User, Phone, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Sparkles, Globe, LayoutGrid, Ruler, Trash2 } from 'lucide-react';
+import { X, DollarSign, User, Phone, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, Building2, Plus, Minus } from 'lucide-react';
 import { Property, PropertyStatus } from '../types';
 import { MOCK_PROFESSIONALS } from '../constants';
 import { getTaxConfig } from '../utils/taxConfig';
-import { formatCurrency, convertCurrencyLive } from '../utils/currency';
 
 interface AddPropertyModalProps {
   address?: string;
@@ -37,8 +36,9 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 }) => {
   const isEditing = !!existingProperty;
 
-  const [isCalculating, setIsCalculating] = useState(false);
-  const [estimationSource, setEstimationSource] = useState<'ai' | 'fallback' | null>(null);
+  // Building mode state
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [unitLabels, setUnitLabels] = useState<string[]>(['']);
 
   const [formData, setFormData] = useState({
     address: address || '',
@@ -54,18 +54,9 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     rooms: '',
     squareMeters: '',
 
-    // Dynamic tax fields (stored as generic record)
-    taxValues: {} as Record<string, string>,
-
-    suggestedRent: '',
-    suggestedRentUsd: '', // For Argentina: USD equivalent
-
     // Country & Currency
     country: detectedCountry || 'Argentina',
     currency: 'ARS',
-
-    // Live rate info
-    liveArsRate: '',
   });
 
   // Mock state for document uploads
@@ -77,16 +68,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   // Initialize Data
   useEffect(() => {
     if (isEditing && existingProperty) {
-      // Build taxValues from existing taxInfo
-      const taxValues: Record<string, string> = {};
-      if (existingProperty.taxInfo) {
-        Object.entries(existingProperty.taxInfo).forEach(([key, val]) => {
-          if (val !== undefined && val !== null) {
-            taxValues[key] = val.toString();
-          }
-        });
-      }
-
       setFormData({
         address: existingProperty.address,
         tenantName: existingProperty.tenantName,
@@ -98,12 +79,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         notes: existingProperty.notes || '',
         rooms: existingProperty.rooms?.toString() || '',
         squareMeters: existingProperty.squareMeters?.toString() || '',
-        taxValues,
-        suggestedRent: existingProperty.suggestedRent?.toString() || '',
-        suggestedRentUsd: '',
         country: existingProperty.country || 'Argentina',
         currency: existingProperty.currency || 'ARS',
-        liveArsRate: '',
       });
     } else if (address) {
       const initialCountry = detectedCountry || 'Argentina';
@@ -116,7 +93,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         notes: '',
         country: initialCountry,
         currency: config.defaultRentCurrency,
-        taxValues: {},
       }));
     }
   }, [address, isEditing, existingProperty, detectedCountry]);
@@ -129,12 +105,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       ...prev,
       country: newCountry,
       currency: config.defaultRentCurrency,
-      taxValues: {}, // Clear taxes when country changes
-      suggestedRent: '',
-      suggestedRentUsd: '',
-      liveArsRate: '',
     }));
-    setEstimationSource(null);
   };
 
   const handleNumberChange = (field: string, value: string) => {
@@ -145,16 +116,10 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     }));
   };
 
-  const handleTaxValueChange = (key: string, value: string) => {
-    const cleanValue = value.replace(/[^0-9]/g, '');
-    setFormData(prev => ({
-      ...prev,
-      taxValues: {
-        ...prev.taxValues,
-        [key]: cleanValue
-      }
-    }));
-  };
+  // Building unit management
+  const addUnit = () => setUnitLabels(prev => [...prev, '']);
+  const removeUnit = (idx: number) => setUnitLabels(prev => prev.filter((_, i) => i !== idx));
+  const updateUnit = (idx: number, val: string) => setUnitLabels(prev => prev.map((u, i) => i === idx ? val : u));
 
   // Handle Local Image Upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,50 +141,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     }
   };
 
-  // AI Calculation Handler
-  const handleAICalculation = async () => {
-    const addressToQuery = formData.address || (isEditing && existingProperty ? existingProperty.address : '');
 
-    if (!addressToQuery) {
-      alert("Primero ingresa una dirección o selecciona una propiedad.");
-      return;
-    }
-
-    setIsCalculating(true);
-    try {
-      const { estimateFinancials } = await import('../services/geminiService');
-      const results = await estimateFinancials(addressToQuery, formData.country, Number(formData.rooms) || undefined, Number(formData.squareMeters) || undefined);
-
-      // Map results to taxValues based on country config
-      const newTaxValues: Record<string, string> = {};
-      taxConfig.fields.forEach(field => {
-        if (results[field.key] !== undefined) {
-          newTaxValues[field.key] = results[field.key].toString();
-        }
-      });
-
-      setFormData(prev => ({
-        ...prev,
-        taxValues: newTaxValues,
-        suggestedRent: results.suggestedRent?.toString() || '',
-        suggestedRentUsd: results.suggestedRentUsd?.toString() || '',
-        liveArsRate: results.liveArsRate?.toString() || '',
-      }));
-
-      // Track whether this came from AI or fallback
-      setEstimationSource(results.source || 'ai');
-
-      if (results.source === 'fallback') {
-        console.warn('[UI] ⚠️ Los valores mostrados son genéricos (fallback), NO de la IA. Revisa la consola para el error de Gemini.');
-      }
-
-    } catch (error: any) {
-      console.error("[UI] Error calculating:", error);
-      alert(`Error al calcular con IA: ${error?.message || 'Error desconocido'}. Revisa la consola (F12) para más detalles.`);
-    } finally {
-      setIsCalculating(false);
-    }
-  };
 
   const handleDelete = () => {
     if (isEditing && existingProperty && onDelete) {
@@ -253,12 +175,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       dateToSave = undefined;
     }
 
-    // Build taxInfo from form values
-    const taxInfo: Record<string, number> = {};
-    Object.entries(formData.taxValues).forEach(([key, val]) => {
-      taxInfo[key] = Number(val) || 0;
-    });
-
     // Validate rooms and square meters for new properties
     if (!isEditing && (!formData.rooms || !formData.squareMeters)) {
       alert('Por favor, ingresa los ambientes y metros cuadrados de la propiedad.');
@@ -280,9 +196,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       professionalAssignedDate: dateToSave,
       maintenanceTaskDescription: formData.assignedProfessionalId ? formData.maintenanceTaskDescription : undefined,
       notes: formData.notes,
-      valuation: isEditing && existingProperty ? existingProperty.valuation : 0,
-      taxInfo: taxInfo as any,
-      suggestedRent: Number(formData.suggestedRent),
       rooms: Number(formData.rooms) || undefined,
       squareMeters: Number(formData.squareMeters) || undefined,
       country: formData.country,
@@ -481,97 +394,52 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           </div>
 
-          {/* === DYNAMIC Taxes & AI Estimation Section === */}
-          <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-100 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600" /> Impuestos y Estimaciones (IA)
-              </h3>
-              <button
-                type="button"
-                onClick={handleAICalculation}
-                disabled={isCalculating}
-                className="text-white text-xs bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all flex items-center gap-1 disabled:opacity-50"
-              >
-                {isCalculating ? (
-                  <>Calculando...</>
-                ) : (
-                  <><Sparkles className="w-3 h-3" /> Calcular con IA</>
-                )}
-              </button>
-            </div>
-
-            {/* Source Indicator Badge */}
-            {estimationSource && (
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${estimationSource === 'ai'
-                ? 'bg-green-100 text-green-800 border border-green-200'
-                : 'bg-amber-100 text-amber-800 border border-amber-200'
-                }`}>
-                {estimationSource === 'ai' ? (
-                  <><Sparkles className="w-3 h-3" /> ✅ Valores calculados por IA (Gemini)</>
-                ) : (
-                  <>⚠️ Estimación genérica (la IA no respondió — revisa consola F12)</>
-                )}
+          {/* === Building Toggle === */}
+          {!isEditing && (
+            <div className="bg-violet-50 rounded-2xl p-5 border border-violet-100 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold text-violet-900 uppercase tracking-wider flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-violet-600" /> ¿Es un Edificio?
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsBuilding(!isBuilding)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${isBuilding ? 'bg-violet-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBuilding ? 'translate-x-6' : 'translate-x-0.5'}`}></span>
+                </button>
               </div>
-            )}
 
-            {/* Suggested Rent Display */}
-            {formData.suggestedRent && (
-              <div className="bg-white/80 p-3 rounded-xl border border-indigo-200 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-indigo-800 uppercase">Alquiler Sugerido</span>
-                  <span className="text-lg font-bold text-indigo-700">
-                    {getCurrencySymbol(taxConfig.taxCurrency === 'ARS' ? 'ARS' : formData.currency)}{' '}
-                    {formatNumberWithDots(formData.suggestedRent)}
-                  </span>
-                </div>
-                {/* Show USD equivalent for Argentina */}
-                {formData.country === 'Argentina' && formData.suggestedRentUsd && (
-                  <div className="flex justify-between items-center border-t border-indigo-100 pt-1">
-                    <span className="text-[10px] font-medium text-green-700 uppercase">≈ Equivalente USD</span>
-                    <span className="text-sm font-bold text-green-700">
-                      US$ {formatNumberWithDots(formData.suggestedRentUsd)}
-                    </span>
-                  </div>
-                )}
-                {formData.liveArsRate && (
-                  <p className="text-[10px] text-indigo-500 text-right">
-                    TC Oficial: 1 USD = ${formatNumberWithDots(formData.liveArsRate)} ARS
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Dynamic Tax Fields */}
-            <div className="space-y-1">
-              <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wider">
-                Impuestos en {taxConfig.taxCurrency} {taxConfig.flag}
-              </p>
-              <div className={`grid grid-cols-${taxConfig.fields.length} gap-3`}>
-                {taxConfig.fields.map(field => (
-                  <div key={field.key} className="space-y-1">
-                    <label className="text-xs font-medium text-indigo-800">{field.label}</label>
-                    <div className="relative">
-                      <span className="absolute left-2 top-2 text-indigo-400 text-xs">
-                        {getCurrencySymbol(field.currency)}
-                      </span>
+              {isBuilding && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <p className="text-xs text-violet-700">Define las unidades/departamentos de este edificio:</p>
+                  {unitLabels.map((label, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
                       <input
                         type="text"
-                        placeholder="0"
-                        className="w-full pl-7 pr-2 py-2 rounded-lg border border-indigo-200 bg-white text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                        value={formatNumberWithDots(formData.taxValues[field.key] || '')}
-                        onChange={e => handleTaxValueChange(field.key, e.target.value)}
+                        placeholder={`Ej: Depto ${idx + 1}A`}
+                        className="flex-1 px-3 py-2 rounded-lg border border-violet-200 bg-white text-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                        value={label}
+                        onChange={e => updateUnit(idx, e.target.value)}
                       />
+                      {unitLabels.length > 1 && (
+                        <button type="button" onClick={() => removeUnit(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
+                          <Minus className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addUnit}
+                    className="flex items-center gap-1 text-sm text-violet-700 font-medium hover:text-violet-900 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Agregar unidad
+                  </button>
+                </div>
+              )}
             </div>
-
-            <p className="text-[10px] text-indigo-600/70 italic leading-tight">
-              * Los valores son estimados por Inteligencia Artificial basados en la ubicación. Puedes editarlos manualmente si tienes la boleta exacta.
-            </p>
-          </div>
+          )}
 
           {/* Documentos Section */}
           <div className="space-y-3 pt-4 border-t border-gray-100">
