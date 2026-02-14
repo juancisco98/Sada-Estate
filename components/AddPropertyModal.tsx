@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, User, Phone, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, Building2, Plus, Minus } from 'lucide-react';
+import { X, DollarSign, User, Phone, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, Building2, Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Property, PropertyStatus } from '../types';
 import { MOCK_PROFESSIONALS } from '../constants';
 import { getTaxConfig } from '../utils/taxConfig';
+
+interface BuildingUnit {
+  label: string;
+  tenantName: string;
+  tenantPhone: string;
+  rooms: string;
+  squareMeters: string;
+  monthlyRent: string;
+}
 
 interface AddPropertyModalProps {
   address?: string;
@@ -38,7 +47,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
   // Building mode state
   const [isBuilding, setIsBuilding] = useState(false);
-  const [unitLabels, setUnitLabels] = useState<string[]>(['']);
+  const [buildingUnits, setBuildingUnits] = useState<BuildingUnit[]>([{ label: '', tenantName: '', tenantPhone: '', rooms: '', squareMeters: '', monthlyRent: '' }]);
+  const [expandedUnit, setExpandedUnit] = useState<number>(0);
 
   const [formData, setFormData] = useState({
     address: address || '',
@@ -117,9 +127,18 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   };
 
   // Building unit management
-  const addUnit = () => setUnitLabels(prev => [...prev, '']);
-  const removeUnit = (idx: number) => setUnitLabels(prev => prev.filter((_, i) => i !== idx));
-  const updateUnit = (idx: number, val: string) => setUnitLabels(prev => prev.map((u, i) => i === idx ? val : u));
+  const emptyUnit = (): BuildingUnit => ({ label: '', tenantName: '', tenantPhone: '', rooms: '', squareMeters: '', monthlyRent: '' });
+  const addUnit = () => {
+    setBuildingUnits(prev => [...prev, emptyUnit()]);
+    setExpandedUnit(buildingUnits.length);
+  };
+  const removeUnit = (idx: number) => {
+    setBuildingUnits(prev => prev.filter((_, i) => i !== idx));
+    if (expandedUnit >= idx && expandedUnit > 0) setExpandedUnit(expandedUnit - 1);
+  };
+  const updateUnitField = (idx: number, field: keyof BuildingUnit, val: string) => {
+    setBuildingUnits(prev => prev.map((u, i) => i === idx ? { ...u, [field]: val } : u));
+  };
 
   // Handle Local Image Upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,8 +178,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     const finalCoords = isEditing && existingProperty ? existingProperty.coordinates : coordinates || [0, 0];
     const finalId = isEditing && existingProperty ? existingProperty.id : Date.now().toString();
 
-    const status = formData.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
-
     let dateToSave = isEditing && existingProperty ? existingProperty.professionalAssignedDate : undefined;
 
     if (formData.assignedProfessionalId) {
@@ -174,6 +191,55 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     } else {
       dateToSave = undefined;
     }
+
+    // === BUILDING MODE: create one property per unit ===
+    if (isBuilding && !isEditing) {
+      const validUnits = buildingUnits.filter(u => u.label.trim());
+      if (validUnits.length === 0) {
+        alert('Agrega al menos una unidad con nombre.');
+        return;
+      }
+      for (const unit of validUnits) {
+        if (!unit.rooms || !unit.squareMeters) {
+          alert(`La unidad "${unit.label}" necesita ambientes y metros cuadrados.`);
+          return;
+        }
+        if (!unit.monthlyRent || Number(unit.monthlyRent) <= 0) {
+          alert(`La unidad "${unit.label}" necesita un valor de alquiler.`);
+          return;
+        }
+      }
+
+      const buildingId = `bld-${Date.now()}`;
+
+      validUnits.forEach((unit, idx) => {
+        const unitStatus = unit.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
+        const unitProp: Property = {
+          id: `${Date.now()}-u${idx}`,
+          address: finalAddress,
+          tenantName: unit.tenantName || 'Vacante',
+          tenantPhone: unit.tenantPhone || '-',
+          status: unitStatus,
+          monthlyRent: Number(unit.monthlyRent) || 0,
+          coordinates: finalCoords,
+          contractEnd: new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString().split('T')[0],
+          lastPaymentDate: '-',
+          imageUrl: formData.imageUrl,
+          notes: formData.notes,
+          rooms: Number(unit.rooms) || undefined,
+          squareMeters: Number(unit.squareMeters) || undefined,
+          country: formData.country,
+          currency: formData.currency,
+          buildingId: buildingId,
+          unitLabel: unit.label,
+        };
+        onSave(unitProp);
+      });
+      return;
+    }
+
+    // === NORMAL MODE ===
+    const status = formData.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
 
     // Validate rooms and square meters for new properties
     if (!isEditing && (!formData.rooms || !formData.squareMeters)) {
@@ -272,45 +338,47 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           </div>
 
-          {/* Property Details: Rooms & Square Meters */}
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <LayoutGrid className="w-4 h-4" /> Datos del Inmueble
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Ambientes</label>
-                <div className="relative">
-                  <LayoutGrid className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    placeholder="Ej: 3"
-                    required={!isEditing}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
-                    value={formData.rooms}
-                    onChange={e => setFormData({ ...formData, rooms: e.target.value })}
-                  />
+          {/* Property Details: Rooms & Square Meters — hidden when building mode */}
+          {!isBuilding && (
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4" /> Datos del Inmueble
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">Ambientes</label>
+                  <div className="relative">
+                    <LayoutGrid className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      placeholder="Ej: 3"
+                      required={!isEditing}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
+                      value={formData.rooms}
+                      onChange={e => setFormData({ ...formData, rooms: e.target.value })}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Metros² (m²)</label>
-                <div className="relative">
-                  <Ruler className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="Ej: 72"
-                    required={!isEditing}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
-                    value={formData.squareMeters}
-                    onChange={e => setFormData({ ...formData, squareMeters: e.target.value })}
-                  />
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">Metros² (m²)</label>
+                  <div className="relative">
+                    <Ruler className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 72"
+                      required={!isEditing}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
+                      value={formData.squareMeters}
+                      onChange={e => setFormData({ ...formData, squareMeters: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Location & Currency Section */}
           <div className="space-y-4 pt-4 border-t border-gray-100">
@@ -347,52 +415,54 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           </div>
 
-          {/* Tenant Section */}
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Datos del Alquiler</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Tenant Section — hidden when building mode */}
+          {!isBuilding && (
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Datos del Alquiler</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">Inquilino</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Nombre o Vacante"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                      value={formData.tenantName}
+                      onChange={e => setFormData({ ...formData, tenantName: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">Teléfono</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      placeholder="11-XXXX-XXXX"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                      value={formData.tenantPhone}
+                      onChange={e => setFormData({ ...formData, tenantPhone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Inquilino</label>
+                <label className="text-sm font-medium text-gray-700">Valor Alquiler Mensual ({formData.currency})</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <DollarSign className={`absolute left-3 top-3 w-5 h-5 ${formData.currency === 'USD' ? 'text-green-600' : 'text-blue-600'}`} />
                   <input
                     type="text"
-                    placeholder="Nombre o Vacante"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    value={formData.tenantName}
-                    onChange={e => setFormData({ ...formData, tenantName: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Teléfono</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="tel"
-                    placeholder="11-XXXX-XXXX"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    value={formData.tenantPhone}
-                    onChange={e => setFormData({ ...formData, tenantPhone: e.target.value })}
+                    placeholder="0"
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
+                    value={formatNumberWithDots(formData.monthlyRent)}
+                    onChange={e => handleNumberChange('monthlyRent', e.target.value)}
                   />
                 </div>
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Valor Alquiler Mensual ({formData.currency})</label>
-              <div className="relative">
-                <DollarSign className={`absolute left-3 top-3 w-5 h-5 ${formData.currency === 'USD' ? 'text-green-600' : 'text-blue-600'}`} />
-                <input
-                  type="text"
-                  placeholder="0"
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
-                  value={formatNumberWithDots(formData.monthlyRent)}
-                  onChange={e => handleNumberChange('monthlyRent', e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* === Building Toggle === */}
           {!isEditing && (
@@ -412,23 +482,127 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
               {isBuilding && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <p className="text-xs text-violet-700">Define las unidades/departamentos de este edificio:</p>
-                  {unitLabels.map((label, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder={`Ej: Depto ${idx + 1}A`}
-                        className="flex-1 px-3 py-2 rounded-lg border border-violet-200 bg-white text-sm focus:ring-2 focus:ring-violet-400 outline-none"
-                        value={label}
-                        onChange={e => updateUnit(idx, e.target.value)}
-                      />
-                      {unitLabels.length > 1 && (
-                        <button type="button" onClick={() => removeUnit(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
-                          <Minus className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  <p className="text-xs text-violet-700">Define cada piso/departamento con sus datos individuales:</p>
+
+                  {buildingUnits.map((unit, idx) => {
+                    const isExpanded = expandedUnit === idx;
+                    return (
+                      <div key={idx} className="bg-white rounded-xl border border-violet-200 overflow-hidden shadow-sm">
+                        {/* Unit header — always visible */}
+                        <div className="flex items-center gap-2 p-3">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedUnit(isExpanded ? -1 : idx)}
+                            className="p-1 text-violet-500 hover:bg-violet-50 rounded-lg transition-colors"
+                          >
+                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </button>
+                          <input
+                            type="text"
+                            placeholder={`Ej: Piso ${idx + 1}A`}
+                            className="flex-1 px-3 py-1.5 rounded-lg border border-violet-100 bg-violet-50/50 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                            value={unit.label}
+                            onChange={e => updateUnitField(idx, 'label', e.target.value)}
+                          />
+                          {unit.tenantName && !isExpanded && (
+                            <span className="text-xs text-gray-500 truncate max-w-[80px]">{unit.tenantName}</span>
+                          )}
+                          {buildingUnits.length > 1 && (
+                            <button type="button" onClick={() => removeUnit(idx)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg">
+                              <Minus className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Expanded unit details */}
+                        {isExpanded && (
+                          <div className="px-3 pb-3 space-y-3 border-t border-violet-100 pt-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                            {/* Inquilino + Teléfono */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Inquilino</label>
+                                <div className="relative">
+                                  <User className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
+                                  <input
+                                    type="text"
+                                    placeholder="Nombre o Vacante"
+                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                                    value={unit.tenantName}
+                                    onChange={e => updateUnitField(idx, 'tenantName', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Teléfono</label>
+                                <div className="relative">
+                                  <Phone className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
+                                  <input
+                                    type="tel"
+                                    placeholder="11-XXXX-XXXX"
+                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                                    value={unit.tenantPhone}
+                                    onChange={e => updateUnitField(idx, 'tenantPhone', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ambientes + Metros² */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Ambientes</label>
+                                <div className="relative">
+                                  <LayoutGrid className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="20"
+                                    placeholder="Ej: 3"
+                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                                    value={unit.rooms}
+                                    onChange={e => updateUnitField(idx, 'rooms', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Metros² (m²)</label>
+                                <div className="relative">
+                                  <Ruler className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Ej: 72"
+                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                                    value={unit.squareMeters}
+                                    onChange={e => updateUnitField(idx, 'squareMeters', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Alquiler */}
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-gray-600">Alquiler Mensual ({formData.currency})</label>
+                              <div className="relative">
+                                <DollarSign className={`absolute left-2.5 top-2 w-4 h-4 ${formData.currency === 'USD' ? 'text-green-600' : 'text-blue-600'}`} />
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                                  value={formatNumberWithDots(unit.monthlyRent)}
+                                  onChange={e => {
+                                    const clean = e.target.value.replace(/[^0-9]/g, '');
+                                    updateUnitField(idx, 'monthlyRent', clean);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
                   <button
                     type="button"
                     onClick={addUnit}
