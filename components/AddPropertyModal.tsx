@@ -174,7 +174,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const finalAddress = isEditing && existingProperty ? existingProperty.address : address?.split(',')[0] || 'Nueva Propiedad';
+    const finalAddress = formData.address || (address?.split(',')[0] || 'Nueva Propiedad');
     const finalCoords = isEditing && existingProperty ? existingProperty.coordinates : coordinates || [0, 0];
     const finalId = isEditing && existingProperty ? existingProperty.id : Date.now().toString();
 
@@ -385,6 +385,21 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
               <Globe className="w-4 h-4" /> Ubicación y Moneda
             </h3>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Dirección</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Dirección de la propiedad"
+                  required
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  value={formData.address}
+                  onChange={e => setFormData({ ...formData, address: e.target.value })}
+                />
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-700">País {taxConfig.flag}</label>

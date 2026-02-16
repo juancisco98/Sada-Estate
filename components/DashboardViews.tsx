@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Building } from '../types';
 import {
   TrendingUp,
   AlertTriangle,
   Clock,
   Hammer,
   DollarSign,
+  ChevronDown,
+  ChevronUp,
+  Building2,
   UserPlus,
   Phone,
   MapPin,
@@ -384,6 +387,7 @@ interface FinanceViewProps {
   preSelectedProperty?: Property | null;
   maintenanceTasks?: MaintenanceTask[];
   onClearPreSelection?: () => void;
+  buildings?: Building[];
 }
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -393,11 +397,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   professionals = [],
   preSelectedProperty = null,
   maintenanceTasks = [],
-  onClearPreSelection
+  onClearPreSelection,
+  buildings = []
 }) => {
   const [selectedFinancialProperty, setSelectedFinancialProperty] = useState<Property | null>(null);
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [expandedSection, setExpandedSection] = useState<'ARS' | 'USD' | null>(null);
 
   // Auto-select property if passed from parent
   useEffect(() => {
@@ -512,15 +518,26 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
       {/* === MONTHLY GRID: ARS === */}
       {arsProperties.length > 0 && (
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-                Ingresos Mensuales — ARS
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en pesos argentinos por mes</p>
+          <div
+            onClick={() => setExpandedSection(expandedSection === 'ARS' ? null : 'ARS')}
+            className="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+                  Ingresos Mensuales — ARS
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en pesos argentinos por mes</p>
+              </div>
             </div>
-            <span className="text-xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</span>
+              {expandedSection === 'ARS'
+                ? <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                : <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+              }
+            </div>
           </div>
           <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
             {arsMonthly.map((amount, i) => {
@@ -535,21 +552,36 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               );
             })}
           </div>
+          {/* Expandable Breakdown */}
+          {expandedSection === 'ARS' && (
+            <IncomeBreakdownPanel properties={arsProperties} buildings={buildings} currency="ARS" />
+          )}
         </section>
       )}
 
       {/* === MONTHLY GRID: USD === */}
       {usdProperties.length > 0 && (
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
-                Ingresos Mensuales — USD
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en dólares americanos por mes</p>
+          <div
+            onClick={() => setExpandedSection(expandedSection === 'USD' ? null : 'USD')}
+            className="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
+                  Ingresos Mensuales — USD
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en dólares americanos por mes</p>
+              </div>
             </div>
-            <span className="text-xl font-bold text-gray-900">{formatCurrency(usdYearTotal, 'USD')}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xl font-bold text-gray-900">{formatCurrency(usdYearTotal, 'USD')}</span>
+              {expandedSection === 'USD'
+                ? <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
+                : <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
+              }
+            </div>
           </div>
           <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
             {usdMonthly.map((amount, i) => {
@@ -564,6 +596,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               );
             })}
           </div>
+          {/* Expandable Breakdown */}
+          {expandedSection === 'USD' && (
+            <IncomeBreakdownPanel properties={usdProperties} buildings={buildings} currency="USD" />
+          )}
         </section>
       )}
 
