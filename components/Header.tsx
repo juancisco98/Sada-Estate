@@ -30,6 +30,7 @@ const Header: React.FC<HeaderProps> = ({
                     <button
                         onClick={onMenuClick}
                         className="p-2 hover:bg-gray-100 rounded-2xl text-gray-800 transition-colors active:scale-95"
+                        aria-label="Abrir menú"
                     >
                         <Menu className="w-6 h-6" />
                     </button>
@@ -55,13 +56,14 @@ const Header: React.FC<HeaderProps> = ({
                             {isSearching ? (
                                 <Loader2 className="w-5 h-5 text-blue-500 animate-spin mr-2" />
                             ) : (
-                                <button onClick={onSearchSubmit} className="cursor-pointer hover:text-blue-600 transition-colors">
+                                <button onClick={onSearchSubmit} className="cursor-pointer hover:text-blue-600 transition-colors" aria-label="Buscar">
                                     <Search className="w-5 h-5 text-gray-500 mr-2" />
                                 </button>
                             )}
                             <input
                                 type="text"
                                 placeholder="Buscar dirección (Ej: Miami...)"
+                                aria-label="Buscar dirección"
                                 className="bg-transparent border-none outline-none text-base text-gray-800 w-40 md:w-72 placeholder-gray-400 font-medium"
                                 value={searchQuery}
                                 onChange={(e) => onSearchChange(e.target.value)}
@@ -73,6 +75,7 @@ const Header: React.FC<HeaderProps> = ({
                     <button
                         className="p-2 hover:bg-gray-100 rounded-2xl text-gray-700 relative transition-colors shadow-sm active:scale-95"
                         onClick={onNavigateToMap}
+                        aria-label={currentView === 'MAP' ? 'Notificaciones' : 'Volver al Mapa'}
                     >
                         {currentView === 'MAP' ? (
                             <>

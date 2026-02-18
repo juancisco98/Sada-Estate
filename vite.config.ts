@@ -36,9 +36,7 @@ export default defineConfig(({ mode }) => {
       })
     ],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_MODEL': JSON.stringify(env.GEMINI_MODEL || 'gemini-1.5-flash') // Default fallback stable model
+      // 'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY), // Removed
     },
     resolve: {
       alias: {

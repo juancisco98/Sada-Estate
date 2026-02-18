@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tenant, TenantPayment, Property } from '../types';
+import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -10,6 +10,8 @@ interface TenantsViewProps {
     onSaveTenant: (tenant: Tenant) => void;
     onDeleteTenant: (tenantId: string) => void;
     onRegisterPayment: (payment: TenantPayment) => void;
+    onUpdatePayment: (payment: TenantPayment) => void;
+    maintenanceTasks: MaintenanceTask[];
     getTenantMetrics: (tenantId: string) => {
         totalPaid: number;
         totalPayments: number;
@@ -29,10 +31,13 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     onSaveTenant,
     onDeleteTenant,
     onRegisterPayment,
+    onUpdatePayment,
+    maintenanceTasks,
     getTenantMetrics,
 }) => {
     const [showAddModal, setShowAddModal] = useState(false);
-    const [showPaymentModal, setShowPaymentModal] = useState<string | null>(null);
+    const [showPaymentModal, setShowPaymentModal] = useState<string | null>(null); // tenantId
+    const [editingPayment, setEditingPayment] = useState<TenantPayment | null>(null);
     const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
     const [newTenant, setNewTenant] = useState({ name: '', phone: '', email: '', propertyId: '' });
     const [newPayment, setNewPayment] = useState({ amount: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(), paidOnTime: true });
@@ -53,25 +58,58 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         setShowAddModal(false);
     };
 
-    const handleAddPayment = () => {
+    const handleOpenPaymentModal = (tenantId: string, paymentToEdit?: TenantPayment, initialData?: { month: number, year: number }) => {
+        setEditingPayment(paymentToEdit || null);
+        setShowPaymentModal(tenantId);
+        if (paymentToEdit) {
+            setNewPayment({
+                amount: paymentToEdit.amount.toString(),
+                month: paymentToEdit.month,
+                year: paymentToEdit.year,
+                paidOnTime: paymentToEdit.paidOnTime
+            });
+        } else {
+            setNewPayment({
+                amount: '',
+                month: initialData?.month || new Date().getMonth() + 1,
+                year: initialData?.year || new Date().getFullYear(),
+                paidOnTime: true
+            });
+        }
+    };
+
+    const handleSavePayment = () => {
         if (!showPaymentModal || !newPayment.amount) return;
         const tenant = tenants.find(t => t.id === showPaymentModal);
         const prop = tenant?.propertyId ? properties.find(p => p.id === tenant.propertyId) : null;
 
-        const payment: TenantPayment = {
-            id: `pay-${Date.now()}`,
-            tenantId: showPaymentModal,
-            propertyId: tenant?.propertyId || null,
-            amount: parseFloat(newPayment.amount),
-            currency: prop?.currency || 'ARS',
-            month: newPayment.month,
-            year: newPayment.year,
-            paidOnTime: newPayment.paidOnTime,
-            paymentDate: new Date().toISOString().split('T')[0],
-        };
-        onRegisterPayment(payment);
+        if (editingPayment) {
+            const updatedPayment: TenantPayment = {
+                ...editingPayment,
+                amount: parseFloat(newPayment.amount),
+                month: newPayment.month,
+                year: newPayment.year,
+                paidOnTime: newPayment.paidOnTime,
+            };
+            onUpdatePayment(updatedPayment);
+        } else {
+            const payment: TenantPayment = {
+                id: `pay-${Date.now()}`,
+                tenantId: showPaymentModal,
+                propertyId: tenant?.propertyId || null,
+                amount: parseFloat(newPayment.amount),
+                currency: prop?.currency || 'ARS',
+                month: newPayment.month,
+                year: newPayment.year,
+                paidOnTime: newPayment.paidOnTime,
+                paymentDate: new Date().toISOString().split('T')[0],
+            };
+            onRegisterPayment(payment);
+        }
+
         setNewPayment({ amount: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(), paidOnTime: true });
         setShowPaymentModal(null);
+        setEditingPayment(null);
     };
 
     const getPropertyAddress = (propertyId: string | null) => {
@@ -206,38 +244,94 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                 {/* Expanded Details */}
                                 {isExpanded && (
                                     <div style={{ borderTop: '1px solid #f1f5f9', padding: '16px 20px', background: '#fafbfc' }}>
+
+                                        {/* Owner View: Financial Summary */}
+                                        <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                            <p style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '10px' }}>
+                                                Balance de la Propiedad
+                                            </p>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                                                <div>
+                                                    <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>INGRESOS (Alquileres)</p>
+                                                    <p style={{ fontSize: '18px', fontWeight: '700', color: '#16a34a' }}>
+                                                        {formatCurrency(metrics.totalPaid, metrics.currency)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>GASTOS (Mantenimiento)</p>
+                                                    <p style={{ fontSize: '18px', fontWeight: '700', color: '#ef4444' }}>
+                                                        {(() => {
+                                                            const propExpenses = maintenanceTasks
+                                                                .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
+                                                                .reduce((acc, t) => acc + (t.cost || 0), 0);
+                                                            // Note: Expenses are usually in USD, needs conversion if tenancy is ARS. 
+                                                            // For now assuming same currency or displaying as is with label if different would be ideal but complex.
+                                                            // Adding a simple currency label for clarity.
+                                                            return `$${propExpenses.toLocaleString()} USD`;
+                                                        })()}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>RESULTADO NETO</p>
+                                                    <p style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
+                                                        {/* This calculation mixes currencies if not careful. For MVP displaying separate totals.*/}
+                                                        Requires Conversion
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         {/* Monthly Grid */}
                                         <p style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '10px', margin: '0 0 10px' }}>
-                                            Historial de Pagos — {new Date().getFullYear()}
+                                            Historial de Pagos — {new Date().getFullYear()} <span style={{ fontSize: '10px', fontWeight: 'normal', color: '#94a3b8' }}>(Click para editar)</span>
                                         </p>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '6px', marginBottom: '16px' }}>
-                                            {metrics.monthlyBreakdown.map((m) => (
-                                                <div key={m.month} style={{
-                                                    textAlign: 'center', padding: '8px 4px', borderRadius: '8px',
-                                                    background: m.paid ? '#dcfce7' : '#f1f5f9',
-                                                    border: `1px solid ${m.paid ? '#bbf7d0' : '#e2e8f0'}`,
-                                                }}>
-                                                    <p style={{ fontSize: '10px', color: '#64748b', margin: 0, fontWeight: '600' }}>
-                                                        {MONTH_NAMES[m.month - 1]}
-                                                    </p>
-                                                    {m.paid ? (
-                                                        <CheckCircle size={16} style={{ color: '#22c55e', marginTop: '4px' }} />
-                                                    ) : (
-                                                        <XCircle size={16} style={{ color: '#cbd5e1', marginTop: '4px' }} />
-                                                    )}
-                                                    {m.amount > 0 && (
-                                                        <p style={{ fontSize: '10px', color: '#475569', margin: '2px 0 0', fontWeight: '600' }}>
-                                                            {formatCurrency(m.amount, metrics.currency)}
+                                            {metrics.monthlyBreakdown.map((m) => {
+                                                const paymentForMonth = payments.find(p => p.tenantId === tenant.id && p.month === m.month && p.year === new Date().getFullYear());
+                                                return (
+                                                    <div
+                                                        key={m.month}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (paymentForMonth) {
+                                                                handleOpenPaymentModal(tenant.id, paymentForMonth);
+                                                            } else {
+                                                                handleOpenPaymentModal(tenant.id, undefined, { month: m.month, year: new Date().getFullYear() });
+                                                            }
+                                                        }}
+                                                        title={paymentForMonth ? "Click para editar pago" : "Click para registrar pago"}
+                                                        style={{
+                                                            textAlign: 'center', padding: '8px 4px', borderRadius: '8px',
+                                                            background: m.paid ? '#dcfce7' : '#f1f5f9',
+                                                            border: `1px solid ${m.paid ? '#bbf7d0' : '#e2e8f0'}`,
+                                                            cursor: 'pointer',
+                                                            position: 'relative',
+                                                            transition: 'all 0.2s'
+                                                        }}>
+                                                        <p style={{ fontSize: '10px', color: '#64748b', margin: 0, fontWeight: '600' }}>
+                                                            {MONTH_NAMES[m.month - 1]}
                                                         </p>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                        {m.paid ? (
+                                                            <CheckCircle size={16} style={{ color: '#22c55e', marginTop: '4px' }} />
+                                                        ) : (
+                                                            <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#cbd5e1' }} />
+                                                            </div>
+                                                        )}
+                                                        {m.amount > 0 && (
+                                                            <p style={{ fontSize: '10px', color: '#475569', margin: '2px 0 0', fontWeight: '600' }}>
+                                                                {formatCurrency(m.amount, metrics.currency)}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
 
                                         {/* Actions */}
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); setShowPaymentModal(tenant.id); }}
+                                                onClick={(e) => { e.stopPropagation(); handleOpenPaymentModal(tenant.id); }}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', gap: '6px',
                                                     padding: '8px 16px', borderRadius: '10px',
@@ -389,7 +483,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                             <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
                                 Registrar Pago
                             </h2>
-                            <button onClick={() => setShowPaymentModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                            <button onClick={() => { setShowPaymentModal(null); setEditingPayment(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
                                 <X size={22} color="#94a3b8" />
                             </button>
                         </div>
@@ -451,7 +545,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                         </div>
 
                         <button
-                            onClick={handleAddPayment}
+                            onClick={handleSavePayment}
                             disabled={!newPayment.amount}
                             style={{
                                 width: '100%', padding: '12px', borderRadius: '12px', marginTop: '20px',
@@ -461,7 +555,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                 fontWeight: '600', fontSize: '15px',
                             }}
                         >
-                            Registrar Pago
+                            {editingPayment ? 'Guardar Cambios' : 'Registrar Pago'}
                         </button>
                     </div>
                 </div>

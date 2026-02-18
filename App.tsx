@@ -11,7 +11,11 @@ import FinishMaintenanceModal from './components/FinishMaintenanceModal';
 import AddProfessionalModal from './components/AddProfessionalModal';
 import AssignProfessionalModal from './components/AssignProfessionalModal';
 import { Property, Professional } from './types';
-import { usePropertyData } from './hooks/usePropertyData';
+import { DataProvider, useDataContext } from './context/DataContext';
+import { useProperties } from './hooks/useProperties';
+import { useProfessionals } from './hooks/useProfessionals';
+import { useMaintenance } from './hooks/useMaintenance';
+import { useBuildings } from './hooks/useBuildings';
 import { useTenantData } from './hooks/useTenantData';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useVoiceNavigation } from './hooks/useVoiceNavigation';
@@ -23,7 +27,7 @@ const FinanceView = lazy(() => import('./components/DashboardViews').then(module
 const ProfessionalsView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.ProfessionalsView })));
 const TenantsView = lazy(() => import('./components/TenantsView'));
 
-const App: React.FC = () => {
+const Dashboard: React.FC = () => {
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -31,23 +35,33 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('MAP');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Data State - MOVED TO HOOK
+  // Data Hooks
+  const { isLoading } = useDataContext();
   const {
     properties,
+    saveProperty: savePropertyData,
+    updateNote: updateNoteData,
+    deleteProperty: handleDeleteProperty,
+    updatePropertyFields
+  } = useProperties(currentUser?.email || currentUser?.name);
+
+  const {
     professionals,
-    buildings,
-    handleSaveProperty: savePropertyData,
-    handleUpdateNote: updateNoteData,
-    handleSaveProfessional: saveProfessionalData,
-    handleAssignProfessional: assignProfessionalData,
-    handleFinishMaintenance: finishMaintenanceData,
-    updatePropertyFields,
-    handleDeleteProfessional,
-    handleDeleteProperty,
-    handleSaveBuilding,
+    saveProfessional: saveProfessionalData,
+    deleteProfessional: handleDeleteProfessional
+  } = useProfessionals();
+
+  const {
     maintenanceTasks,
-    isLoading
-  } = usePropertyData(currentUser?.email || currentUser?.name);
+    assignProfessional: assignProfessionalData,
+    finishMaintenance: finishMaintenanceData
+  } = useMaintenance(currentUser?.email || currentUser?.name);
+
+  const {
+    buildings,
+    saveBuilding: handleSaveBuilding,
+    deleteBuilding: handleDeleteBuilding // Note: App.tsx doesn't seem to use this widely but usePropertyData exported it
+  } = useBuildings();
 
   // Tenant Data
   const {
@@ -56,6 +70,7 @@ const App: React.FC = () => {
     handleSaveTenant,
     handleDeleteTenant,
     handleRegisterPayment,
+    handleUpdatePayment,
     getTenantMetrics,
   } = useTenantData();
 
@@ -274,7 +289,9 @@ const App: React.FC = () => {
                   onSaveTenant={handleSaveTenant}
                   onDeleteTenant={handleDeleteTenant}
                   onRegisterPayment={handleRegisterPayment}
+                  onUpdatePayment={handleUpdatePayment}
                   getTenantMetrics={getTenantMetrics}
+                  maintenanceTasks={maintenanceTasks}
                 />
               </Suspense>
             </div>
@@ -413,4 +430,10 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default function App() {
+  return (
+    <DataProvider>
+      <Dashboard />
+    </DataProvider>
+  );
+}

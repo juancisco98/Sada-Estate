@@ -14,7 +14,7 @@ if (supabaseUrl && supabaseAnonKey) {
 }
 
 // Export a proxy that won't crash when supabase is null.
-// All .from() calls will return errors caught by usePropertyData's try/catch → fallback to mock data.
+// All .from() calls will return errors caught by data hooks' try/catch → fallback to mock data.
 export const supabase: SupabaseClient = supabaseInstance || new Proxy({} as SupabaseClient, {
     get(_target, prop) {
         if (prop === 'from') {

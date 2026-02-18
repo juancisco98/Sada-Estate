@@ -165,6 +165,22 @@ export const useTenantData = () => {
         };
     };
 
+    const handleUpdatePayment = async (payment: TenantPayment) => {
+        setPayments(prev => prev.map(p => p.id === payment.id ? payment : p));
+
+        try {
+            const { error } = await supabase
+                .from('tenant_payments')
+                .update(paymentToDb(payment))
+                .eq('id', payment.id);
+
+            if (error) console.error('[Supabase] ❌ Error updating payment:', error);
+            else console.log(`[Supabase] ✅ Payment updated: ${payment.id}`);
+        } catch (err) {
+            console.error('[Supabase] ❌ Exception updating payment:', err);
+        }
+    };
+
     return {
         tenants,
         payments,
@@ -172,6 +188,7 @@ export const useTenantData = () => {
         handleSaveTenant,
         handleDeleteTenant,
         handleRegisterPayment,
+        handleUpdatePayment,
         getTenantMetrics,
     };
 };

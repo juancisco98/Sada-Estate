@@ -37,7 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
             <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold">SV</div>
             <span className="font-bold text-xl text-gray-900">SV Prop</span>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500" aria-label="Cerrar menú">
             <X className="w-6 h-6" />
           </button>
         </div>

@@ -152,7 +152,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             </button>
           )}
 
-          <button onClick={onClose} className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors">
+          <button onClick={onClose} className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors" aria-label="Cerrar detalles">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -273,6 +273,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           <textarea
             className="w-full bg-transparent border-none outline-none text-sm text-gray-800 italic p-1 h-16 resize-none placeholder-yellow-800/50"
             placeholder="Escribí aquí una nota recordatoria..."
+            title="Nota de la propiedad"
+            aria-label="Nota de la propiedad"
             value={noteText}
             onChange={handleNoteChange}
           />

@@ -20,6 +20,7 @@ import {
   Trash2
 } from 'lucide-react';
 import FinancialDetailsCard from './FinancialDetailsCard';
+import IncomeBreakdownPanel from './IncomeBreakdownPanel';
 
 // --- Helper Functions ---
 import { formatCurrency, convertCurrency, getDualCurrencyAmounts } from '../utils/currency';
@@ -234,6 +235,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         }}
                         className="bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all active:scale-95"
                         title="Eliminar Propiedad"
+                        aria-label="Eliminar propiedad"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -315,6 +317,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                             window.location.href = `tel:${property.tenantPhone}`;
                           }}
                           className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
+                          aria-label={`Llamar al inquilino: ${property.tenantPhone}`}
                         >
                           <Phone className="w-5 h-5" />
                         </div>
@@ -463,6 +466,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
           <button
             onClick={() => setSelectedYear(y => y - 1)}
             className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+            aria-label="Año anterior"
           >
             <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
@@ -471,6 +475,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
             onClick={() => setSelectedYear(y => y + 1)}
             disabled={selectedYear >= currentYear}
             className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-30"
+            aria-label="Año siguiente"
           >
             <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
@@ -717,6 +722,7 @@ const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
         <button
           onClick={onBack}
           className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+          aria-label="Volver"
         >
           <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

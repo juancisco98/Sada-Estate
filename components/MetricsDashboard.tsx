@@ -52,7 +52,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ properties, profess
             <h2 className="text-xl font-bold text-gray-900">Métricas Generales</h2>
             <p className="text-sm text-gray-500">Resumen operativo en tiempo real</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors" aria-label="Cerrar métricas">
             <X className="w-5 h-5" />
           </button>
         </div>

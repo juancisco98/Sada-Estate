@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, X, Loader2, Phone } from 'lucide-react';
 import { IWindow, VoiceCommandResponse, Property, Professional } from '../types';
-import { parseVoiceCommand, ChatMessage } from '../services/geminiService';
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 interface VoiceAssistantProps {
   properties: Property[];
@@ -105,59 +109,29 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         setTranscript(text);
         setIsProcessing(true);
 
-        // Read latest values from refs (avoids stale closures)
         const currentHistory = chatHistoryRef.current;
-
-        // 1. Update History
         const updatedHistory: ChatMessage[] = [...currentHistory, { role: 'user', content: text }];
         setChatHistory(updatedHistory);
 
-        // 2. Get Intent from AI with FULL CONTEXT
-        const result = await parseVoiceCommand(
-          text,
-          propertiesRef.current,
-          professionalsRef.current,
-          updatedHistory,
-          currentViewRef.current,
-          selectedItemRef.current
-        );
+        // Mock response since Gemini is removed
+        const result: VoiceCommandResponse = {
+          intent: 'GENERAL_QUERY',
+          responseText: 'El asistente de voz está desactivado temporalmente.',
+          requiresFollowUp: false
+        };
+
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         setIsProcessing(false);
 
-        // 3. Update History with AI Response
         if (result.responseText) {
           const historyWithResponse: ChatMessage[] = [...updatedHistory, { role: 'assistant', content: result.responseText }];
           setChatHistory(historyWithResponse);
           setAiResponse(result.responseText);
         }
 
-        console.log("AI ACTION:", result);
-
-        // 4. Handle Conversation Flow
-        if (result.requiresFollowUp) {
-          speak(result.responseText, () => {
-            startListening();
-          });
-        } else {
-          // Speak AND Execute
-          speak(result.responseText);
-
-          // Execute Action via Parent
-          setTimeout(() => {
-            onIntentRef.current(result);
-
-            // Auto-clear history on successful "Terminal" actions
-            if (['NAVIGATE', 'SEARCH_MAP', 'SELECT_ITEM', 'REGISTER_EXPENSE', 'UPDATE_PROPERTY', 'STOP_LISTENING'].includes(result.intent)) {
-              setChatHistory([]);
-            }
-
-            // Explicitly close if intent is STOP_LISTENING
-            if (result.intent === 'STOP_LISTENING') {
-              setAiResponse(null);
-              stopListening();
-            }
-          }, 800);
-        }
+        speak(result.responseText);
       };
 
       recognition.onerror = (event: any) => {
@@ -213,6 +187,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   window.speechSynthesis.cancel();
                 }}
                 className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Cerrar asistente de voz"
               >
                 <X className="w-5 h-5 text-white/50" />
               </button>
@@ -261,6 +236,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             flex items-center justify-center w-14 h-14 rounded-full shadow-2xl transition-all duration-300 group
             bg-black hover:scale-105 border border-white/20
           `}
+          aria-label={isListening ? "Detener escucha" : "Iniciar asistente de voz"}
         >
           <Mic className="w-6 h-6 text-white" />
         </button>
