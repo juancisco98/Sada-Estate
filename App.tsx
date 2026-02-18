@@ -20,6 +20,7 @@ import { useTenantData } from './hooks/useTenantData';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useVoiceNavigation } from './hooks/useVoiceNavigation';
 import { useSearch } from './hooks/useSearch';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // Lazy load dashboard views
 const OverviewView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.OverviewView })));
@@ -449,6 +450,7 @@ export default function App() {
   return (
     <DataProvider>
       <Dashboard />
+      <SpeedInsights />
     </DataProvider>
   );
 }
