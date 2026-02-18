@@ -171,12 +171,27 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const finalAddress = formData.address || (address?.split(',')[0] || 'Nueva Propiedad');
-    const finalCoords = isEditing && existingProperty ? existingProperty.coordinates : coordinates || [0, 0];
+    let finalCoords = isEditing && existingProperty ? existingProperty.coordinates : coordinates || [0, 0];
     const finalId = isEditing && existingProperty ? existingProperty.id : Date.now().toString();
+
+    // Geocode if coordinates are missing or [0,0]
+    if ((finalCoords[0] === 0 && finalCoords[1] === 0) && finalAddress) {
+      try {
+        // Import dynamically to avoid top-level issues if any
+        const { geocodeAddress } = await import('../utils/geocoding');
+        const result = await geocodeAddress(finalAddress);
+        if (result) {
+          finalCoords = [result.lat, result.lng];
+          console.log(`[Geocoding] Found coords for ${finalAddress}:`, finalCoords);
+        }
+      } catch (err) {
+        console.error("Error geocoding on save:", err);
+      }
+    }
 
     let dateToSave = isEditing && existingProperty ? existingProperty.professionalAssignedDate : undefined;
 
@@ -212,7 +227,13 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
       const buildingId = `bld-${Date.now()}`;
 
-      validUnits.forEach((unit, idx) => {
+      // Loop through units and save each
+      // Note: We need to use a loop that handles promises if we were doing async inside, 
+      // but onSave is likely passed as a synchronous-looking handler from parent. 
+      // However, onSave might trigger Supabase calls. 
+      // Since we want to ensure all are saved, let's just loop.
+
+      for (const [idx, unit] of validUnits.entries()) {
         const unitStatus = unit.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
         const unitProp: Property = {
           id: `${Date.now()}-u${idx}`,
@@ -233,8 +254,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           buildingId: buildingId,
           unitLabel: unit.label,
         };
-        onSave(unitProp);
-      });
+        onSave(unitProp); // This might be fire-and-forget from here
+      }
       return;
     }
 

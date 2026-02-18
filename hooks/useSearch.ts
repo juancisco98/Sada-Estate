@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Property } from '../types';
+import { geocodeAddress } from '../utils/geocoding';
 
 export const useSearch = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -17,44 +18,14 @@ export const useSearch = () => {
         setCurrentView('MAP');
 
         try {
-            const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+            const result = await geocodeAddress(query);
 
-            let lat: number | undefined;
-            let lng: number | undefined;
-            let address: string | undefined;
-
-            if (googleKey) {
-                const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${googleKey}`);
-                const data = await response.json();
-
-                if (data.status === 'OK' && data.results.length > 0) {
-                    const result = data.results[0];
-                    lat = result.geometry.location.lat;
-                    lng = result.geometry.location.lng;
-                    address = result.formatted_address;
-                } else {
-                    console.log("Google Maps Geocoding failed or returned no results:", data.status);
-                }
-            }
-
-            if (!lat || !lng) {
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
-                const data = await response.json();
-
-                if (data && data.length > 0) {
-                    const result = data[0];
-                    lat = parseFloat(result.lat);
-                    lng = parseFloat(result.lon);
-                    address = result.display_name;
-                }
-            }
-
-            if (lat && lng && address) {
-                setMapCenter([lat, lng]);
+            if (result) {
+                setMapCenter([result.lat, result.lng]);
                 setSearchResult({
-                    lat,
-                    lng,
-                    address
+                    lat: result.lat,
+                    lng: result.lng,
+                    address: result.formattedAddress
                 });
             } else {
                 console.log("No se encontró la dirección.");
