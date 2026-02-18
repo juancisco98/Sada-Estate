@@ -1,5 +1,5 @@
 
-// Fallback rates (units per 1 USD)
+// Fallback rates (units per 1 USD) - Keeps structure but mostly unused now except if we add convert back
 export const EXCHANGE_RATES: Record<string, number> = {
     ARS: 1200,
     USD: 1,
@@ -70,48 +70,10 @@ export const formatCurrency = (amount: number, currency: string): string => {
     }).format(amount);
 };
 
-// Converts an amount from one currency to another
+// Converts an amount from one currency to another (Simplified/Deprecated as we enforce ARS)
+// Keeping it just in case logic references it, but we removed usages.
 export const convertCurrency = (amount: number, fromCurrency: string, toCurrency: string): number => {
     if (fromCurrency === toCurrency) return amount;
-
-    const fromRate = EXCHANGE_RATES[fromCurrency] || 1;
-    const toRate = EXCHANGE_RATES[toCurrency] || 1;
-
-    // Convert to base (USD) then to target
-    // Rate is Units per USD. e.g. ARS = 1000. 
-    // 1000 ARS -> 1 USD. (1000 / 1000) * 1
-    // 1 USD -> 1000 ARS. (1 / 1) * 1000
-
-    const amountInUsd = amount / fromRate;
-    return amountInUsd * toRate;
-};
-
-// Returns an object with both values for display
-export const getDualCurrencyAmounts = (amount: number, originalCurrency: string) => {
-    const isArs = originalCurrency === 'ARS';
-
-    if (isArs) {
-        return {
-            local: amount,
-            localCurrency: 'ARS',
-            usd: convertCurrency(amount, 'ARS', 'USD'),
-            usdCurrency: 'USD'
-        };
-    } else {
-        // If USD (or other), we might want to show local equivalent if in Argentina context, 
-        // but requirement says "In Argentina both numbers in ARS and in USD".
-        // "In other countries... depending on which country... do the change official to the currency used by the country"
-        // "Parents have apartments in US... income is dollars... always calculate value in dollars in all countries"
-
-        // So:
-        // ARS Prop -> Show ARS and USD
-        // USD Prop -> Show USD (and maybe local if valid, but for US local IS USD)
-
-        return {
-            local: amount,
-            localCurrency: originalCurrency,
-            usd: convertCurrency(amount, originalCurrency, 'USD'),
-            usdCurrency: 'USD'
-        };
-    }
+    // Simple placeholder if ever called unexpectedly
+    return amount;
 };

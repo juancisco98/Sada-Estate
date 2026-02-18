@@ -2,7 +2,7 @@ import React from 'react';
 import { Property, Professional, MaintenanceTask, PropertyStatus } from '../types';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { X, TrendingUp, Clock, Users } from 'lucide-react';
-import { formatCurrency, convertCurrency } from '../utils/currency';
+import { formatCurrency } from '../utils/currency';
 
 interface MetricsDashboardProps {
   properties: Property[];
@@ -15,7 +15,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ properties, profess
 
   // Calculate live metrics
   const totalMonthlyIncome = properties.reduce((acc, p) => {
-    return acc + convertCurrency(p.monthlyRent, p.currency || 'ARS', 'USD');
+    return acc + p.monthlyRent;
   }, 0);
 
   const propertiesCount = properties.length;
@@ -63,7 +63,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ properties, profess
             <div className="bg-green-50 p-4 rounded-2xl border border-green-100 text-center">
               <TrendingUp className="w-5 h-5 mx-auto text-green-600 mb-1" />
               <p className="text-xs text-green-600 font-bold uppercase">Ingreso Mensual</p>
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(totalMonthlyIncome, 'USD')}</p>
+              <p className="text-lg font-bold text-gray-900">{formatCurrency(totalMonthlyIncome, 'ARS')}</p>
             </div>
             <div className="bg-red-50 p-4 rounded-2xl border border-red-100 text-center">
               <Clock className="w-5 h-5 mx-auto text-red-600 mb-1" />

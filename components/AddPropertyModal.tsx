@@ -102,7 +102,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         imageUrl: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=1000&auto=format&fit=crop',
         notes: '',
         country: initialCountry,
-        currency: config.defaultRentCurrency,
+        currency: 'ARS', // Always ARS
       }));
     }
   }, [address, isEditing, existingProperty, detectedCountry]);
@@ -114,7 +114,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     setFormData(prev => ({
       ...prev,
       country: newCountry,
-      currency: config.defaultRentCurrency,
+      // currency: 'ARS' // Already default, no need to change
     }));
   };
 
@@ -418,21 +418,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                   <option value="Uruguay">🇺🇾 Uruguay</option>
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Moneda del Contrato</label>
-                <select
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={formData.currency}
-                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  aria-label="Seleccionar moneda"
-                >
-                  {taxConfig.allowedRentCurrencies.map(cur => (
-                    <option key={cur} value={cur}>
-                      {cur === 'ARS' ? 'ARS (Pesos Arg)' : cur === 'USD' ? 'USD (Dólares)' : `${cur}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Currency Selector Removed - Enforced ARS */}
             </div>
           </div>
 

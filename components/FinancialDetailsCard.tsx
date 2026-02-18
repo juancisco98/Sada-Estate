@@ -126,7 +126,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
                       </div>
                     </div>
                     <span className="font-bold text-red-600 text-sm">
-                      - {formatCurrency(expense.cost || expense.estimatedCost, 'USD')}
+                      - {formatCurrency(expense.cost || expense.estimatedCost, 'ARS')}
                     </span>
                   </div>
                 );
@@ -140,7 +140,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
         </div>
 
       </div>
-    </div>
+    </div >
   );
 };
 

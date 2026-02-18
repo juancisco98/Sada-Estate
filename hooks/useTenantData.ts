@@ -30,6 +30,9 @@ const dbToPayment = (row: any): TenantPayment => ({
     year: row.year,
     paidOnTime: row.paid_on_time,
     paymentDate: row.payment_date,
+    paymentMethod: row.payment_method || 'CASH',
+    proofOfPayment: row.proof_of_payment,
+    notes: row.notes,
 });
 
 const paymentToDb = (p: TenantPayment): Record<string, any> => ({
@@ -42,6 +45,9 @@ const paymentToDb = (p: TenantPayment): Record<string, any> => ({
     year: p.year,
     paid_on_time: p.paidOnTime,
     payment_date: p.paymentDate,
+    payment_method: p.paymentMethod,
+    proof_of_payment: p.proofOfPayment,
+    notes: p.notes,
 });
 
 // ========== HOOK ==========

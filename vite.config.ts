@@ -12,28 +12,28 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
-        manifest: {
-          name: 'SV Propiedades',
-          short_name: 'SVPropiedades',
-          description: 'Gestión Inmobiliaria Inteligente',
-          theme_color: '#ffffff',
-          icons: [
-            {
-              src: 'logo-sv.png',
-              sizes: '192x192', // Using same image for now
-              type: 'image/png'
-            },
-            {
-              src: 'logo-sv.png',
-              sizes: '512x512',
-              type: 'image/png'
-            }
-          ]
-        }
-      })
+      // VitePWA({
+      //   registerType: 'autoUpdate',
+      //   includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      //   manifest: {
+      //     name: 'SV Propiedades',
+      //     short_name: 'SVPropiedades',
+      //     description: 'Gestión Inmobiliaria Inteligente',
+      //     theme_color: '#ffffff',
+      //     icons: [
+      //       {
+      //         src: 'logo-sv.png',
+      //         sizes: '192x192', // Using same image for now
+      //         type: 'image/png'
+      //       },
+      //       {
+      //         src: 'logo-sv.png',
+      //         sizes: '512x512',
+      //         type: 'image/png'
+      //       }
+      //     ]
+      //   }
+      // })
     ],
     define: {
       // 'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY), // Removed

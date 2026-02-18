@@ -67,6 +67,9 @@ export interface TenantPayment {
   year: number;
   paidOnTime: boolean;
   paymentDate: string;
+  paymentMethod?: 'CASH' | 'TRANSFER';
+  proofOfPayment?: string;
+  notes?: string;
 }
 
 export interface Professional {

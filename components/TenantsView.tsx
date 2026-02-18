@@ -40,7 +40,15 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     const [editingPayment, setEditingPayment] = useState<TenantPayment | null>(null);
     const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
     const [newTenant, setNewTenant] = useState({ name: '', phone: '', email: '', propertyId: '' });
-    const [newPayment, setNewPayment] = useState({ amount: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(), paidOnTime: true });
+    const [newPayment, setNewPayment] = useState({
+        amount: '',
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+        paidOnTime: true,
+        paymentMethod: 'CASH' as 'CASH' | 'TRANSFER',
+        proofOfPayment: '',
+        notes: ''
+    });
 
     const vacantProperties = properties.filter(p => p.tenantName === 'Vacante' || !p.tenantName);
 
@@ -66,14 +74,20 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 amount: paymentToEdit.amount.toString(),
                 month: paymentToEdit.month,
                 year: paymentToEdit.year,
-                paidOnTime: paymentToEdit.paidOnTime
+                paidOnTime: paymentToEdit.paidOnTime,
+                paymentMethod: paymentToEdit.paymentMethod || 'CASH',
+                proofOfPayment: paymentToEdit.proofOfPayment || '',
+                notes: paymentToEdit.notes || ''
             });
         } else {
             setNewPayment({
                 amount: '',
                 month: initialData?.month || new Date().getMonth() + 1,
                 year: initialData?.year || new Date().getFullYear(),
-                paidOnTime: true
+                paidOnTime: true,
+                paymentMethod: 'CASH',
+                proofOfPayment: '',
+                notes: ''
             });
         }
     };
@@ -90,6 +104,9 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 month: newPayment.month,
                 year: newPayment.year,
                 paidOnTime: newPayment.paidOnTime,
+                paymentMethod: newPayment.paymentMethod,
+                proofOfPayment: newPayment.paymentMethod === 'TRANSFER' ? newPayment.proofOfPayment : undefined,
+                notes: newPayment.notes
             };
             onUpdatePayment(updatedPayment);
         } else {
@@ -103,11 +120,22 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 year: newPayment.year,
                 paidOnTime: newPayment.paidOnTime,
                 paymentDate: new Date().toISOString().split('T')[0],
+                paymentMethod: newPayment.paymentMethod,
+                proofOfPayment: newPayment.paymentMethod === 'TRANSFER' ? newPayment.proofOfPayment : undefined,
+                notes: newPayment.notes
             };
             onRegisterPayment(payment);
         }
 
-        setNewPayment({ amount: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(), paidOnTime: true });
+        setNewPayment({
+            amount: '',
+            month: new Date().getMonth() + 1,
+            year: new Date().getFullYear(),
+            paidOnTime: true,
+            paymentMethod: 'CASH',
+            proofOfPayment: '',
+            notes: ''
+        });
         setShowPaymentModal(null);
         setEditingPayment(null);
     };
@@ -258,24 +286,26 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>GASTOS (Mantenimiento)</p>
+                                                    <p className="text-sm font-semibold text-gray-800">GASTOS (Mantenimiento)</p>
                                                     <p style={{ fontSize: '18px', fontWeight: '700', color: '#ef4444' }}>
                                                         {(() => {
                                                             const propExpenses = maintenanceTasks
                                                                 .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
                                                                 .reduce((acc, t) => acc + (t.cost || 0), 0);
-                                                            // Note: Expenses are usually in USD, needs conversion if tenancy is ARS. 
-                                                            // For now assuming same currency or displaying as is with label if different would be ideal but complex.
-                                                            // Adding a simple currency label for clarity.
-                                                            return `$${propExpenses.toLocaleString()} USD`;
+                                                            return formatCurrency(propExpenses, 'ARS');
                                                         })()}
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>RESULTADO NETO</p>
+                                                    <p className="text-sm font-semibold text-gray-800">RESULTADO NETO</p>
                                                     <p style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
-                                                        {/* This calculation mixes currencies if not careful. For MVP displaying separate totals.*/}
-                                                        Requires Conversion
+                                                        {(() => {
+                                                            const propExpenses = maintenanceTasks
+                                                                .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
+                                                                .reduce((acc, t) => acc + (t.cost || 0), 0);
+                                                            const net = metrics.totalPaid - propExpenses;
+                                                            return formatCurrency(net, 'ARS');
+                                                        })()}
                                                     </p>
                                                 </div>
                                             </div>
@@ -541,6 +571,69 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                 >
                                     {newPayment.paidOnTime ? 'Sí ✓' : 'No ✗'}
                                 </button>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
+                                    Método de Pago
+                                </label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        onClick={() => setNewPayment(p => ({ ...p, paymentMethod: 'CASH' }))}
+                                        style={{
+                                            flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                            background: newPayment.paymentMethod === 'CASH' ? '#eff6ff' : 'white',
+                                            borderColor: newPayment.paymentMethod === 'CASH' ? '#3b82f6' : '#e2e8f0',
+                                            color: newPayment.paymentMethod === 'CASH' ? '#2563eb' : '#64748b'
+                                        }}
+                                    >
+                                        Efectivo
+                                    </button>
+                                    <button
+                                        onClick={() => setNewPayment(p => ({ ...p, paymentMethod: 'TRANSFER' }))}
+                                        style={{
+                                            flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                            background: newPayment.paymentMethod === 'TRANSFER' ? '#eff6ff' : 'white',
+                                            borderColor: newPayment.paymentMethod === 'TRANSFER' ? '#3b82f6' : '#e2e8f0',
+                                            color: newPayment.paymentMethod === 'TRANSFER' ? '#2563eb' : '#64748b'
+                                        }}
+                                    >
+                                        Transferencia
+                                    </button>
+                                </div>
+                            </div>
+
+                            {newPayment.paymentMethod === 'TRANSFER' && (
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
+                                        Comprobante (ID o Link)
+                                    </label>
+                                    <input
+                                        value={newPayment.proofOfPayment}
+                                        onChange={e => setNewPayment(p => ({ ...p, proofOfPayment: e.target.value }))}
+                                        placeholder="Ej: Transferencia #1234..."
+                                        style={{
+                                            width: '100%', padding: '10px 14px', borderRadius: '10px',
+                                            border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
+                                    Notas (Opcional)
+                                </label>
+                                <textarea
+                                    value={newPayment.notes}
+                                    onChange={e => setNewPayment(p => ({ ...p, notes: e.target.value }))}
+                                    placeholder="Detalles adicionales..."
+                                    rows={2}
+                                    style={{
+                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
+                                        border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit'
+                                    }}
+                                />
                             </div>
                         </div>
 

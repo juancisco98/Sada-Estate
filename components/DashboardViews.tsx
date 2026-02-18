@@ -17,13 +17,14 @@ import {
   CheckCircle,
   AlertCircle,
   Timer,
-  Trash2
+  Trash2,
+  Briefcase
 } from 'lucide-react';
 import FinancialDetailsCard from './FinancialDetailsCard';
 import IncomeBreakdownPanel from './IncomeBreakdownPanel';
 
 // --- Helper Functions ---
-import { formatCurrency, convertCurrency, getDualCurrencyAmounts } from '../utils/currency';
+import { formatCurrency, convertCurrency } from '../utils/currency';
 // const formatCurrency = (val: number) => `$${val.toLocaleString('es-AR')}`; // REMOVED
 
 // --- Timer Hook for Dashboard Components ---
@@ -104,12 +105,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onDeleteProperty
 }) => {
 
-  // Calculate Total Income in USD
+  // Calculate Total Income in ARS
   const totalIncome = properties.reduce((acc, p) => {
-    // specific currency or default ARS
-    const currency = p.currency || 'ARS';
-    const rentInUsd = convertCurrency(p.monthlyRent, currency, 'USD');
-    return acc + rentInUsd;
+    return acc + p.monthlyRent;
   }, 0);
 
   const totalBudget = totalIncome * 0.15; // 15% rule mentioned in UI text (was 0.85 in code but text says 15%)
@@ -334,13 +332,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         <p className="text-xs text-gray-400 uppercase font-bold">Alquiler</p>
                         <div className="flex flex-col">
                           <p className="text-sm font-bold text-green-700">
-                            {formatCurrency(property.monthlyRent, property.currency || 'ARS')}
+                            {formatCurrency(property.monthlyRent, 'ARS')}
                           </p>
-                          {property.currency === 'ARS' && (
-                            <p className="text-[10px] text-green-600">
-                              {formatCurrency(convertCurrency(property.monthlyRent, 'ARS', 'USD'), 'USD')}
-                            </p>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -360,7 +353,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <div>
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Gastos vs. Presupuesto (Mensual)</h3>
             <p className="text-3xl font-bold text-gray-900 mt-2">
-              {formatCurrency(currentExpenses, 'USD')} <span className="text-gray-400 text-lg font-normal">/ {formatCurrency(totalBudget, 'USD')}</span>
+              {formatCurrency(currentExpenses, 'ARS')} <span className="text-gray-400 text-lg font-normal">/ {formatCurrency(totalBudget, 'ARS')}</span>
             </p>
           </div>
           <div className="text-right">
@@ -420,39 +413,33 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     if (onClearPreSelection) onClearPreSelection();
   };
 
-  // --- Separate properties by currency ---
-  const arsProperties = properties.filter(p => (p.currency || 'ARS') === 'ARS');
-  const usdProperties = properties.filter(p => (p.currency || 'ARS') === 'USD');
+  // --- Single currency properties (ARS) ---
+  const arsProperties = properties; // All properties are now ARS
 
   // --- Monthly income grids (12 months) ---
   const arsMonthly = Array.from({ length: 12 }, (_, i) => {
     return arsProperties.reduce((sum, p) => sum + p.monthlyRent, 0);
   });
-  const usdMonthly = Array.from({ length: 12 }, (_, i) => {
-    return usdProperties.reduce((sum, p) => sum + p.monthlyRent, 0);
-  });
 
   const arsYearTotal = arsMonthly.reduce((a, b) => a + b, 0);
-  const usdYearTotal = usdMonthly.reduce((a, b) => a + b, 0);
 
   // --- Annual expenses from maintenance tasks ---
-  const annualExpensesUSD = maintenanceTasks.reduce((acc, task) => {
+  // Assuming maintenanceTasks cost is now in ARS as well or we just treat it as number
+  // If tasks have currency, we might need to assume ARS. For now assuming raw number is ARS.
+  const annualExpensesARS = maintenanceTasks.reduce((acc, task) => {
     const cost = task.cost || task.estimatedCost || 0;
     return acc + cost;
   }, 0);
 
   // --- Net balance ---
-  const arsYearNet = arsYearTotal; // expenses are in USD for now
-  const usdYearNet = usdYearTotal - annualExpensesUSD;
+  const arsYearNet = arsYearTotal - annualExpensesARS;
 
   // --- Per-property financials ---
   const propertyFinancials = properties.map(p => {
     const propTasks = maintenanceTasks.filter(t => t.propertyId === p.id);
     const propExpenses = propTasks.reduce((acc, t) => acc + (t.cost || t.estimatedCost || 0), 0);
-    const currency = p.currency || 'ARS';
-    const rentInUsd = currency === 'USD' ? p.monthlyRent : convertCurrency(p.monthlyRent, currency, 'USD');
-    const net = rentInUsd - propExpenses;
-    return { ...p, expenses: propExpenses, netResult: net, rentInUsd };
+    const net = p.monthlyRent - propExpenses;
+    return { ...p, expenses: propExpenses, netResult: net };
   });
 
   return (
@@ -484,129 +471,76 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
       {/* === SUMMARY CARDS === */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 col-span-2">
           <div className="flex items-center gap-2 text-blue-600 mb-1">
             <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase">Ingreso Anual ARS</span>
+            <span className="text-xs font-bold uppercase">Ingreso Anual Total (ARS)</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</p>
-          <p className="text-xs text-gray-400 mt-1">{arsProperties.length} propiedad{arsProperties.length !== 1 ? 'es' : ''}</p>
+          <p className="text-3xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</p>
+          <p className="text-xs text-gray-400 mt-1">{properties.length} propiedad{properties.length !== 1 ? 'es' : ''}</p>
         </div>
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-2 text-green-600 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase">Ingreso Anual USD</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(usdYearTotal, 'USD')}</p>
-          <p className="text-xs text-gray-400 mt-1">{usdProperties.length} propiedad{usdProperties.length !== 1 ? 'es' : ''}</p>
-        </div>
+
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 text-red-600 mb-1">
             <Hammer className="w-4 h-4" />
             <span className="text-xs font-bold uppercase">Gastos Anuales</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(annualExpensesUSD, 'USD')}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(annualExpensesARS, 'ARS')}</p>
           <p className="text-xs text-gray-400 mt-1">Mantenimiento y obras</p>
         </div>
         <div className="bg-gray-900 p-5 rounded-2xl shadow-lg text-white">
           <div className="flex items-center gap-2 text-blue-300 mb-1">
             <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase">Balance Neto USD</span>
+            <span className="text-xs font-bold uppercase">Balance Neto ARS</span>
           </div>
-          <p className={`text-2xl font-bold ${usdYearNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {formatCurrency(usdYearNet, 'USD')}
+          <p className={`text-2xl font-bold ${arsYearNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {formatCurrency(arsYearNet, 'ARS')}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Ingresos USD − Gastos</p>
+          <p className="text-xs text-gray-500 mt-1">Ingresos − Gastos</p>
         </div>
       </section>
 
-      {/* === MONTHLY GRID: ARS === */}
-      {arsProperties.length > 0 && (
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div
-            onClick={() => setExpandedSection(expandedSection === 'ARS' ? null : 'ARS')}
-            className="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-                  Ingresos Mensuales — ARS
-                </h3>
-                <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en pesos argentinos por mes</p>
+      {/* === MONTHLY GRID: ARS (Consolidated) === */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div
+          onClick={() => setExpandedSection(expandedSection === 'ARS' ? null : 'ARS')}
+          className="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+                Ingresos Mensuales
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en pesos argentinos (ARS) por mes</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</span>
+            {expandedSection === 'ARS'
+              ? <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+              : <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+            }
+          </div>
+        </div>
+        <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
+          {arsMonthly.map((amount, i) => {
+            const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
+            return (
+              <div key={i} className={`p-3 text-center ${isCurrent ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}>
+                <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
+                <p className={`text-sm font-bold mt-1 ${isCurrent ? 'text-blue-700' : 'text-gray-700'}`}>
+                  {amount > 0 ? formatCurrency(amount, 'ARS') : '—'}
+                </p>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</span>
-              {expandedSection === 'ARS'
-                ? <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                : <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-              }
-            </div>
-          </div>
-          <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
-            {arsMonthly.map((amount, i) => {
-              const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
-              return (
-                <div key={i} className={`p-3 text-center ${isCurrent ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}>
-                  <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
-                  <p className={`text-sm font-bold mt-1 ${isCurrent ? 'text-blue-700' : 'text-gray-700'}`}>
-                    {amount > 0 ? formatCurrency(amount, 'ARS') : '—'}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-          {/* Expandable Breakdown */}
-          {expandedSection === 'ARS' && (
-            <IncomeBreakdownPanel properties={arsProperties} buildings={buildings} currency="ARS" />
-          )}
-        </section>
-      )}
-
-      {/* === MONTHLY GRID: USD === */}
-      {usdProperties.length > 0 && (
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div
-            onClick={() => setExpandedSection(expandedSection === 'USD' ? null : 'USD')}
-            className="p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
-                  Ingresos Mensuales — USD
-                </h3>
-                <p className="text-xs text-gray-400 mt-1">Alquileres cobrados en dólares americanos por mes</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xl font-bold text-gray-900">{formatCurrency(usdYearTotal, 'USD')}</span>
-              {expandedSection === 'USD'
-                ? <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
-                : <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
-              }
-            </div>
-          </div>
-          <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
-            {usdMonthly.map((amount, i) => {
-              const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
-              return (
-                <div key={i} className={`p-3 text-center ${isCurrent ? 'bg-green-50' : 'hover:bg-gray-50'} transition-colors`}>
-                  <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-green-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
-                  <p className={`text-sm font-bold mt-1 ${isCurrent ? 'text-green-700' : 'text-gray-700'}`}>
-                    {amount > 0 ? formatCurrency(amount, 'USD') : '—'}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-          {/* Expandable Breakdown */}
-          {expandedSection === 'USD' && (
-            <IncomeBreakdownPanel properties={usdProperties} buildings={buildings} currency="USD" />
-          )}
-        </section>
-      )}
+            );
+          })}
+        </div>
+        {/* Expandable Breakdown */}
+        {expandedSection === 'ARS' && (
+          <IncomeBreakdownPanel properties={arsProperties} buildings={buildings} currency="ARS" />
+        )}
+      </section>
 
       {/* === PROPERTY DETAIL TABLE === */}
       <section>
@@ -618,11 +552,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
                   <th className="p-5 font-semibold">Propiedad / Inquilino</th>
-                  <th className="p-5 font-semibold">Moneda</th>
+                  {/* <th className="p-5 font-semibold">Moneda</th> - Removed */}
                   <th className="p-5 font-semibold">Estado</th>
                   <th className="p-5 font-semibold text-right text-green-700">Alquiler Mensual</th>
                   <th className="p-5 font-semibold text-right text-red-700">Gastos</th>
-                  <th className="p-5 font-semibold text-right">Neto (USD)</th>
+                  <th className="p-5 font-semibold text-right">Neto (ARS)</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
@@ -637,28 +571,19 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                       <div className="text-gray-500 text-xs">{item.tenantName}</div>
                     </td>
                     <td className="p-5">
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${(item.currency || 'ARS') === 'USD' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                        {item.currency || 'ARS'}
-                      </span>
-                    </td>
-                    <td className="p-5">
                       {item.status === PropertyStatus.CURRENT && <span className="text-green-600 font-bold text-xs bg-green-100 px-2 py-1 rounded-full">Al Día</span>}
                       {item.status === PropertyStatus.LATE && <span className="text-red-600 font-bold text-xs bg-red-100 px-2 py-1 rounded-full">Moroso</span>}
                       {item.status === PropertyStatus.WARNING && <span className="text-yellow-700 font-bold text-xs bg-yellow-100 px-2 py-1 rounded-full">Atención</span>}
                     </td>
                     <td className="p-5 text-right font-medium text-gray-700">
-                      <div>{formatCurrency(item.monthlyRent, item.currency || 'ARS')}</div>
-                      {(item.currency || 'ARS') !== 'USD' && (
-                        <div className="text-xs text-gray-400">≈ {formatCurrency(item.rentInUsd, 'USD')}</div>
-                      )}
+                      <div>{formatCurrency(item.monthlyRent, 'ARS')}</div>
                     </td>
                     <td className="p-5 text-right font-medium text-red-600">
-                      {item.expenses > 0 ? `- ${formatCurrency(item.expenses, 'USD')}` : '—'}
+                      {item.expenses > 0 ? `- ${formatCurrency(item.expenses, 'ARS')}` : '—'}
                     </td>
                     <td className="p-5 text-right">
                       <span className={`font-bold ${item.netResult > 0 ? 'text-green-700' : 'text-red-600'}`}>
-                        {formatCurrency(item.netResult, 'USD')}
+                        {formatCurrency(item.netResult, 'ARS')}
                       </span>
                     </td>
                   </tr>
@@ -669,12 +594,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
           <div className="bg-gray-50 p-5 flex justify-end gap-8 border-t border-gray-200">
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase">Total Gastos</p>
-              <p className="font-bold text-red-600">{formatCurrency(annualExpensesUSD, 'USD')}</p>
+              <p className="font-bold text-red-600">{formatCurrency(annualExpensesARS, 'ARS')}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase">Balance Neto USD</p>
-              <p className={`font-bold text-lg ${usdYearNet >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                {formatCurrency(usdYearNet, 'USD')}
+              <p className="text-xs text-gray-500 uppercase">Balance Neto ARS</p>
+              <p className={`font-bold text-lg ${arsYearNet >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {formatCurrency(arsYearNet, 'ARS')}
               </p>
             </div>
           </div>
@@ -700,13 +625,15 @@ interface ProfessionalDetailsViewProps {
   properties: Property[];
   onBack: () => void;
   onDelete?: (id: string) => void;
+  onEdit?: (pro: Professional) => void;
 }
 
 const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
   professional,
   properties,
   onBack,
-  onDelete
+  onDelete,
+  onEdit
 }) => {
   // 1. Current Assignments
   const activeAssignments = properties.filter(p => p.assignedProfessionalId === professional.id);
@@ -782,8 +709,11 @@ const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-3 min-w-[150px]">
-            <button className="flex-1 bg-gray-900 text-white py-3 px-6 rounded-xl font-bold hover:bg-gray-800 flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-105">
-              <Phone className="w-5 h-5" /> Llamar
+            <button
+              onClick={() => onEdit && onEdit(professional)}
+              className="flex-1 bg-gray-900 text-white py-3 px-6 rounded-xl font-bold hover:bg-gray-800 flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-105"
+            >
+              <Briefcase className="w-5 h-5" /> Modificar
             </button>
             {onDelete && (
               <button
@@ -877,6 +807,7 @@ interface ProfessionalsViewProps {
   onAddProfessional?: () => void;
   onAssignProfessional?: (pro: Professional) => void;
   onDeleteProfessional?: (id: string) => void;
+  onEditProfessional?: (pro: Professional) => void;
 }
 
 export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
@@ -884,7 +815,8 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
   professionals = [],
   onAddProfessional,
   onAssignProfessional,
-  onDeleteProfessional
+  onDeleteProfessional,
+  onEditProfessional
 }) => {
   const [selectedPro, setSelectedPro] = useState<Professional | null>(null);
 
@@ -895,6 +827,7 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
         properties={properties}
         onBack={() => setSelectedPro(null)}
         onDelete={onDeleteProfessional}
+        onEdit={onEditProfessional}
       />
     );
   }

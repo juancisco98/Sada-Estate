@@ -95,6 +95,7 @@ const Dashboard: React.FC = () => {
   const [propertyToEdit, setPropertyToEdit] = useState<Property | null>(null);
   const [finishingProperty, setFinishingProperty] = useState<Property | null>(null);
   const [showAddProModal, setShowAddProModal] = useState(false);
+  const [professionalToEdit, setProfessionalToEdit] = useState<Professional | null>(null);
 
   // --- Hooks Integration ---
   const {
@@ -213,6 +214,12 @@ const Dashboard: React.FC = () => {
   const handleSaveProfessional = (newPro: Professional) => {
     saveProfessionalData(newPro);
     setShowAddProModal(false);
+    setProfessionalToEdit(null);
+  };
+
+  const handleEditProfessional = (pro: Professional) => {
+    setProfessionalToEdit(pro);
+    setShowAddProModal(true);
   };
 
   const handleAssignProfessionalToProperty = (propertyId: string, taskDescription: string) => {
@@ -269,9 +276,13 @@ const Dashboard: React.FC = () => {
                 <ProfessionalsView
                   properties={properties}
                   professionals={professionals}
-                  onAddProfessional={() => setShowAddProModal(true)}
+                  onAddProfessional={() => {
+                    setProfessionalToEdit(null);
+                    setShowAddProModal(true);
+                  }}
                   onAssignProfessional={(pro) => setAssigningProfessional(pro)}
                   onDeleteProfessional={handleDeleteProfessional}
+                  onEditProfessional={handleEditProfessional}
                 />
               </Suspense>
             </div>
@@ -401,8 +412,12 @@ const Dashboard: React.FC = () => {
 
       {showAddProModal && (
         <AddProfessionalModal
-          onClose={() => setShowAddProModal(false)}
+          onClose={() => {
+            setShowAddProModal(false);
+            setProfessionalToEdit(null);
+          }}
           onSave={handleSaveProfessional}
+          existingProfessional={professionalToEdit}
         />
       )}
 

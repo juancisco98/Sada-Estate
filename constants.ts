@@ -98,7 +98,7 @@ export const MOCK_PROPERTIES: Property[] = [
     tenantPhone: '+1-305-555-0123',
     imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1000&auto=format&fit=crop', // Miami style
     status: PropertyStatus.CURRENT,
-    monthlyRent: 2500, // USD
+    monthlyRent: 3000000, // Converted from 2500 USD at approx 1200 ARS
     coordinates: [25.7617, -80.1918], // Miami
     contractEnd: '2025-08-01',
     lastPaymentDate: '2024-05-01',
@@ -106,7 +106,7 @@ export const MOCK_PROPERTIES: Property[] = [
     rooms: 2,
     squareMeters: 90,
     country: 'USA',
-    currency: 'USD'
+    currency: 'ARS'
   }
 ];
 

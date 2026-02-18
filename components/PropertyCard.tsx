@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Property, PropertyStatus } from '../types';
 import { MOCK_PROFESSIONALS, MOCK_USERS } from '../constants';
-import { getDualCurrencyAmounts, formatCurrency } from '../utils/currency';
+import { formatCurrency } from '../utils/currency';
 import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2 } from 'lucide-react';
 
 interface PropertyCardProps {
@@ -236,21 +236,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               <Home className="w-4 h-4 text-gray-400" /> Alquiler Mensual
             </span>
             <div className="text-right">
-              {(() => {
-                const amounts = getDualCurrencyAmounts(property.monthlyRent, property.currency || 'ARS');
-                return (
-                  <>
-                    <div className="font-bold text-lg text-gray-900">
-                      {formatCurrency(amounts.local, amounts.localCurrency)}
-                    </div>
-                    {amounts.localCurrency !== 'USD' && (
-                      <div className="text-xs text-green-600 font-bold">
-                        {formatCurrency(amounts.usd, 'USD')}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
+              <div className="font-bold text-lg text-gray-900">
+                {formatCurrency(property.monthlyRent, 'ARS')}
+              </div>
             </div>
           </div>
 
