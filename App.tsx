@@ -1,7 +1,12 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Toaster, toast } from 'sonner';
 import { handleError } from './utils/errorHandler';
-// Force Vercel Rebuild - Timestamp: 2026-02-18-2040
+// Force Vercel Rebuild - Timestamp: 2026-02-19-1520
+// Debugging Vercel Environment
+console.log('[App] Starting up...');
+console.log('[App] VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL ? 'Defined' : 'Missing');
+console.log('[App] VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Defined' : 'Missing');
+
 import MapBoard from './components/MapBoard';
 import PropertyCard from './components/PropertyCard';
 import VoiceAssistant from './components/VoiceAssistant';
