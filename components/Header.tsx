@@ -2,6 +2,7 @@ import React from 'react';
 import { Menu, Search, Loader2, Bell } from 'lucide-react';
 import { ViewState } from './Sidebar';
 import { User } from '../types';
+import InstallButton from './InstallButton';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -52,6 +53,7 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <InstallButton />
                     {currentView === 'MAP' && (
                         <div className="flex items-center bg-gray-100/80 hover:bg-white border border-transparent hover:border-blue-200 rounded-2xl px-3 py-2 transition-all focus-within:ring-4 focus-within:ring-blue-100 shadow-inner">
                             {isSearching ? (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { handleError } from './utils/errorHandler';
 // Force Vercel Rebuild - Timestamp: 2026-02-19-1520
@@ -108,6 +108,52 @@ const Dashboard: React.FC = () => {
   const [finishingProperty, setFinishingProperty] = useState<Property | null>(null);
   const [showAddProModal, setShowAddProModal] = useState(false);
   const [professionalToEdit, setProfessionalToEdit] = useState<Professional | null>(null);
+
+  // --- URL State Management ---
+  const isHydrated = useRef(false);
+  
+  // Hydrate state from URL on load
+  useEffect(() => {
+    if (!isLoading && properties.length > 0 && !isHydrated.current) {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view') as ViewState;
+      const propertyIdParam = params.get('property');
+      
+      if (viewParam && ['MAP', 'OVERVIEW', 'FINANCE', 'PROFESSIONALS', 'TENANTS'].includes(viewParam)) {
+        setCurrentView(viewParam);
+      }
+      
+      if (propertyIdParam) {
+        const prop = properties.find(p => p.id === propertyIdParam);
+        if (prop) {
+          setSelectedProperty(prop);
+          if (viewParam === 'FINANCE') {
+             setFinancialPropertyToOpen(prop);
+          }
+        }
+      }
+      isHydrated.current = true;
+    }
+  }, [isLoading, properties]);
+
+  // Update URL on state change
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (currentView) {
+      params.set('view', currentView);
+    }
+    if (selectedProperty) {
+      params.set('property', selectedProperty.id);
+    } else {
+      params.delete('property');
+    }
+    
+    // Use replaceState to update URL without adding to history stack, 
+    // ensuring back button works naturally for navigation history, 
+    // but refreshes keep state.
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, '', newUrl);
+  }, [currentView, selectedProperty]);
 
   // --- Hooks Integration ---
   const {
