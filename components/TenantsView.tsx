@@ -82,8 +82,21 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 notes: paymentToEdit.notes || ''
             });
         } else {
+            // Find tenant and property to get rent
+            const tenant = tenants.find(t => t.id === tenantId);
+            const prop = tenant?.propertyId ? properties.find(p => p.id === tenant.propertyId) : null;
+
+            // Find last payment to get previous amount
+            const tenantPayments = payments.filter(p => p.tenantId === tenantId);
+            const lastPayment = tenantPayments.sort((a, b) => {
+                if (a.year !== b.year) return b.year - a.year;
+                return b.month - a.month;
+            })[0];
+
+            const defaultAmount = lastPayment ? lastPayment.amount.toString() : (prop?.monthlyRent?.toString() || '');
+
             setNewPayment({
-                amount: '',
+                amount: defaultAmount,
                 month: initialData?.month || new Date().getMonth() + 1,
                 year: initialData?.year || new Date().getFullYear(),
                 paidOnTime: true,
