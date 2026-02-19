@@ -7,31 +7,39 @@ export const useProperties = (currentUserId?: string) => {
     const { properties, setProperties } = useDataContext();
 
     const saveProperty = async (savedProp: Property) => {
-        const propWithUser = { ...savedProp, lastModifiedBy: currentUserId };
+        await saveProperties([savedProp]);
+    };
+
+    const saveProperties = async (savedProps: Property[]) => {
+        const propsWithUser = savedProps.map(p => ({ ...p, lastModifiedBy: currentUserId }));
 
         // Optimistic update
         setProperties(prev => {
-            const exists = prev.find(p => p.id === propWithUser.id);
-            if (exists) {
-                return prev.map(p => p.id === propWithUser.id ? propWithUser : p);
-            } else {
-                return [...prev, propWithUser];
-            }
+            const newProps = [...prev];
+            propsWithUser.forEach(p => {
+                const index = newProps.findIndex(existing => existing.id === p.id);
+                if (index !== -1) {
+                    newProps[index] = p;
+                } else {
+                    newProps.push(p);
+                }
+            });
+            return newProps;
         });
 
         try {
-            const dbRow = propertyToDb(propWithUser);
+            const dbRows = propsWithUser.map(propertyToDb);
             const { error } = await supabase
                 .from('properties')
-                .upsert(dbRow, { onConflict: 'id' });
+                .upsert(dbRows, { onConflict: 'id' });
 
             if (error) {
-                console.error('[Supabase] ❌ Error saving property:', error);
+                console.error('[Supabase] ❌ Error saving properties:', error);
             } else {
-                console.log(`[Supabase] ✅ Property saved: ${propWithUser.address}`);
+                console.log(`[Supabase] ✅ Saved ${propsWithUser.length} properties.`);
             }
         } catch (err) {
-            console.error('[Supabase] ❌ Exception saving property:', err);
+            console.error('[Supabase] ❌ Exception saving properties:', err);
         }
     };
 
@@ -107,6 +115,7 @@ export const useProperties = (currentUserId?: string) => {
         saveProperty,
         updateNote,
         deleteProperty,
-        updatePropertyFields
+        updatePropertyFields,
+        saveProperties
     };
 };

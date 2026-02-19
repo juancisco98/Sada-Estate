@@ -1,4 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { Toaster, toast } from 'sonner';
+import { handleError } from './utils/errorHandler';
 // Force Vercel Rebuild - Timestamp: 2026-02-18-2040
 import MapBoard from './components/MapBoard';
 import PropertyCard from './components/PropertyCard';
@@ -11,7 +13,7 @@ import AddPropertyModal from './components/AddPropertyModal';
 import FinishMaintenanceModal from './components/FinishMaintenanceModal';
 import AddProfessionalModal from './components/AddProfessionalModal';
 import AssignProfessionalModal from './components/AssignProfessionalModal';
-import { Property, Professional } from './types';
+import { Property, Professional, User } from './types';
 import { DataProvider, useDataContext } from './context/DataContext';
 import { supabase, signOut } from './services/supabaseClient';
 import { ALLOWED_EMAILS } from './constants';
@@ -33,7 +35,7 @@ const TenantsView = lazy(() => import('./components/TenantsView'));
 const Dashboard: React.FC = () => {
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [currentView, setCurrentView] = useState<ViewState>('MAP');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -43,6 +45,7 @@ const Dashboard: React.FC = () => {
   const {
     properties,
     saveProperty: savePropertyData,
+    saveProperties: savePropertiesData,
     updateNote: updateNoteData,
     deleteProperty: handleDeleteProperty,
     updatePropertyFields
@@ -155,15 +158,17 @@ const Dashboard: React.FC = () => {
         // Allowlist Check
         if (ALLOWED_EMAILS.includes(userEmail)) {
           setCurrentUser({
+            id: session.user.id,
             name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
             email: userEmail,
-            photoURL: session.user.user_metadata?.avatar_url
+            photoURL: session.user.user_metadata?.avatar_url,
+            color: '#3b82f6' // Default color
           });
           setIsAuthenticated(true);
         } else {
           // Deny access
           await signOut();
-          alert(`Acceso denegado: ${userEmail} no está autorizado.`);
+          handleError(new Error(`Unauthorized access attempt by ${userEmail}`), `Acceso denegado: ${userEmail} no está autorizado.`);
           setIsAuthenticated(false);
           setCurrentUser(null);
         }
@@ -207,15 +212,42 @@ const Dashboard: React.FC = () => {
     setShowPropertyModal(true);
   };
 
-  const handleSaveProperty = (savedProp: Property) => {
-    savePropertyData(savedProp);
-    setShowPropertyModal(false);
-    setPropertyToEdit(null);
-    setSearchResult(null);
-    setSearchQuery('');
+  const handleSaveProperty = (savedPropOrProps: Property | Property[]) => {
+    if (Array.isArray(savedPropOrProps)) {
+      // Bulk save (Building)
+      // We need to access useProperties' saveProperties which we exposed earlier
+      // But destructured as undefined in the component currently. 
+      // Wait, I strictly need to update the destructuring in App.tsx first or now?
+      // I can assume propertyToEdit is null for bulk adds usually.
+      // Let's use saveProperties directly if available, or map saveProperty.
+      // Actually I exposed saveProperties in step 74.
+      // I need to update the destructuring in App.tsx line 47.
 
-    if (!propertyToEdit) {
-      setSelectedProperty(savedProp);
+      // Since I can't effectively update the destructuring AND this function in one go easily without context of line numbers changing...
+      // I will assume `savePropertiesData` is available (I will add it in next tool call or this one if I can match lines).
+      // Let's do a trick: I will just use savePropertyData in a loop if saveProperties isn't there, 
+      // BUT I know I added saveProperties to the hook.
+      // I will update the destructuring in a separate tool call to be safe.
+      // For now, let's implement the logic assuming savePropertiesData exists.
+
+      // Actually, to avoid breaking build, I will do the destructuring update in the NEXT step, 
+      // and here I will just implement the logic using `savePropertiesData` which I'll alias in the destructuring next.
+      savePropertiesData(savedPropOrProps);
+      setShowPropertyModal(false);
+      setPropertyToEdit(null);
+      setSearchResult(null);
+      setSearchQuery('');
+    } else {
+      // Single save
+      savePropertyData(savedPropOrProps);
+      setShowPropertyModal(false);
+      setPropertyToEdit(null);
+      setSearchResult(null);
+      setSearchQuery('');
+
+      if (!propertyToEdit) {
+        setSelectedProperty(savedPropOrProps);
+      }
     }
   };
 
@@ -228,7 +260,7 @@ const Dashboard: React.FC = () => {
     if (!finishingProperty) return;
     finishMaintenanceData(finishingProperty.id, rating, speedRating, comment, cost);
     setFinishingProperty(null);
-    alert("Obra finalizada y calificación guardada con éxito.");
+    toast.success("Obra finalizada y calificación guardada con éxito.");
   };
 
   const handleSaveProfessional = (newPro: Professional) => {
@@ -246,7 +278,7 @@ const Dashboard: React.FC = () => {
     if (!assigningProfessional) return;
     assignProfessionalData(propertyId, assigningProfessional, taskDescription);
     setAssigningProfessional(null);
-    alert(`Asignado ${assigningProfessional.name} correctamente.`);
+    toast.success(`Asignado ${assigningProfessional.name} correctamente.`);
   };
 
   const handleSearchClick = () => {
@@ -357,9 +389,7 @@ const Dashboard: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    if (!isAuthenticated) {
-      return <AuthScreen />;
-    }
+    return <AuthScreen />;
   }
 
   if (isLoading) {

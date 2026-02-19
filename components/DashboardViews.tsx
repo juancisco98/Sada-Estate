@@ -27,40 +27,7 @@ import MaintenanceDetailsModal from './MaintenanceDetailsModal';
 
 // --- Helper Functions ---
 import { formatCurrency, convertCurrency } from '../utils/currency';
-// const formatCurrency = (val: number) => `$${val.toLocaleString('es-AR')}`; // REMOVED
-
-// --- Timer Hook for Dashboard Components ---
-const useMaintenanceTimer = (startDateString?: string) => {
-  const [label, setLabel] = useState("Reciente");
-
-  useEffect(() => {
-    if (!startDateString) return;
-
-    const update = () => {
-      const start = new Date(startDateString);
-      const now = new Date();
-      const diffMs = now.getTime() - start.getTime();
-      const oneDayMs = 1000 * 60 * 60 * 24;
-
-      if (diffMs > oneDayMs) {
-        const days = Math.floor(diffMs / oneDayMs);
-        setLabel(`${days} día${days > 1 ? 's' : ''}`);
-      } else {
-        const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
-        const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
-        const seconds = Math.floor((diffMs / 1000) % 60);
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        setLabel(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
-      }
-    };
-
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [startDateString]);
-
-  return label;
-};
+import { useMaintenanceTimer } from '../hooks/useMaintenanceTimer';
 
 // --- Sub-component for Active Maintenance Label in Professionals View ---
 const ActiveJobIndicator: React.FC<{ property: Property }> = ({ property }) => {

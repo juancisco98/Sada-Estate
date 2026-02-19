@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Property, Professional, MaintenanceTask, Building } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { MOCK_PROPERTIES, MOCK_PROFESSIONALS, MOCK_MAINTENANCE_TASKS } from '../constants';
 import {
-    dbToBuilding, dbToProperty, propertyToDb,
-    dbToProfessional, professionalToDb,
+    dbToBuilding, dbToProperty,
+    dbToProfessional,
     dbToTask
 } from '../utils/mappers';
+import { handleError } from '../utils/errorHandler';
 
 interface DataContextType {
     properties: Property[];
@@ -41,18 +41,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (prosError) throw prosError;
 
-            let loadedPros: Professional[];
-            if (prosData && prosData.length > 0) {
-                loadedPros = prosData.map(dbToProfessional);
+            if (prosData) {
+                const loadedPros = prosData.map(dbToProfessional);
+                setProfessionals(loadedPros);
                 console.log(`[Supabase] ✅ Loaded ${loadedPros.length} professionals`);
-            } else {
-                console.log('[Supabase] 📦 No professionals found, seeding from mock data...');
-                const seedPros = MOCK_PROFESSIONALS.map(p => professionalToDb(p));
-                const { error: seedError } = await supabase.from('professionals').insert(seedPros);
-                if (seedError) console.error('[Supabase] Seed pros error:', seedError);
-                loadedPros = MOCK_PROFESSIONALS;
             }
-            setProfessionals(loadedPros);
 
             // Load properties
             const { data: propsData, error: propsError } = await supabase
@@ -62,23 +55,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (propsError) throw propsError;
 
-            let loadedProps: Property[];
-            if (propsData && propsData.length > 0) {
-                loadedProps = propsData.map(dbToProperty);
+            if (propsData) {
+                const loadedProps = propsData.map(dbToProperty);
+                setProperties(loadedProps);
                 console.log(`[Supabase] ✅ Loaded ${loadedProps.length} properties`);
-            } else {
-                console.log('[Supabase] 📦 No properties found, seeding from mock data...');
-                const seedProps = MOCK_PROPERTIES.map(p => {
-                    const dbRow = propertyToDb(p);
-                    dbRow.assigned_professional_id = null;
-                    dbRow.last_modified_by = null;
-                    return dbRow;
-                });
-                const { error: seedError } = await supabase.from('properties').insert(seedProps);
-                if (seedError) console.error('[Supabase] Seed props error:', seedError);
-                loadedProps = MOCK_PROPERTIES;
             }
-            setProperties(loadedProps);
 
             // Load maintenance tasks
             const { data: tasksData, error: tasksError } = await supabase
@@ -88,11 +69,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (tasksError) throw tasksError;
 
-            if (tasksData && tasksData.length > 0) {
+            if (tasksData) {
                 setMaintenanceTasks(tasksData.map(dbToTask));
                 console.log(`[Supabase] ✅ Loaded ${tasksData.length} tasks`);
-            } else {
-                setMaintenanceTasks([]);
             }
 
             // Load buildings
@@ -101,16 +80,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 .select('*')
                 .order('created_at', { ascending: true });
 
-            if (buildingsData && buildingsData.length > 0) {
+            if (buildingsData) {
                 setBuildings(buildingsData.map(dbToBuilding));
                 console.log(`[Supabase] ✅ Loaded ${buildingsData.length} buildings`);
             }
 
         } catch (error) {
-            console.error('[Supabase] ❌ Load error, falling back to mock data:', error);
-            setProperties(MOCK_PROPERTIES);
-            setProfessionals(MOCK_PROFESSIONALS);
-            setMaintenanceTasks(MOCK_MAINTENANCE_TASKS);
+            handleError(error, 'Error al cargar los datos. Por favor recargue la página.');
+            // No fallback to mock data
         } finally {
             setIsLoading(false);
         }

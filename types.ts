@@ -9,8 +9,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  color: string; // Hex color for visual differentiation
-  password?: string; // Simple mock password
+  color?: string; // Hex color for visual differentiation
+  photoURL?: string;
 }
 
 export interface Building {
@@ -171,7 +171,51 @@ export interface VoiceCommandResponse {
 }
 
 // Web Speech API Types
+export interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+}
+
+export interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+export interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+export interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+export interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+export interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
 export interface IWindow extends Window {
-  webkitSpeechRecognition: any;
-  SpeechRecognition: any;
+  webkitSpeechRecognition: {
+    new(): SpeechRecognition;
+  };
+  SpeechRecognition: {
+    new(): SpeechRecognition;
+  };
 }

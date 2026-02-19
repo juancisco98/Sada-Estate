@@ -3,6 +3,8 @@ import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader } from 'lucide-react';
 import { uploadPaymentProof } from '../services/storage';
+import { toast } from 'sonner';
+import { handleError } from '../utils/errorHandler';
 
 interface TenantsViewProps {
     tenants: Tenant[];
@@ -64,6 +66,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             propertyId: newTenant.propertyId || null,
         };
         onSaveTenant(tenant);
+        toast.success('Inquilino agregado correctamente');
         setNewTenant({ name: '', phone: '', email: '', propertyId: '' });
         setShowAddModal(false);
     };
@@ -124,6 +127,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 notes: newPayment.notes
             };
             onUpdatePayment(updatedPayment);
+            toast.success('Pago actualizado correctamente');
         } else {
             const payment: TenantPayment = {
                 id: `pay-${Date.now()}`,
@@ -140,6 +144,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 notes: newPayment.notes
             };
             onRegisterPayment(payment);
+            toast.success('Pago registrado correctamente');
         }
 
         setNewPayment({
@@ -167,12 +172,12 @@ const TenantsView: React.FC<TenantsViewProps> = ({
 
             if (publicUrl) {
                 setNewPayment(prev => ({ ...prev, proofOfPayment: publicUrl }));
+                toast.success('Comprobante subido correctamente');
             } else {
-                alert('Error al subir el comprobante. Por favor intente nuevamente.');
+                toast.error('Error al subir el comprobante. Por favor intente nuevamente.');
             }
         } catch (error) {
-            console.error('Error handling file upload:', error);
-            alert('Error al subir el comprobante.');
+            handleError(error, 'Error al subir el comprobante.');
         } finally {
             setIsUploading(false);
         }
@@ -185,101 +190,87 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     };
 
     return (
-        <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div className="p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                    <h1 className="text-3xl font-bold text-gray-800">
                         Inquilinos
                     </h1>
-                    <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>
+                    <p className="text-gray-500 mt-1 text-sm">
                         {tenants.length} {tenants.length === 1 ? 'inquilino' : 'inquilinos'} registrado{tenants.length !== 1 ? 's' : ''}
                     </p>
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '8px',
-                        padding: '10px 20px', borderRadius: '12px',
-                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: 'white',
-                        border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '14px',
-                        boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
-                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all active:scale-95"
                 >
                     <UserPlus size={18} /> Agregar Inquilino
                 </button>
             </div>
 
             {/* Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                <div style={{ background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)', padding: '16px 20px', borderRadius: '14px', border: '1px solid #bae6fd' }}>
-                    <p style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600', textTransform: 'uppercase', margin: 0 }}>Total Inquilinos</p>
-                    <p style={{ fontSize: '28px', fontWeight: '700', color: '#0c4a6e', margin: '4px 0 0' }}>{tenants.length}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-2xl border border-blue-200">
+                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Total Inquilinos</p>
+                    <p className="text-3xl font-bold text-blue-900 mt-1">{tenants.length}</p>
                 </div>
-                <div style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', padding: '16px 20px', borderRadius: '14px', border: '1px solid #bbf7d0' }}>
-                    <p style={{ fontSize: '12px', color: '#15803d', fontWeight: '600', textTransform: 'uppercase', margin: 0 }}>Con Inmueble</p>
-                    <p style={{ fontSize: '28px', fontWeight: '700', color: '#14532d', margin: '4px 0 0' }}>{tenants.filter(t => t.propertyId).length}</p>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-2xl border border-green-200">
+                    <p className="text-xs font-bold text-green-700 uppercase tracking-wider">Con Inmueble</p>
+                    <p className="text-3xl font-bold text-green-900 mt-1">{tenants.filter(t => t.propertyId).length}</p>
                 </div>
-                <div style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', padding: '16px 20px', borderRadius: '14px', border: '1px solid #fde68a' }}>
-                    <p style={{ fontSize: '12px', color: '#a16207', fontWeight: '600', textTransform: 'uppercase', margin: 0 }}>Pagos Registrados</p>
-                    <p style={{ fontSize: '28px', fontWeight: '700', color: '#78350f', margin: '4px 0 0' }}>{payments.length}</p>
+                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-5 rounded-2xl border border-yellow-200">
+                    <p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Pagos Registrados</p>
+                    <p className="text-3xl font-bold text-yellow-900 mt-1">{payments.length}</p>
                 </div>
-                <div style={{ background: 'linear-gradient(135deg, #fdf2f8, #fce7f3)', padding: '16px 20px', borderRadius: '14px', border: '1px solid #fbcfe8' }}>
-                    <p style={{ fontSize: '12px', color: '#be185d', fontWeight: '600', textTransform: 'uppercase', margin: 0 }}>Vacantes</p>
-                    <p style={{ fontSize: '28px', fontWeight: '700', color: '#831843', margin: '4px 0 0' }}>{vacantProperties.length}</p>
+                <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-5 rounded-2xl border border-pink-200">
+                    <p className="text-xs font-bold text-pink-700 uppercase tracking-wider">Vacantes</p>
+                    <p className="text-3xl font-bold text-pink-900 mt-1">{vacantProperties.length}</p>
                 </div>
             </div>
 
             {/* Tenant List */}
             {tenants.length === 0 ? (
-                <div style={{
-                    textAlign: 'center', padding: '60px 20px',
-                    background: '#f8fafc', borderRadius: '16px', border: '2px dashed #cbd5e1',
-                }}>
-                    <UserPlus size={48} style={{ color: '#94a3b8', marginBottom: '12px' }} />
-                    <p style={{ fontSize: '18px', color: '#64748b', fontWeight: '600' }}>No hay inquilinos registrados</p>
-                    <p style={{ color: '#94a3b8', fontSize: '14px' }}>Agrega tu primer inquilino para empezar a trackear pagos</p>
+                <div className="text-center py-16 px-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
+                    <UserPlus size={48} className="text-gray-400 mx-auto mb-4" />
+                    <p className="text-lg font-semibold text-gray-600">No hay inquilinos registrados</p>
+                    <p className="text-sm text-gray-400 mt-1">Agrega tu primer inquilino para empezar a trackear pagos</p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="flex flex-col gap-3">
                     {tenants.map(tenant => {
                         const metrics = getTenantMetrics(tenant.id);
                         const isExpanded = expandedTenant === tenant.id;
                         const prop = tenant.propertyId ? properties.find(p => p.id === tenant.propertyId) : null;
 
                         return (
-                            <div key={tenant.id} style={{
-                                background: 'white', borderRadius: '16px',
-                                border: '1px solid #e2e8f0', overflow: 'hidden',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                                transition: 'box-shadow 0.2s',
-                            }}>
+                            <div key={tenant.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
                                 {/* Main Row */}
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', padding: '16px 20px', gap: '16px',
-                                    cursor: 'pointer',
-                                }} onClick={() => setExpandedTenant(isExpanded ? null : tenant.id)}>
+                                <div
+                                    className="flex items-center p-5 gap-4 cursor-pointer"
+                                    onClick={() => setExpandedTenant(isExpanded ? null : tenant.id)}
+                                >
                                     {/* Avatar */}
-                                    <div style={{
-                                        width: '48px', height: '48px', borderRadius: '50%',
-                                        background: `linear-gradient(135deg, ${metrics.onTimeRate >= 80 ? '#22c55e' : metrics.onTimeRate >= 50 ? '#f59e0b' : '#ef4444'}, ${metrics.onTimeRate >= 80 ? '#16a34a' : metrics.onTimeRate >= 50 ? '#d97706' : '#dc2626'})`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: 'white', fontWeight: '700', fontSize: '18px', flexShrink: 0,
-                                    }}>
+                                    <div
+                                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm`}
+                                        style={{
+                                            background: `linear-gradient(135deg, ${metrics.onTimeRate >= 80 ? '#22c55e' : metrics.onTimeRate >= 50 ? '#f59e0b' : '#ef4444'}, ${metrics.onTimeRate >= 80 ? '#16a34a' : metrics.onTimeRate >= 50 ? '#d97706' : '#dc2626'})`
+                                        }}
+                                    >
                                         {tenant.name.charAt(0).toUpperCase()}
                                     </div>
 
                                     {/* Info */}
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <h3 style={{ fontWeight: '600', color: '#1e293b', margin: 0, fontSize: '16px' }}>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-gray-800 text-lg">
                                             {tenant.name}
                                         </h3>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', flexWrap: 'wrap' }}>
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '13px' }}>
+                                        <div className="flex items-center gap-4 mt-1 flex-wrap">
+                                            <span className="flex items-center gap-1.5 text-gray-500 text-sm">
                                                 <Home size={14} /> {getPropertyAddress(tenant.propertyId)}
                                             </span>
                                             {tenant.phone && (
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '13px' }}>
+                                                <span className="flex items-center gap-1.5 text-gray-500 text-sm">
                                                     <Phone size={14} /> {tenant.phone}
                                                 </span>
                                             )}
@@ -287,45 +278,42 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     </div>
 
                                     {/* Metrics Summary */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0, fontWeight: '600' }}>PUNTUALIDAD</p>
-                                            <p style={{
-                                                fontSize: '16px', fontWeight: '700', margin: 0,
-                                                color: metrics.onTimeRate >= 80 ? '#16a34a' : metrics.onTimeRate >= 50 ? '#d97706' : '#ef4444',
-                                            }}>
+                                    <div className="flex items-center gap-6 shrink-0">
+                                        <div className="text-right hidden sm:block">
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase">PUNTUALIDAD</p>
+                                            <p className={`text-base font-bold ${metrics.onTimeRate >= 80 ? 'text-green-600' : metrics.onTimeRate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
                                                 {metrics.totalPayments > 0 ? `${metrics.onTimeRate}%` : '—'}
                                             </p>
                                         </div>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0, fontWeight: '600' }}>TOTAL PAGADO</p>
-                                            <p style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                                        <div className="text-right hidden sm:block">
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase">TOTAL PAGADO</p>
+                                            <p className="text-base font-bold text-gray-800">
                                                 {metrics.totalPaid > 0 ? formatCurrency(metrics.totalPaid, metrics.currency) : '—'}
                                             </p>
                                         </div>
-                                        {isExpanded ? <ChevronUp size={20} color="#94a3b8" /> : <ChevronDown size={20} color="#94a3b8" />}
+                                        {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
                                     </div>
                                 </div>
 
                                 {/* Expanded Details */}
                                 {isExpanded && (
-                                    <div style={{ borderTop: '1px solid #f1f5f9', padding: '16px 20px', background: '#fafbfc' }}>
+                                    <div className="border-t border-gray-100 p-5 bg-gray-50/50 space-y-5 animate-in slide-in-from-top-2 duration-200">
 
                                         {/* Owner View: Financial Summary */}
-                                        <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                            <p style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '10px' }}>
+                                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                            <p className="text-xs font-bold text-gray-500 uppercase mb-3">
                                                 Balance de la Propiedad
                                             </p>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                                            <div className="grid grid-cols-3 gap-4">
                                                 <div>
-                                                    <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>INGRESOS (Alquileres)</p>
-                                                    <p style={{ fontSize: '18px', fontWeight: '700', color: '#16a34a' }}>
+                                                    <p className="text-xs text-gray-500 font-semibold mb-1">INGRESOS (Alquileres)</p>
+                                                    <p className="text-lg font-bold text-green-600">
                                                         {formatCurrency(metrics.totalPaid, metrics.currency)}
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-semibold text-gray-800">GASTOS (Mantenimiento)</p>
-                                                    <p style={{ fontSize: '18px', fontWeight: '700', color: '#ef4444' }}>
+                                                    <p className="text-xs text-gray-500 font-semibold mb-1">GASTOS (Mantenimiento)</p>
+                                                    <p className="text-lg font-bold text-red-500">
                                                         {(() => {
                                                             const propExpenses = maintenanceTasks
                                                                 .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
@@ -335,8 +323,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-semibold text-gray-800">RESULTADO NETO</p>
-                                                    <p style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
+                                                    <p className="text-xs text-gray-500 font-semibold mb-1">RESULTADO NETO</p>
+                                                    <p className="text-lg font-bold text-gray-800">
                                                         {(() => {
                                                             const propExpenses = maintenanceTasks
                                                                 .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
@@ -350,62 +338,53 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                         </div>
 
                                         {/* Monthly Grid */}
-                                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '10px', margin: '0 0 10px' }}>
-                                            Historial de Pagos — {new Date().getFullYear()} <span style={{ fontSize: '10px', fontWeight: 'normal', color: '#94a3b8' }}>(Click para editar)</span>
-                                        </p>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '6px', marginBottom: '16px' }}>
-                                            {metrics.monthlyBreakdown.map((m) => {
-                                                const paymentForMonth = payments.find(p => p.tenantId === tenant.id && p.month === m.month && p.year === new Date().getFullYear());
-                                                return (
-                                                    <div
-                                                        key={m.month}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (paymentForMonth) {
-                                                                handleOpenPaymentModal(tenant.id, paymentForMonth);
-                                                            } else {
-                                                                handleOpenPaymentModal(tenant.id, undefined, { month: m.month, year: new Date().getFullYear() });
-                                                            }
-                                                        }}
-                                                        title={paymentForMonth ? "Click para editar pago" : "Click para registrar pago"}
-                                                        style={{
-                                                            textAlign: 'center', padding: '8px 4px', borderRadius: '8px',
-                                                            background: m.paid ? '#dcfce7' : '#f1f5f9',
-                                                            border: `1px solid ${m.paid ? '#bbf7d0' : '#e2e8f0'}`,
-                                                            cursor: 'pointer',
-                                                            position: 'relative',
-                                                            transition: 'all 0.2s'
-                                                        }}>
-                                                        <p style={{ fontSize: '10px', color: '#64748b', margin: 0, fontWeight: '600' }}>
-                                                            {MONTH_NAMES[m.month - 1]}
-                                                        </p>
-                                                        {m.paid ? (
-                                                            <CheckCircle size={16} style={{ color: '#22c55e', marginTop: '4px' }} />
-                                                        ) : (
-                                                            <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#cbd5e1' }} />
-                                                            </div>
-                                                        )}
-                                                        {m.amount > 0 && (
-                                                            <p style={{ fontSize: '10px', color: '#475569', margin: '2px 0 0', fontWeight: '600' }}>
-                                                                {formatCurrency(m.amount, metrics.currency)}
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                                                Historial de Pagos — {new Date().getFullYear()} <span className="text-xs font-normal text-gray-400">(Click para editar)</span>
+                                            </p>
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
+                                                {metrics.monthlyBreakdown.map((m) => {
+                                                    const paymentForMonth = payments.find(p => p.tenantId === tenant.id && p.month === m.month && p.year === new Date().getFullYear());
+                                                    return (
+                                                        <div
+                                                            key={m.month}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (paymentForMonth) {
+                                                                    handleOpenPaymentModal(tenant.id, paymentForMonth);
+                                                                } else {
+                                                                    handleOpenPaymentModal(tenant.id, undefined, { month: m.month, year: new Date().getFullYear() });
+                                                                }
+                                                            }}
+                                                            title={paymentForMonth ? "Click para editar pago" : "Click para registrar pago"}
+                                                            className={`text-center p-2 rounded-xl border cursor-pointer transition-all hover:scale-105 active:scale-95 relative ${m.paid ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-200 hover:bg-gray-200'}`}
+                                                        >
+                                                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">
+                                                                {MONTH_NAMES[m.month - 1]}
                                                             </p>
-                                                        )}
-                                                    </div>
-                                                )
-                                            })}
+                                                            {m.paid ? (
+                                                                <CheckCircle size={16} className="text-green-500 mx-auto" />
+                                                            ) : (
+                                                                <div className="h-4 flex items-center justify-center">
+                                                                    <div className="w-2 h-2 rounded-full bg-gray-300" />
+                                                                </div>
+                                                            )}
+                                                            {m.amount > 0 && (
+                                                                <p className="text-[10px] text-gray-600 font-bold mt-1 truncate">
+                                                                    {formatCurrency(m.amount, metrics.currency)}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
                                         </div>
 
                                         {/* Actions */}
-                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                        <div className="flex justify-end gap-3 pt-2">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleOpenPaymentModal(tenant.id); }}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', gap: '6px',
-                                                    padding: '8px 16px', borderRadius: '10px',
-                                                    background: '#22c55e', color: 'white', border: 'none',
-                                                    cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                                                }}
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-semibold shadow-md active:scale-95 hover:bg-green-600 transition-colors"
                                             >
                                                 <DollarSign size={16} /> Registrar Pago
                                             </button>
@@ -414,20 +393,17 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                     e.stopPropagation();
                                                     if (confirm(`¿Eliminar inquilino "${tenant.name}"?`)) {
                                                         onDeleteTenant(tenant.id);
+                                                        toast.success('Inquilino eliminado');
                                                     }
                                                 }}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', gap: '6px',
-                                                    padding: '8px 16px', borderRadius: '10px',
-                                                    background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca',
-                                                    cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                                                }}
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-500 border border-red-200 text-sm font-semibold hover:bg-red-100 transition-colors"
                                             >
                                                 <Trash2 size={16} /> Eliminar
                                             </button>
                                         </div>
                                     </div>
-                                )}
+                                )
+                                }
                             </div>
                         );
                     })}
@@ -435,325 +411,240 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             )}
 
             {/* ========== ADD TENANT MODAL ========== */}
-            {showAddModal && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px',
-                }}>
-                    <div style={{
-                        background: 'white', borderRadius: '20px', padding: '28px', width: '100%',
-                        maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                                Nuevo Inquilino
-                            </h2>
-                            <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
-                                <X size={22} color="#94a3b8" />
-                            </button>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                    Nombre *
-                                </label>
-                                <input
-                                    value={newTenant.name}
-                                    onChange={e => setNewTenant(p => ({ ...p, name: e.target.value }))}
-                                    placeholder="Nombre completo"
-                                    style={{
-                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                        border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                    Teléfono
-                                </label>
-                                <input
-                                    value={newTenant.phone}
-                                    onChange={e => setNewTenant(p => ({ ...p, phone: e.target.value }))}
-                                    placeholder="11-1234-5678"
-                                    style={{
-                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                        border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                    Email
-                                </label>
-                                <input
-                                    value={newTenant.email}
-                                    onChange={e => setNewTenant(p => ({ ...p, email: e.target.value }))}
-                                    placeholder="email@ejemplo.com"
-                                    type="email"
-                                    style={{
-                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                        border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                    Asignar a Inmueble (opcional)
-                                </label>
-                                <select
-                                    value={newTenant.propertyId}
-                                    onChange={e => setNewTenant(p => ({ ...p, propertyId: e.target.value }))}
-                                    style={{
-                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                        border: '1px solid #d1d5db', fontSize: '14px', outline: 'none',
-                                        background: 'white', boxSizing: 'border-box',
-                                    }}
-                                >
-                                    <option value="">Sin asignar</option>
-                                    {properties.map(p => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.unitLabel ? `${p.address} - ${p.unitLabel}` : p.address}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleAddTenant}
-                            disabled={!newTenant.name.trim()}
-                            style={{
-                                width: '100%', padding: '12px', borderRadius: '12px', marginTop: '20px',
-                                background: newTenant.name.trim() ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : '#e2e8f0',
-                                color: newTenant.name.trim() ? 'white' : '#94a3b8',
-                                border: 'none', cursor: newTenant.name.trim() ? 'pointer' : 'not-allowed',
-                                fontWeight: '600', fontSize: '15px',
-                            }}
-                        >
-                            Agregar Inquilino
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* ========== PAYMENT MODAL ========== */}
-            {showPaymentModal && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px',
-                }}>
-                    <div style={{
-                        background: 'white', borderRadius: '20px', padding: '28px', width: '100%',
-                        maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                                Registrar Pago
-                            </h2>
-                            <button onClick={() => { setShowPaymentModal(null); setEditingPayment(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
-                                <X size={22} color="#94a3b8" />
-                            </button>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                    Monto *
-                                </label>
-                                <input
-                                    value={newPayment.amount}
-                                    onChange={e => setNewPayment(p => ({ ...p, amount: e.target.value }))}
-                                    placeholder="450000"
-                                    type="number"
-                                    style={{
-                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                        border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                                    }}
-                                />
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Mes</label>
-                                    <select
-                                        value={newPayment.month}
-                                        onChange={e => setNewPayment(p => ({ ...p, month: parseInt(e.target.value) }))}
-                                        style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', fontSize: '14px', background: 'white', boxSizing: 'border-box' }}
-                                    >
-                                        {MONTH_NAMES.map((name, i) => (
-                                            <option key={i} value={i + 1}>{name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Año</label>
-                                    <input
-                                        value={newPayment.year}
-                                        onChange={e => setNewPayment(p => ({ ...p, year: parseInt(e.target.value) }))}
-                                        type="number"
-                                        style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', fontSize: '14px', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-                                    ¿Pagó a tiempo?
-                                </label>
-                                <button
-                                    onClick={() => setNewPayment(p => ({ ...p, paidOnTime: !p.paidOnTime }))}
-                                    style={{
-                                        padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                                        background: newPayment.paidOnTime ? '#dcfce7' : '#fef2f2',
-                                        color: newPayment.paidOnTime ? '#16a34a' : '#ef4444',
-                                    }}
-                                >
-                                    {newPayment.paidOnTime ? 'Sí ✓' : 'No ✗'}
+            {
+                showAddModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in scale-95 duration-200">
+                            <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
+                                <h2 className="text-xl font-bold text-gray-800">
+                                    Nuevo Inquilino
+                                </h2>
+                                <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                                    <X size={20} className="text-gray-500" />
                                 </button>
                             </div>
 
-                            {/* Proof Upload (Moved Here) */}
-                            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>
-                                    Comprobante de Pago
-                                </label>
+                            <div className="p-6 space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Nombre *</label>
+                                    <input
+                                        value={newTenant.name}
+                                        onChange={e => setNewTenant(p => ({ ...p, name: e.target.value }))}
+                                        placeholder="Nombre completo"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Teléfono</label>
+                                    <input
+                                        value={newTenant.phone}
+                                        onChange={e => setNewTenant(p => ({ ...p, phone: e.target.value }))}
+                                        placeholder="11-1234-5678"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Email</label>
+                                    <input
+                                        value={newTenant.email}
+                                        onChange={e => setNewTenant(p => ({ ...p, email: e.target.value }))}
+                                        placeholder="email@ejemplo.com"
+                                        type="email"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Asignar a Inmueble (opcional)</label>
+                                    <select
+                                        value={newTenant.propertyId}
+                                        onChange={e => setNewTenant(p => ({ ...p, propertyId: e.target.value }))}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
+                                    >
+                                        <option value="">Sin asignar</option>
+                                        {properties.map(p => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.unitLabel ? `${p.address} - ${p.unitLabel}` : p.address}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
 
-                                {/* File Upload Input */}
-                                <div style={{ marginBottom: '8px' }}>
+                            <div className="p-6 pt-0">
+                                <button
+                                    onClick={handleAddTenant}
+                                    disabled={!newTenant.name.trim()}
+                                    className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all active:scale-[0.98] ${newTenant.name.trim() ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`}
+                                >
+                                    Agregar Inquilino
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* ========== PAYMENT MODAL ========== */}
+            {
+                showPaymentModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in scale-95 duration-200">
+                            <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
+                                <h2 className="text-xl font-bold text-gray-800">
+                                    Registrar Pago
+                                </h2>
+                                <button onClick={() => { setShowPaymentModal(null); setEditingPayment(null); }} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                                    <X size={20} className="text-gray-500" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Monto *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-2.5 text-gray-400">$</span>
+                                        <input
+                                            value={newPayment.amount}
+                                            onChange={e => setNewPayment(p => ({ ...p, amount: e.target.value }))}
+                                            placeholder="0"
+                                            type="number"
+                                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold text-gray-800"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-sm font-semibold text-gray-600">Mes</label>
+                                        <select
+                                            value={newPayment.month}
+                                            onChange={e => setNewPayment(p => ({ ...p, month: parseInt(e.target.value) }))}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all bg-white"
+                                        >
+                                            {MONTH_NAMES.map((name, i) => (
+                                                <option key={i} value={i + 1}>{name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-sm font-semibold text-gray-600">Año</label>
+                                        <input
+                                            value={newPayment.year}
+                                            onChange={e => setNewPayment(p => ({ ...p, year: parseInt(e.target.value) }))}
+                                            type="number"
+                                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <label className="text-sm font-semibold text-gray-600">
+                                        ¿Pagó a tiempo?
+                                    </label>
+                                    <button
+                                        onClick={() => setNewPayment(p => ({ ...p, paidOnTime: !p.paidOnTime }))}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${newPayment.paidOnTime ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                                    >
+                                        {newPayment.paidOnTime ? 'Sí, a tiempo' : 'No, con retraso'}
+                                    </button>
+                                </div>
+
+                                {/* Proof Upload (Redesigned) */}
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                                        Comprobante de Pago
+                                    </label>
+
                                     <input
                                         type="file"
                                         accept="image/*,application/pdf"
                                         onChange={handleFileUpload}
-                                        style={{ display: 'none' }}
+                                        className="hidden"
                                         id="proof-upload"
                                         disabled={isUploading}
                                     />
-                                    <label
-                                        htmlFor="proof-upload"
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: '8px',
-                                            padding: '8px 12px', borderRadius: '8px',
-                                            background: 'white', border: '1px dashed #cbd5e1',
-                                            cursor: isUploading ? 'not-allowed' : 'pointer',
-                                            fontSize: '13px', color: '#475569',
-                                            justifyContent: 'center', transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        {isUploading ? (
-                                            <>
-                                                <Loader size={16} className="animate-spin" /> Subiendo...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Upload size={16} /> {newPayment.proofOfPayment ? 'Cambiar Comprobante' : 'Adjuntar PDF o Imagen'}
-                                            </>
-                                        )}
-                                    </label>
-                                </div>
 
-                                {/* Display Uploaded File Link */}
-                                {newPayment.proofOfPayment && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16a34a', background: '#dcfce7', padding: '6px 10px', borderRadius: '6px' }}>
-                                        <CheckCircle size={14} />
-                                        <a
-                                            href={newPayment.proofOfPayment}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{ color: '#15803d', textDecoration: 'underline', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
+                                    {newPayment.proofOfPayment ? (
+                                        <div className="flex items-center justify-between bg-green-50 border border-green-200 p-2 rounded-lg">
+                                            <a
+                                                href={newPayment.proofOfPayment}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs font-semibold text-green-700 hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                                            >
+                                                <CheckCircle size={12} /> Ver Comprobante
+                                            </a>
+                                            <button
+                                                onClick={() => setNewPayment(p => ({ ...p, proofOfPayment: '' }))}
+                                                className="p-1 hover:bg-green-100 rounded text-red-400"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <label
+                                            htmlFor="proof-upload"
+                                            className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-gray-300 text-sm font-medium text-gray-500 hover:bg-white hover:border-gray-400 transition-all cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
-                                            Ver Comprobante Adjunto
-                                        </a>
-                                        <button
-                                            onClick={() => setNewPayment(p => ({ ...p, proofOfPayment: '' }))}
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', marginLeft: 'auto' }}
-                                            title="Eliminar comprobante"
-                                        >
-                                            <X size={14} color="#ef4444" />
-                                        </button>
-                                    </div>
-                                )}
+                                            {isUploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
+                                            {isUploading ? 'Subiendo...' : 'Adjuntar PDF / Foto'}
+                                        </label>
+                                    )}
 
-                                {/* Legacy text input just in case they want to paste a manual reference ID */}
-                                {!newPayment.proofOfPayment && (
-                                    <div style={{ marginTop: '8px' }}>
+                                    {!newPayment.proofOfPayment && (
                                         <input
-                                            value={newPayment.proofOfPayment} // This handles the text input if it was string
+                                            value={newPayment.proofOfPayment}
                                             onChange={e => setNewPayment(p => ({ ...p, proofOfPayment: e.target.value }))}
                                             placeholder="O escribe ID de transferencia..."
-                                            style={{
-                                                width: '100%', padding: '8px 10px', borderRadius: '8px',
-                                                border: '1px solid #e2e8f0', fontSize: '12px', outline: 'none', boxSizing: 'border-box',
-                                                background: 'white'
-                                            }}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs focus:ring-2 focus:ring-green-500 outline-none mt-2"
                                         />
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
 
-                            {/* Payment Method */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                    Método de Pago
-                                </label>
-                                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                                    <button
-                                        onClick={() => setNewPayment(p => ({ ...p, paymentMethod: 'CASH' }))}
-                                        style={{
-                                            flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
-                                            background: newPayment.paymentMethod === 'CASH' ? '#eff6ff' : 'white',
-                                            borderColor: newPayment.paymentMethod === 'CASH' ? '#3b82f6' : '#e2e8f0',
-                                            color: newPayment.paymentMethod === 'CASH' ? '#2563eb' : '#64748b'
-                                        }}
-                                    >
-                                        Efectivo
-                                    </button>
-                                    <button
-                                        onClick={() => setNewPayment(p => ({ ...p, paymentMethod: 'TRANSFER' }))}
-                                        style={{
-                                            flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
-                                            background: newPayment.paymentMethod === 'TRANSFER' ? '#eff6ff' : 'white',
-                                            borderColor: newPayment.paymentMethod === 'TRANSFER' ? '#3b82f6' : '#e2e8f0',
-                                            color: newPayment.paymentMethod === 'TRANSFER' ? '#2563eb' : '#64748b'
-                                        }}
-                                    >
-                                        Transferencia
-                                    </button>
+                                {/* Payment Method */}
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Método de Pago</label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setNewPayment(p => ({ ...p, paymentMethod: 'CASH' }))}
+                                            className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all ${newPayment.paymentMethod === 'CASH' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                            Efectivo
+                                        </button>
+                                        <button
+                                            onClick={() => setNewPayment(p => ({ ...p, paymentMethod: 'TRANSFER' }))}
+                                            className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all ${newPayment.paymentMethod === 'TRANSFER' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                            Transferencia
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Notas</label>
+                                    <textarea
+                                        value={newPayment.notes}
+                                        onChange={e => setNewPayment(p => ({ ...p, notes: e.target.value }))}
+                                        placeholder="Detalles adicionales..."
+                                        rows={2}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all resize-none"
+                                    />
                                 </div>
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                    Notas (Opcional)
-                                </label>
-                                <textarea
-                                    value={newPayment.notes}
-                                    onChange={e => setNewPayment(p => ({ ...p, notes: e.target.value }))}
-                                    placeholder="Detalles adicionales..."
-                                    rows={2}
-                                    style={{
-                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                        border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit'
-                                    }}
-                                />
+                            <div className="p-6 pt-0">
+                                <button
+                                    onClick={handleSavePayment}
+                                    disabled={!newPayment.amount}
+                                    className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all active:scale-[0.98] ${newPayment.amount ? 'bg-green-600 hover:bg-green-700 shadow-green-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`}
+                                >
+                                    {editingPayment ? 'Guardar Cambios' : 'Registrar Pago'}
+                                </button>
                             </div>
                         </div>
-
-                        <button
-                            onClick={handleSavePayment}
-                            disabled={!newPayment.amount}
-                            style={{
-                                width: '100%', padding: '12px', borderRadius: '12px', marginTop: '20px',
-                                background: newPayment.amount ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#e2e8f0',
-                                color: newPayment.amount ? 'white' : '#94a3b8',
-                                border: 'none', cursor: newPayment.amount ? 'pointer' : 'not-allowed',
-                                fontWeight: '600', fontSize: '15px',
-                            }}
-                        >
-                            {editingPayment ? 'Guardar Cambios' : 'Registrar Pago'}
-                        </button>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

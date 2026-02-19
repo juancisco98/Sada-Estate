@@ -1,10 +1,11 @@
 import React from 'react';
 import { Menu, Search, Loader2, Bell } from 'lucide-react';
 import { ViewState } from './Sidebar';
+import { User } from '../types';
 
 interface HeaderProps {
     onMenuClick: () => void;
-    currentUser: { name?: string; email?: string } | null;
+    currentUser: User | null;
     currentView: ViewState;
     searchQuery: string;
     onSearchChange: (query: string) => void;

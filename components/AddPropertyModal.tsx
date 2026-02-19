@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, User, Phone, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, Building2, Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2 } from 'lucide-react';
 import { Property, PropertyStatus } from '../types';
 import { MOCK_PROFESSIONALS } from '../constants';
 import { getTaxConfig } from '../utils/taxConfig';
+import { toast } from 'sonner';
+import { BuildingUnitManager, BuildingUnit } from './properties/BuildingUnitManager';
 
-interface BuildingUnit {
-  label: string;
-  tenantName: string;
-  tenantPhone: string;
-  rooms: string;
-  squareMeters: string;
-  monthlyRent: string;
-}
+// BuildingUnit interface moved to BuildingUnitManager
+
 
 interface AddPropertyModalProps {
   address?: string;
@@ -19,7 +15,7 @@ interface AddPropertyModalProps {
   existingProperty?: Property | null;
   detectedCountry?: string; // Auto-detected from geocoding
   onClose: () => void;
-  onSave: (property: Property) => void;
+  onSave: (property: Property | Property[]) => void;
   onDelete?: (id: string) => void;
   professionals?: any[];
 }
@@ -48,7 +44,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   // Building mode state
   const [isBuilding, setIsBuilding] = useState(false);
   const [buildingUnits, setBuildingUnits] = useState<BuildingUnit[]>([{ label: '', tenantName: '', tenantPhone: '', rooms: '', squareMeters: '', monthlyRent: '' }]);
-  const [expandedUnit, setExpandedUnit] = useState<number>(0);
+
 
   const [formData, setFormData] = useState({
     address: address || '',
@@ -127,18 +123,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   };
 
   // Building unit management
-  const emptyUnit = (): BuildingUnit => ({ label: '', tenantName: '', tenantPhone: '', rooms: '', squareMeters: '', monthlyRent: '' });
-  const addUnit = () => {
-    setBuildingUnits(prev => [...prev, emptyUnit()]);
-    setExpandedUnit(buildingUnits.length);
-  };
-  const removeUnit = (idx: number) => {
-    setBuildingUnits(prev => prev.filter((_, i) => i !== idx));
-    if (expandedUnit >= idx && expandedUnit > 0) setExpandedUnit(expandedUnit - 1);
-  };
-  const updateUnitField = (idx: number, field: keyof BuildingUnit, val: string) => {
-    setBuildingUnits(prev => prev.map((u, i) => i === idx ? { ...u, [field]: val } : u));
-  };
+  // Logic moved to BuildingUnitManager
+
 
   // Handle Local Image Upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,10 +150,20 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
   const handleDelete = () => {
     if (isEditing && existingProperty && onDelete) {
-      if (window.confirm(`¿Estás seguro de que deseas eliminar la propiedad "${existingProperty.address}"? Esta acción no se puede deshacer.`)) {
-        onDelete(existingProperty.id);
-        onClose();
-      }
+      toast("¿Estás seguro de eliminar esta propiedad?", {
+        description: "Esta acción no se puede deshacer.",
+        action: {
+          label: "Eliminar",
+          onClick: () => {
+            onDelete(existingProperty.id);
+            onClose();
+            toast.success("Propiedad eliminada");
+          },
+        },
+        cancel: {
+          label: "Cancelar",
+        },
+      });
     }
   };
 
@@ -200,7 +196,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         dateToSave = new Date().toISOString();
       }
       if (!formData.maintenanceTaskDescription.trim()) {
-        alert("Por favor, describe la tarea o motivo de la obra para el profesional asignado.");
+        toast.error("Por favor, describe la tarea o motivo de la obra para el profesional asignado.");
         return;
       }
     } else {
@@ -211,27 +207,23 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     if (isBuilding && !isEditing) {
       const validUnits = buildingUnits.filter(u => u.label.trim());
       if (validUnits.length === 0) {
-        alert('Agrega al menos una unidad con nombre.');
+        toast.error('Agrega al menos una unidad con nombre.');
         return;
       }
       for (const unit of validUnits) {
         if (!unit.rooms || !unit.squareMeters) {
-          alert(`La unidad "${unit.label}" necesita ambientes y metros cuadrados.`);
+          toast.error(`La unidad "${unit.label}" necesita ambientes y metros cuadrados.`);
           return;
         }
         if (!unit.monthlyRent || Number(unit.monthlyRent) <= 0) {
-          alert(`La unidad "${unit.label}" necesita un valor de alquiler.`);
+          toast.error(`La unidad "${unit.label}" necesita un valor de alquiler.`);
           return;
         }
       }
 
       const buildingId = `bld-${Date.now()}`;
 
-      // Loop through units and save each
-      // Note: We need to use a loop that handles promises if we were doing async inside, 
-      // but onSave is likely passed as a synchronous-looking handler from parent. 
-      // However, onSave might trigger Supabase calls. 
-      // Since we want to ensure all are saved, let's just loop.
+      const buildingProperties: Property[] = [];
 
       for (const [idx, unit] of validUnits.entries()) {
         const unitStatus = unit.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
@@ -254,8 +246,10 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           buildingId: buildingId,
           unitLabel: unit.label,
         };
-        onSave(unitProp); // This might be fire-and-forget from here
+        buildingProperties.push(unitProp);
       }
+      onSave(buildingProperties);
+      toast.success('Edificio y unidades creados correctamente');
       return;
     }
 
@@ -264,7 +258,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
     // Validate rooms and square meters for new properties
     if (!isEditing && (!formData.rooms || !formData.squareMeters)) {
-      alert('Por favor, ingresa los ambientes y metros cuadrados de la propiedad.');
+      toast.error('Por favor, ingresa los ambientes y metros cuadrados de la propiedad.');
       return;
     }
 
@@ -289,6 +283,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       currency: formData.currency
     };
     onSave(propertyToSave);
+    toast.success(isEditing ? 'Propiedad actualizada' : 'Propiedad creada');
   };
 
   // Currency symbol helper
@@ -496,163 +491,15 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           )}
 
           {/* === Building Toggle === */}
-          {!isEditing && (
-            <div className="bg-violet-50 rounded-2xl p-5 border border-violet-100 space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-violet-900 uppercase tracking-wider flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-violet-600" /> ¿Es un Edificio?
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setIsBuilding(!isBuilding)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${isBuilding ? 'bg-violet-600' : 'bg-gray-300'}`}
-                  aria-label={isBuilding ? "Desactivar modo edificio" : "Activar modo edificio"}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBuilding ? 'translate-x-6' : 'translate-x-0.5'}`}></span>
-                </button>
-              </div>
-
-              {isBuilding && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <p className="text-xs text-violet-700">Define cada piso/departamento con sus datos individuales:</p>
-
-                  {buildingUnits.map((unit, idx) => {
-                    const isExpanded = expandedUnit === idx;
-                    return (
-                      <div key={idx} className="bg-white rounded-xl border border-violet-200 overflow-hidden shadow-sm">
-                        {/* Unit header — always visible */}
-                        <div className="flex items-center gap-2 p-3">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedUnit(isExpanded ? -1 : idx)}
-                            className="p-1 text-violet-500 hover:bg-violet-50 rounded-lg transition-colors"
-                            aria-label={isExpanded ? "Contraer unidad" : "Expandir unidad"}
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                          <input
-                            type="text"
-                            placeholder={`Ej: Piso ${idx + 1}A`}
-                            className="flex-1 px-3 py-1.5 rounded-lg border border-violet-100 bg-violet-50/50 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
-                            value={unit.label}
-                            onChange={e => updateUnitField(idx, 'label', e.target.value)}
-                            aria-label={`Nombre de la unidad ${idx + 1}`}
-                          />
-                          {unit.tenantName && !isExpanded && (
-                            <span className="text-xs text-gray-500 truncate max-w-[80px]">{unit.tenantName}</span>
-                          )}
-                          {buildingUnits.length > 1 && (
-                            <button type="button" onClick={() => removeUnit(idx)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg" aria-label={`Eliminar unidad ${idx + 1}`}>
-                              <Minus className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Expanded unit details */}
-                        {isExpanded && (
-                          <div className="px-3 pb-3 space-y-3 border-t border-violet-100 pt-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                            {/* Inquilino + Teléfono */}
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600">Inquilino</label>
-                                <div className="relative">
-                                  <User className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
-                                  <input
-                                    type="text"
-                                    placeholder="Nombre o Vacante"
-                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-none"
-                                    value={unit.tenantName}
-                                    onChange={e => updateUnitField(idx, 'tenantName', e.target.value)}
-                                    aria-label="Nombre del inquilino de la unidad"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600">Teléfono</label>
-                                <div className="relative">
-                                  <Phone className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
-                                  <input
-                                    type="tel"
-                                    placeholder="11-XXXX-XXXX"
-                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-none"
-                                    value={unit.tenantPhone}
-                                    onChange={e => updateUnitField(idx, 'tenantPhone', e.target.value)}
-                                    aria-label="Teléfono del inquilino de la unidad"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Ambientes + Metros² */}
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600">Ambientes</label>
-                                <div className="relative">
-                                  <LayoutGrid className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max="20"
-                                    placeholder="Ej: 3"
-                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
-                                    value={unit.rooms}
-                                    onChange={e => updateUnitField(idx, 'rooms', e.target.value)}
-                                    aria-label="Ambientes de la unidad"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600">Metros² (m²)</label>
-                                <div className="relative">
-                                  <Ruler className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" />
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    placeholder="Ej: 72"
-                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
-                                    value={unit.squareMeters}
-                                    onChange={e => updateUnitField(idx, 'squareMeters', e.target.value)}
-                                    aria-label="Metros cuadrados de la unidad"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Alquiler */}
-                            <div className="space-y-1">
-                              <label className="text-xs font-medium text-gray-600">Alquiler Mensual ({formData.currency})</label>
-                              <div className="relative">
-                                <DollarSign className={`absolute left-2.5 top-2 w-4 h-4 ${formData.currency === 'USD' ? 'text-green-600' : 'text-blue-600'}`} />
-                                <input
-                                  type="text"
-                                  placeholder="0"
-                                  className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
-                                  value={formatNumberWithDots(unit.monthlyRent)}
-                                  onChange={e => {
-                                    const clean = e.target.value.replace(/[^0-9]/g, '');
-                                    updateUnitField(idx, 'monthlyRent', clean);
-                                  }}
-                                  aria-label="Alquiler mensual de la unidad"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  <button
-                    type="button"
-                    onClick={addUnit}
-                    className="flex items-center gap-1 text-sm text-violet-700 font-medium hover:text-violet-900 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" /> Agregar unidad
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          <BuildingUnitManager
+            units={buildingUnits}
+            setUnits={setBuildingUnits}
+            currency={formData.currency}
+            isEditing={isEditing}
+            isBuilding={isBuilding}
+            setIsBuilding={setIsBuilding}
+            formatNumber={formatNumberWithDots}
+          />
 
           {/* Documentos Section */}
           <div className="space-y-3 pt-4 border-t border-gray-100">
