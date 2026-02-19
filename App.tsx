@@ -13,6 +13,8 @@ import AddProfessionalModal from './components/AddProfessionalModal';
 import AssignProfessionalModal from './components/AssignProfessionalModal';
 import { Property, Professional } from './types';
 import { DataProvider, useDataContext } from './context/DataContext';
+import { supabase, signOut } from './services/supabaseClient';
+import { ALLOWED_EMAILS } from './constants';
 import { useProperties } from './hooks/useProperties';
 import { useProfessionals } from './hooks/useProfessionals';
 import { useMaintenance } from './hooks/useMaintenance';
@@ -145,23 +147,39 @@ const Dashboard: React.FC = () => {
 
   // --- Auth Effects ---
   useEffect(() => {
-    const storedSession = localStorage.getItem('sada_session');
-    if (storedSession) {
-      setCurrentUser(JSON.parse(storedSession));
-      setIsAuthenticated(true);
-    }
+    // Listen for auth changes directly from Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session && session.user && session.user.email) {
+        const userEmail = session.user.email.toLowerCase();
+
+        // Allowlist Check
+        if (ALLOWED_EMAILS.includes(userEmail)) {
+          setCurrentUser({
+            name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
+            email: userEmail,
+            photoURL: session.user.user_metadata?.avatar_url
+          });
+          setIsAuthenticated(true);
+        } else {
+          // Deny access
+          await signOut();
+          alert(`Acceso denegado: ${userEmail} no está autorizado.`);
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = (user: any) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    localStorage.setItem('sada_session', JSON.stringify(user));
-  };
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     setIsAuthenticated(false);
     setCurrentUser(null);
-    localStorage.removeItem('sada_session');
   };
 
   // --- Handlers ---
@@ -339,7 +357,9 @@ const Dashboard: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    return <AuthScreen onLogin={handleLogin} />;
+    if (!isAuthenticated) {
+      return <AuthScreen />;
+    }
   }
 
   if (isLoading) {

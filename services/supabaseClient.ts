@@ -24,6 +24,35 @@ export const supabase: SupabaseClient = supabaseInstance || new Proxy({} as Supa
                 }
             });
         }
+        if (prop === 'auth') {
+            return {
+                signInWithOAuth: () => Promise.resolve({ error: { message: 'Supabase Auth not configured' } }),
+                signOut: () => Promise.resolve({ error: null }),
+                onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+                getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+            }
+        }
         return () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } });
     }
 });
+
+export const signInWithGoogle = async () => {
+    if (!supabaseInstance) return { error: { message: 'Supabase not configured' } };
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin,
+            queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+            },
+        },
+    });
+    return { data, error };
+};
+
+export const signOut = async () => {
+    if (!supabaseInstance) return { error: { message: 'Supabase not configured' } };
+    const { error } = await supabase.auth.signOut();
+    return { error };
+};

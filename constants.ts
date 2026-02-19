@@ -1,20 +1,12 @@
 import { Property, PropertyStatus, Professional, MaintenanceTask, TaskStatus, User } from './types';
 
-export const MOCK_USERS: User[] = [
-  {
-    id: 'u1',
-    name: 'Padre 1',
-    email: 'padre1@sada.com',
-    color: '#3B82F6', // Blue-500
-    password: '123'
-  },
-  {
-    id: 'u2',
-    name: 'Padre 2',
-    email: 'padre2@sada.com',
-    color: '#F97316', // Orange-500
-    password: '123'
-  }
+// Google Auth Allowlist
+// TODO: Replace with the actual Google Emails of your family
+export const ALLOWED_EMAILS = [
+  'admin@sada.com', // Fallback for dev/testing if needed, or remove
+  'jeshua@example.com', // Replace with your email
+  'father@example.com', // Replace with father's email
+  'mother@example.com'  // Replace with mother's email
 ];
 
 // Buenos Aires Center
