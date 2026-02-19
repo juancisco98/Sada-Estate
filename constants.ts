@@ -3,8 +3,8 @@ import { Property, PropertyStatus, Professional, MaintenanceTask, TaskStatus, Us
 // Google Auth Allowlist
 // TODO: Replace with the actual Google Emails of your family
 export const ALLOWED_EMAILS = [
-  'admin@sada.com', // Fallback for dev/testing if needed, or remove
-  'jeshua@example.com', // Replace with your email
+  'juan.sada98@gmail.com', // Fallback for dev/testing if needed, or remove
+  'antovent64@gmail.com', // Replace with your email
   'father@example.com', // Replace with father's email
   'mother@example.com'  // Replace with mother's email
 ];
@@ -150,5 +150,20 @@ export const MOCK_MAINTENANCE_TASKS: MaintenanceTask[] = [
     status: TaskStatus.PENDING,
     startDate: '2024-05-20',
     estimatedCost: 150 // USD ~180000 ARS
+  }
+];
+
+export const MOCK_USERS: User[] = [
+  {
+    id: 'u1',
+    name: 'Admin',
+    email: 'admin@sada.com',
+    color: '#3b82f6' // Blue
+  },
+  {
+    id: 'u2',
+    name: 'Jeshua',
+    email: 'jeshua@example.com',
+    color: '#10b981' // Emerald
   }
 ];
