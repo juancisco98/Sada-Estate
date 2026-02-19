@@ -157,11 +157,19 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     // Listen for auth changes directly from Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[AuthDebug] Event: ${event}`);
+      console.log('[AuthDebug] Session:', session ? 'Exists' : 'Null');
+
       if (session && session.user && session.user.email) {
         const userEmail = session.user.email.toLowerCase();
+        console.log(`[AuthDebug] User detected: ${userEmail}`);
 
         // Allowlist Check
-        if (ALLOWED_EMAILS.includes(userEmail)) {
+        const isAllowed = ALLOWED_EMAILS.includes(userEmail);
+        console.log(`[AuthDebug] Is Allowed: ${isAllowed}`);
+        console.log(`[AuthDebug] Allowed List:`, ALLOWED_EMAILS);
+
+        if (isAllowed) {
           setCurrentUser({
             id: session.user.id,
             name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
