@@ -103,6 +103,15 @@ export interface MaintenanceTask {
   estimatedCost: number;
   cost?: number; // Final cost in USD
   endDate?: string;
+  partialExpenses?: PartialExpense[];
+}
+
+export interface PartialExpense {
+  id: string;
+  description: string;
+  amount: number;
+  date: string; // ISO string
+  by: string; // User who added it
 }
 
 export interface ExpenseLog {

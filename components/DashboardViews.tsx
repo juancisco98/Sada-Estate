@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import FinancialDetailsCard from './FinancialDetailsCard';
 import IncomeBreakdownPanel from './IncomeBreakdownPanel';
+import MaintenanceDetailsModal from './MaintenanceDetailsModal';
 
 // --- Helper Functions ---
 import { formatCurrency, convertCurrency } from '../utils/currency';
@@ -94,6 +95,7 @@ interface OverviewViewProps {
   maintenanceTasks?: MaintenanceTask[];
   onAddProperty?: () => void;
   onDeleteProperty?: (id: string) => void;
+  onAddExpense?: (propertyId: string, expense: { description: string, amount: number, date: string, by: string }) => void;
 }
 
 // --- 1. Visión General (Overview) ---
@@ -103,7 +105,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   professionals = [],
   maintenanceTasks = [],
   onAddProperty,
-  onDeleteProperty
+  onDeleteProperty,
+  onAddExpense
 }) => {
 
   // Calculate Total Income in ARS
@@ -140,6 +143,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   }
 
   const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedMaintenanceProp, setSelectedMaintenanceProp] = useState<Property | null>(null);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
@@ -290,6 +294,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           "{maintenance.task}"
                         </div>
                       )}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMaintenanceProp(property);
+                        }}
+                        className="w-full mt-2 py-2 bg-white/80 border border-orange-200 rounded-lg text-xs font-bold text-orange-700 hover:bg-orange-100 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <DollarSign className="w-3 h-3" /> Ver Gastos Parciales
+                      </button>
                     </div>
                   )}
 
@@ -373,7 +387,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           El presupuesto de mantenimiento se calcula sobre el 15% del ingreso total de alquileres.
         </p>
       </section>
-    </div>
+
+
+      {/* Maintenance Details Modal */}
+      {
+        selectedMaintenanceProp && onAddExpense && (
+          (() => {
+            const maintenance = getMaintenanceInfo(selectedMaintenanceProp);
+            const task = maintenanceTasks.find(t => t.propertyId === selectedMaintenanceProp.id && t.status !== TaskStatus.COMPLETED);
+
+            if (maintenance && task) {
+              return (
+                <MaintenanceDetailsModal
+                  property={selectedMaintenanceProp}
+                  task={task}
+                  professionalName={maintenance.pro?.name || 'Profesional'}
+                  onClose={() => setSelectedMaintenanceProp(null)}
+                  onAddExpense={onAddExpense}
+                />
+              );
+            }
+            return null;
+          })()
+        )
+      }
+    </div >
   );
 };
 

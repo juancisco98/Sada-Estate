@@ -60,6 +60,46 @@ export const useMaintenance = (currentUserId?: string) => {
         }
     };
 
+    const addPartialExpense = async (propertyId: string, expense: { description: string, amount: number, date: string, by: string }) => {
+        const newExpense = { ...expense, id: `pe-${Date.now()}` };
+
+        // 1. Update maintenance task locally
+        setMaintenanceTasks(prev => prev.map(task => {
+            if (task.propertyId === propertyId && task.status !== TaskStatus.COMPLETED) {
+                return {
+                    ...task,
+                    partialExpenses: [...(task.partialExpenses || []), newExpense]
+                };
+            }
+            return task;
+        }));
+
+        // 2. Persist to Supabase
+        try {
+            // Find the active task
+            const { data: activeTasks } = await supabase
+                .from('maintenance_tasks')
+                .select('id, partial_expenses')
+                .eq('property_id', propertyId)
+                .neq('status', 'COMPLETED')
+                .limit(1);
+
+            if (activeTasks && activeTasks.length > 0) {
+                const currentExpenses = activeTasks[0].partial_expenses || [];
+                await supabase
+                    .from('maintenance_tasks')
+                    .update({
+                        partial_expenses: [...currentExpenses, newExpense]
+                    })
+                    .eq('id', activeTasks[0].id);
+
+                console.log(`[Supabase] ✅ Partial expense added`);
+            }
+        } catch (err) {
+            console.error('[Supabase] ❌ Exception adding partial expense:', err);
+        }
+    };
+
     const finishMaintenance = async (propertyId: string, rating?: number, speedRating?: number, comment?: string, finalCost?: number) => {
         // 1. Update property locally
         setProperties(prev => {
@@ -163,6 +203,7 @@ export const useMaintenance = (currentUserId?: string) => {
     return {
         maintenanceTasks,
         assignProfessional,
+        addPartialExpense,
         finishMaintenance
     };
 };

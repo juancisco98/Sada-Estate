@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Star, MessageSquare, CheckCircle, X, DollarSign } from 'lucide-react';
-import { Property, Professional } from '../types';
+import { Property, Professional, MaintenanceTask } from '../types';
 
 interface FinishMaintenanceModalProps {
   property: Property;
   professionalName: string;
+  task?: MaintenanceTask;
   onClose: () => void;
   onConfirm: (rating: number, speedRating: number, comment: string, cost: number) => void;
 }
@@ -12,13 +13,16 @@ interface FinishMaintenanceModalProps {
 const FinishMaintenanceModal: React.FC<FinishMaintenanceModalProps> = ({
   property,
   professionalName,
+  task,
   onClose,
   onConfirm
 }) => {
   const [rating, setRating] = useState(0);
   const [speedRating, setSpeedRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [cost, setCost] = useState('');
+
+  const partialCost = task?.partialExpenses?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+  const [cost, setCost] = useState(partialCost > 0 ? partialCost.toString() : '');
 
   const handleSubmit = () => {
     if (rating === 0) {
@@ -88,9 +92,9 @@ const FinishMaintenanceModal: React.FC<FinishMaintenanceModalProps> = ({
             </div>
           </div>
 
-          {/* Cost Input (USD) */}
+          {/* Cost Input (ARS) */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Costo Final (USD)</label>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Costo Final (ARS)</label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
               <input
@@ -101,6 +105,11 @@ const FinishMaintenanceModal: React.FC<FinishMaintenanceModalProps> = ({
                 onChange={(e) => setCost(e.target.value)}
               />
             </div>
+            {partialCost > 0 && (
+              <p className="text-xs text-center text-orange-500 font-medium mt-1">
+                Incluye gasto parcial acumulado de ${partialCost}
+              </p>
+            )}
             <p className="text-xs text-center text-gray-400 italic">Ingrese el monto en dólares.</p>
           </div>
 

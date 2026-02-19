@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+// Force Vercel Rebuild - Timestamp: 2026-02-18-2040
 import MapBoard from './components/MapBoard';
 import PropertyCard from './components/PropertyCard';
 import VoiceAssistant from './components/VoiceAssistant';
@@ -54,7 +55,8 @@ const Dashboard: React.FC = () => {
   const {
     maintenanceTasks,
     assignProfessional: assignProfessionalData,
-    finishMaintenance: finishMaintenanceData
+    finishMaintenance: finishMaintenanceData,
+    addPartialExpense
   } = useMaintenance(currentUser?.email || currentUser?.name);
 
   const {
@@ -247,6 +249,7 @@ const Dashboard: React.FC = () => {
                   maintenanceTasks={maintenanceTasks} // Pass tasks
                   onAddProperty={handleOpenAddModal}
                   onDeleteProperty={handleDeleteProperty}
+                  onAddExpense={addPartialExpense}
                 />
               </Suspense>
             </div>
@@ -405,6 +408,7 @@ const Dashboard: React.FC = () => {
         <FinishMaintenanceModal
           property={finishingProperty}
           professionalName={professionals.find(p => p.id === finishingProperty.assignedProfessionalId)?.name || 'Profesional'}
+          task={maintenanceTasks.find(t => t.propertyId === finishingProperty.id && t.status !== 'COMPLETED')}
           onClose={() => setFinishingProperty(null)}
           onConfirm={confirmFinishMaintenance}
         />

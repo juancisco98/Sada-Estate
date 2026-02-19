@@ -106,6 +106,7 @@ export const dbToTask = (row: any): MaintenanceTask => ({
     estimatedCost: Number(row.estimated_cost),
     cost: row.cost ? Number(row.cost) : undefined,
     endDate: row.end_date || undefined,
+    partialExpenses: row.partial_expenses || [],
 });
 
 export const taskToDb = (t: MaintenanceTask): Record<string, any> => ({
@@ -118,4 +119,5 @@ export const taskToDb = (t: MaintenanceTask): Record<string, any> => ({
     estimated_cost: t.estimatedCost,
     cost: t.cost || null,
     end_date: t.endDate || null,
+    partial_expenses: t.partialExpenses || [],
 });

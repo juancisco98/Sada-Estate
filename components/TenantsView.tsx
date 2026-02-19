@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
-import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader } from 'lucide-react';
+import { uploadPaymentProof } from '../services/storage';
 
 interface TenantsViewProps {
     tenants: Tenant[];
@@ -40,6 +41,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     const [editingPayment, setEditingPayment] = useState<TenantPayment | null>(null);
     const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
     const [newTenant, setNewTenant] = useState({ name: '', phone: '', email: '', propertyId: '' });
+    const [isUploading, setIsUploading] = useState(false);
     const [newPayment, setNewPayment] = useState({
         amount: '',
         month: new Date().getMonth() + 1,
@@ -105,7 +107,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 year: newPayment.year,
                 paidOnTime: newPayment.paidOnTime,
                 paymentMethod: newPayment.paymentMethod,
-                proofOfPayment: newPayment.paymentMethod === 'TRANSFER' ? newPayment.proofOfPayment : undefined,
+                proofOfPayment: newPayment.proofOfPayment,
                 notes: newPayment.notes
             };
             onUpdatePayment(updatedPayment);
@@ -121,7 +123,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 paidOnTime: newPayment.paidOnTime,
                 paymentDate: new Date().toISOString().split('T')[0],
                 paymentMethod: newPayment.paymentMethod,
-                proofOfPayment: newPayment.paymentMethod === 'TRANSFER' ? newPayment.proofOfPayment : undefined,
+                proofOfPayment: newPayment.proofOfPayment,
                 notes: newPayment.notes
             };
             onRegisterPayment(payment);
@@ -138,6 +140,29 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         });
         setShowPaymentModal(null);
         setEditingPayment(null);
+        setIsUploading(false);
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const folder = showPaymentModal ? `tenants/${showPaymentModal}` : 'general';
+            const publicUrl = await uploadPaymentProof(file, folder);
+
+            if (publicUrl) {
+                setNewPayment(prev => ({ ...prev, proofOfPayment: publicUrl }));
+            } else {
+                alert('Error al subir el comprobante. Por favor intente nuevamente.');
+            }
+        } catch (error) {
+            console.error('Error handling file upload:', error);
+            alert('Error al subir el comprobante.');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const getPropertyAddress = (propertyId: string | null) => {
@@ -573,11 +598,90 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                 </button>
                             </div>
 
+                            {/* Proof Upload (Moved Here) */}
+                            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>
+                                    Comprobante de Pago
+                                </label>
+
+                                {/* File Upload Input */}
+                                <div style={{ marginBottom: '8px' }}>
+                                    <input
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        onChange={handleFileUpload}
+                                        style={{ display: 'none' }}
+                                        id="proof-upload"
+                                        disabled={isUploading}
+                                    />
+                                    <label
+                                        htmlFor="proof-upload"
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                            padding: '8px 12px', borderRadius: '8px',
+                                            background: 'white', border: '1px dashed #cbd5e1',
+                                            cursor: isUploading ? 'not-allowed' : 'pointer',
+                                            fontSize: '13px', color: '#475569',
+                                            justifyContent: 'center', transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {isUploading ? (
+                                            <>
+                                                <Loader size={16} className="animate-spin" /> Subiendo...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload size={16} /> {newPayment.proofOfPayment ? 'Cambiar Comprobante' : 'Adjuntar PDF o Imagen'}
+                                            </>
+                                        )}
+                                    </label>
+                                </div>
+
+                                {/* Display Uploaded File Link */}
+                                {newPayment.proofOfPayment && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16a34a', background: '#dcfce7', padding: '6px 10px', borderRadius: '6px' }}>
+                                        <CheckCircle size={14} />
+                                        <a
+                                            href={newPayment.proofOfPayment}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{ color: '#15803d', textDecoration: 'underline', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
+                                        >
+                                            Ver Comprobante Adjunto
+                                        </a>
+                                        <button
+                                            onClick={() => setNewPayment(p => ({ ...p, proofOfPayment: '' }))}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', marginLeft: 'auto' }}
+                                            title="Eliminar comprobante"
+                                        >
+                                            <X size={14} color="#ef4444" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Legacy text input just in case they want to paste a manual reference ID */}
+                                {!newPayment.proofOfPayment && (
+                                    <div style={{ marginTop: '8px' }}>
+                                        <input
+                                            value={newPayment.proofOfPayment} // This handles the text input if it was string
+                                            onChange={e => setNewPayment(p => ({ ...p, proofOfPayment: e.target.value }))}
+                                            placeholder="O escribe ID de transferencia..."
+                                            style={{
+                                                width: '100%', padding: '8px 10px', borderRadius: '8px',
+                                                border: '1px solid #e2e8f0', fontSize: '12px', outline: 'none', boxSizing: 'border-box',
+                                                background: 'white'
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Payment Method */}
                             <div>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
                                     Método de Pago
                                 </label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                                     <button
                                         onClick={() => setNewPayment(p => ({ ...p, paymentMethod: 'CASH' }))}
                                         style={{
@@ -602,23 +706,6 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     </button>
                                 </div>
                             </div>
-
-                            {newPayment.paymentMethod === 'TRANSFER' && (
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                                        Comprobante (ID o Link)
-                                    </label>
-                                    <input
-                                        value={newPayment.proofOfPayment}
-                                        onChange={e => setNewPayment(p => ({ ...p, proofOfPayment: e.target.value }))}
-                                        placeholder="Ej: Transferencia #1234..."
-                                        style={{
-                                            width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                            border: '1px solid #d1d5db', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                                        }}
-                                    />
-                                </div>
-                            )}
 
                             <div>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>

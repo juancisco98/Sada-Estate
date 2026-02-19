@@ -110,27 +110,70 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
           <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
             {/* Maintenance Expenses */}
             {expenses.length > 0 ? (
-              expenses.map(expense => {
+              expenses.flatMap(expense => {
                 const professional = professionals.find(p => p.id === expense.professionalId);
-                return (
-                  <div key={expense.id} className="flex justify-between items-center p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                const hasPartial = expense.partialExpenses && expense.partialExpenses.length > 0;
+
+                // If we have partial expenses, we show them individually
+                // AND if the task is completed, we might show the remainder or the total differently.
+                // Requirement: "que esos gastos se agreguen a los gastos del inmueble por mes".
+                // If the task is completed, 'cost' is the final total. 
+                // We should probably list the partial expenses with their specific dates, 
+                // and if there is a difference between total cost and sum(partial), list it as "Final Adjustment" or "Cierre de Obra" at end date?
+                // For simplicity and matching the requirement: "appear the total of partial expenses... and added to expenses by month"
+
+                // Strategy: 
+                // 1. Map all partial expenses as individual items.
+                // 2. If task is completed, check if Final Cost > Sum(Partials). If so, add a "Cierre / Ajuste Final" item.
+
+                const partials = hasPartial ? expense.partialExpenses!.map(pe => ({
+                  id: pe.id,
+                  description: `${pe.description} (Obra: ${expense.description})`,
+                  date: pe.date,
+                  amount: pe.amount,
+                  proName: professional?.name
+                })) : [];
+
+                const totalPartial = partials.reduce((sum, p) => sum + p.amount, 0);
+                const finalCost = expense.cost || 0;
+                const isCompleted = expense.status === 'COMPLETED';
+
+                // Calculate remainder if completed
+                const remainder = isCompleted ? finalCost - totalPartial : 0;
+
+                const items = [...partials];
+
+                // If it has no partials, or if there is a remainder, we show the main task entry (or remainder entry)
+                if (!hasPartial || (isCompleted && remainder !== 0)) {
+                  items.push({
+                    id: expense.id,
+                    description: hasPartial ? `Cierre/Ajuste: ${expense.description}` : expense.description,
+                    date: expense.endDate || expense.startDate, // Use end date for final payment if exists
+                    amount: hasPartial ? remainder : (expense.cost || expense.estimatedCost),
+                    proName: professional?.name
+                  });
+                }
+
+                return items;
+              }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .map(item => (
+                  <div key={item.id} className="flex justify-between items-center p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
                     <div>
-                      <p className="text-sm font-semibold text-gray-800">{expense.description}</p>
+                      <p className="text-sm font-semibold text-gray-800">{item.description}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">
-                          {professional?.profession || 'Mantenimiento'}
+                          {item.proName || 'Mantenimiento'}
                         </span>
                         <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> {expense.startDate}
+                          <Calendar className="w-3 h-3" /> {new Date(item.date).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
                     <span className="font-bold text-red-600 text-sm">
-                      - {formatCurrency(expense.cost || expense.estimatedCost, 'ARS')}
+                      - {formatCurrency(item.amount, 'ARS')}
                     </span>
                   </div>
-                );
-              })
+                ))
             ) : (
               <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                 <p className="text-sm">Sin gastos registrados este mes.</p>
