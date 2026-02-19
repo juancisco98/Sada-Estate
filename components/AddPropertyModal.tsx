@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2 } from 'lucide-react';
+import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, User, Phone, DollarSign } from 'lucide-react';
 import { Property, PropertyStatus } from '../types';
-import { MOCK_PROFESSIONALS } from '../constants';
+
 import { getTaxConfig } from '../utils/taxConfig';
 import { toast } from 'sonner';
 import { BuildingUnitManager, BuildingUnit } from './properties/BuildingUnitManager';
@@ -37,7 +37,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   onClose,
   onSave,
   onDelete,
-  professionals = MOCK_PROFESSIONALS
+  professionals = []
 }) => {
   const isEditing = !!existingProperty;
 

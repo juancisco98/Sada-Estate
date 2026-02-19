@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Property, PropertyStatus } from '../types';
-import { MOCK_PROFESSIONALS, MOCK_USERS } from '../constants';
+
 import { formatCurrency } from '../utils/currency';
 import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2 } from 'lucide-react';
 
@@ -44,9 +44,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     }
   };
 
+  /* 
   const assignedProfessional = property.assignedProfessionalId
     ? MOCK_PROFESSIONALS.find(p => p.id === property.assignedProfessionalId)
     : null;
+  */
+  const assignedProfessional = null; // Placeholder until we have real professional data fetching
 
   const isUnderMaintenance = !!assignedProfessional;
 
@@ -106,8 +109,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   };
 
   // Visual Differentiation Logic
-  const lastUser = property.lastModifiedBy ? MOCK_USERS.find(u => u.id === property.lastModifiedBy) : null;
-  const borderColor = lastUser ? lastUser.color : 'transparent';
+  // const lastUser = property.lastModifiedBy ? MOCK_USERS.find(u => u.id === property.lastModifiedBy) : null;
+  // const borderColor = lastUser ? lastUser.color : 'transparent';
+  const borderColor = 'transparent';
 
   return (
     <div
@@ -125,11 +129,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         borderLeftWidth: '1px', borderLeftColor: '#f3f4f6',
       }}
     >
-      {lastUser && (
-        <div className="absolute top-0 right-0 bg-white/90 backdrop-blur px-2 py-0.5 rounded-bl-lg z-20 text-[10px] font-bold uppercase tracking-wider shadow-sm" style={{ color: lastUser.color }}>
-          Modificado por: {lastUser.name}
-        </div>
-      )}
+      {/* lastUser display removed */}
 
       {/* Property Image Header */}
       <div className="h-40 w-full relative">
