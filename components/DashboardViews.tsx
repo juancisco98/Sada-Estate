@@ -144,7 +144,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 shadow-lg flex items-center gap-2 px-6"
             >
               <span className="font-bold text-lg">+</span>
-              <span className="hidden md:inline font-semibold">Agregar Propiedad</span>
+              <span className="font-semibold">Agregar Propiedad</span>
             </button>
           )}
         </div>

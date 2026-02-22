@@ -1,4 +1,4 @@
-import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus } from '../types';
+import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment } from '../types';
 
 // ========== BUILDING MAPPERS ==========
 
@@ -10,6 +10,7 @@ export const dbToBuilding = (row: any): Building => ({
     currency: row.currency,
     imageUrl: row.image_url,
     notes: row.notes,
+    userId: row.user_id,
 });
 
 export const buildingToDb = (b: Building): Record<string, any> => ({
@@ -20,6 +21,7 @@ export const buildingToDb = (b: Building): Record<string, any> => ({
     currency: b.currency,
     image_url: b.imageUrl || null,
     notes: b.notes || null,
+    user_id: b.userId || undefined,
 });
 
 // ========== MAPPERS: DB (snake_case) <-> App (camelCase) ==========
@@ -47,6 +49,7 @@ export const dbToProperty = (row: any): Property => ({
     exchangeRate: row.exchange_rate ? Number(row.exchange_rate) : undefined,
     buildingId: row.building_id || undefined,
     unitLabel: row.unit_label || undefined,
+    userId: row.user_id,
 });
 
 export const propertyToDb = (p: Property): Record<string, any> => ({
@@ -72,6 +75,7 @@ export const propertyToDb = (p: Property): Record<string, any> => ({
     exchange_rate: p.exchangeRate || null,
     building_id: p.buildingId || null,
     unit_label: p.unitLabel || '',
+    user_id: p.userId || undefined,
 });
 
 export const dbToProfessional = (row: any): Professional => ({
@@ -83,6 +87,7 @@ export const dbToProfessional = (row: any): Professional => ({
     zone: row.zone,
     phone: row.phone,
     reviews: row.reviews || [],
+    userId: row.user_id,
 });
 
 export const professionalToDb = (p: Professional): Record<string, any> => ({
@@ -94,6 +99,7 @@ export const professionalToDb = (p: Professional): Record<string, any> => ({
     zone: p.zone,
     phone: p.phone,
     reviews: p.reviews || [],
+    user_id: p.userId || undefined,
 });
 
 export const dbToTask = (row: any): MaintenanceTask => ({
@@ -107,6 +113,7 @@ export const dbToTask = (row: any): MaintenanceTask => ({
     cost: row.cost ? Number(row.cost) : undefined,
     endDate: row.end_date || undefined,
     partialExpenses: row.partial_expenses || [],
+    userId: row.user_id,
 });
 
 export const taskToDb = (t: MaintenanceTask): Record<string, any> => ({
@@ -120,4 +127,57 @@ export const taskToDb = (t: MaintenanceTask): Record<string, any> => ({
     cost: t.cost || null,
     end_date: t.endDate || null,
     partial_expenses: t.partialExpenses || [],
+    user_id: t.userId || undefined,
+});
+
+// ========== TENANT MAPPERS ==========
+
+export const dbToTenant = (row: any): Tenant => ({
+    id: row.id,
+    name: row.name,
+    phone: row.phone || '',
+    email: row.email || '',
+    propertyId: row.property_id,
+    userId: row.user_id,
+});
+
+export const tenantToDb = (t: Tenant): Record<string, any> => ({
+    id: t.id,
+    name: t.name,
+    phone: t.phone,
+    email: t.email,
+    property_id: t.propertyId || null,
+    user_id: t.userId || undefined,
+});
+
+export const dbToPayment = (row: any): TenantPayment => ({
+    id: row.id,
+    tenantId: row.tenant_id,
+    propertyId: row.property_id,
+    amount: Number(row.amount),
+    currency: row.currency,
+    month: row.month,
+    year: row.year,
+    paidOnTime: row.paid_on_time,
+    paymentDate: row.payment_date,
+    paymentMethod: row.payment_method || 'CASH',
+    proofOfPayment: row.proof_of_payment,
+    notes: row.notes,
+    userId: row.user_id,
+});
+
+export const paymentToDb = (p: TenantPayment): Record<string, any> => ({
+    id: p.id,
+    tenant_id: p.tenantId,
+    property_id: p.propertyId || null,
+    amount: p.amount,
+    currency: p.currency,
+    month: p.month,
+    year: p.year,
+    paid_on_time: p.paidOnTime,
+    payment_date: p.paymentDate,
+    payment_method: p.paymentMethod,
+    proof_of_payment: p.proofOfPayment,
+    notes: p.notes,
+    user_id: p.userId || undefined,
 });

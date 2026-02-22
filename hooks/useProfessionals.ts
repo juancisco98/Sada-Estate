@@ -3,16 +3,21 @@ import { supabase } from '../services/supabaseClient';
 import { Professional } from '../types';
 import { professionalToDb } from '../utils/mappers';
 
-export const useProfessionals = () => {
+export const useProfessionals = (currentUserId?: string) => {
     const { professionals, setProfessionals } = useDataContext();
 
     const saveProfessional = async (newPro: Professional) => {
-        setProfessionals(prev => [...prev, newPro]);
+        const proWithUser = { ...newPro, userId: currentUserId };
+        setProfessionals(prev => {
+            const exists = prev.find(p => p.id === newPro.id);
+            if (exists) return prev.map(p => p.id === newPro.id ? proWithUser : p);
+            return [...prev, proWithUser];
+        });
 
         try {
             const { error } = await supabase
                 .from('professionals')
-                .insert(professionalToDb(newPro));
+                .upsert(professionalToDb(proWithUser), { onConflict: 'id' });
 
             if (error) console.error('[Supabase] ❌ Error saving professional:', error);
             else console.log(`[Supabase] ✅ Professional saved: ${newPro.name}`);

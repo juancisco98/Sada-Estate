@@ -275,6 +275,19 @@ const MapBoard: React.FC<MapBoardProps> = ({
           </Marker>
         )}
       </MapContainer>
+
+      {/* Floating Action Button (FAB) for adding property without search */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onAddProperty && onAddProperty();
+        }}
+        className="fixed bottom-24 right-6 z-[1000] w-14 h-14 bg-gray-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-gray-800 hover:scale-110 active:scale-95 transition-all md:bottom-8"
+        title="Crear Nueva Propiedad"
+        aria-label="Crear nueva propiedad"
+      >
+        <span className="text-3xl font-bold">+</span>
+      </button>
     </div>
   );
 };

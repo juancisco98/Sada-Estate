@@ -27,3 +27,7 @@ dist-ssr
 .gemini/
 .agent/
 ui-ux-pro-max-skill/
+
+# Lint artifacts
+lint_output.txt
+lint_results.json

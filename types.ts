@@ -21,6 +21,7 @@ export interface Building {
   currency: string;
   imageUrl?: string;
   notes?: string;
+  userId?: string;
 }
 
 export interface Property {
@@ -47,6 +48,7 @@ export interface Property {
   // Building / Unit
   buildingId?: string;
   unitLabel?: string;
+  userId?: string;
 }
 
 export interface Tenant {
@@ -55,6 +57,7 @@ export interface Tenant {
   phone: string;
   email: string;
   propertyId: string | null;
+  userId?: string;
 }
 
 export interface TenantPayment {
@@ -70,6 +73,7 @@ export interface TenantPayment {
   paymentMethod?: 'CASH' | 'TRANSFER';
   proofOfPayment?: string;
   notes?: string;
+  userId?: string;
 }
 
 export interface Professional {
@@ -85,6 +89,7 @@ export interface Professional {
     comment: string;
     date: string;
   }[];
+  userId?: string;
 }
 
 export enum TaskStatus {
@@ -104,6 +109,7 @@ export interface MaintenanceTask {
   cost?: number; // Final cost in USD
   endDate?: string;
   partialExpenses?: PartialExpense[];
+  userId?: string;
 }
 
 export interface PartialExpense {

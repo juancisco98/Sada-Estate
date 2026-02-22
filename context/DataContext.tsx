@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Property, Professional, MaintenanceTask, Building } from '../types';
+import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment } from '../types';
 import { supabase } from '../services/supabaseClient';
 import {
     dbToBuilding, dbToProperty,
     dbToProfessional,
-    dbToTask
+    dbToTask,
+    dbToTenant,
+    dbToPayment
 } from '../utils/mappers';
 import { handleError } from '../utils/errorHandler';
 
@@ -17,6 +19,10 @@ interface DataContextType {
     setMaintenanceTasks: React.Dispatch<React.SetStateAction<MaintenanceTask[]>>;
     buildings: Building[];
     setBuildings: React.Dispatch<React.SetStateAction<Building[]>>;
+    tenants: Tenant[];
+    setTenants: React.Dispatch<React.SetStateAction<Tenant[]>>;
+    payments: TenantPayment[];
+    setPayments: React.Dispatch<React.SetStateAction<TenantPayment[]>>;
     isLoading: boolean;
     refreshData: () => Promise<void>;
 }
@@ -28,66 +34,63 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [professionals, setProfessionals] = useState<Professional[]>([]);
     const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>([]);
     const [buildings, setBuildings] = useState<Building[]>([]);
+    const [tenants, setTenants] = useState<Tenant[]>([]);
+    const [payments, setPayments] = useState<TenantPayment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const loadData = async () => {
         setIsLoading(true);
         try {
-            // Load professionals first
-            const { data: prosData, error: prosError } = await supabase
-                .from('professionals')
-                .select('*')
-                .order('created_at', { ascending: true });
+            const [
+                prosResult,
+                propsResult,
+                tasksResult,
+                buildingsResult,
+                tenantsResult,
+                paymentsResult
+            ] = await Promise.all([
+                supabase.from('professionals').select('*').order('created_at', { ascending: true }),
+                supabase.from('properties').select('*').order('created_at', { ascending: true }),
+                supabase.from('maintenance_tasks').select('*').order('created_at', { ascending: true }),
+                supabase.from('buildings').select('*').order('created_at', { ascending: true }),
+                supabase.from('tenants').select('*').order('created_at', { ascending: true }),
+                supabase.from('tenant_payments').select('*').order('created_at', { ascending: true })
+            ]);
 
-            if (prosError) throw prosError;
+            if (prosResult.error) throw prosResult.error;
+            if (propsResult.error) throw propsResult.error;
+            if (tasksResult.error) throw tasksResult.error;
+            if (buildingsResult.error) throw buildingsResult.error;
+            if (tenantsResult.error) throw tenantsResult.error;
+            if (paymentsResult.error) throw paymentsResult.error;
 
-            if (prosData) {
-                const loadedPros = prosData.map(dbToProfessional);
-                setProfessionals(loadedPros);
-                console.log(`[Supabase] ✅ Loaded ${loadedPros.length} professionals`);
+            if (prosResult.data) {
+                setProfessionals(prosResult.data.map(dbToProfessional));
+                console.log(`[Supabase] ✅ Loaded ${prosResult.data.length} professionals`);
             }
-
-            // Load properties
-            const { data: propsData, error: propsError } = await supabase
-                .from('properties')
-                .select('*')
-                .order('created_at', { ascending: true });
-
-            if (propsError) throw propsError;
-
-            if (propsData) {
-                const loadedProps = propsData.map(dbToProperty);
-                setProperties(loadedProps);
-                console.log(`[Supabase] ✅ Loaded ${loadedProps.length} properties`);
+            if (propsResult.data) {
+                setProperties(propsResult.data.map(dbToProperty));
+                console.log(`[Supabase] ✅ Loaded ${propsResult.data.length} properties`);
             }
-
-            // Load maintenance tasks
-            const { data: tasksData, error: tasksError } = await supabase
-                .from('maintenance_tasks')
-                .select('*')
-                .order('created_at', { ascending: true });
-
-            if (tasksError) throw tasksError;
-
-            if (tasksData) {
-                setMaintenanceTasks(tasksData.map(dbToTask));
-                console.log(`[Supabase] ✅ Loaded ${tasksData.length} tasks`);
+            if (tasksResult.data) {
+                setMaintenanceTasks(tasksResult.data.map(dbToTask));
+                console.log(`[Supabase] ✅ Loaded ${tasksResult.data.length} tasks`);
             }
-
-            // Load buildings
-            const { data: buildingsData } = await supabase
-                .from('buildings')
-                .select('*')
-                .order('created_at', { ascending: true });
-
-            if (buildingsData) {
-                setBuildings(buildingsData.map(dbToBuilding));
-                console.log(`[Supabase] ✅ Loaded ${buildingsData.length} buildings`);
+            if (buildingsResult.data) {
+                setBuildings(buildingsResult.data.map(dbToBuilding));
+                console.log(`[Supabase] ✅ Loaded ${buildingsResult.data.length} buildings`);
+            }
+            if (tenantsResult.data) {
+                setTenants(tenantsResult.data.map(dbToTenant));
+                console.log(`[Supabase] ✅ Loaded ${tenantsResult.data.length} tenants`);
+            }
+            if (paymentsResult.data) {
+                setPayments(paymentsResult.data.map(dbToPayment));
+                console.log(`[Supabase] ✅ Loaded ${paymentsResult.data.length} tenant payments`);
             }
 
         } catch (error) {
             handleError(error, 'Error al cargar los datos. Por favor recargue la página.');
-            // No fallback to mock data
         } finally {
             setIsLoading(false);
         }
@@ -103,6 +106,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             professionals, setProfessionals,
             maintenanceTasks, setMaintenanceTasks,
             buildings, setBuildings,
+            tenants, setTenants,
+            payments, setPayments,
             isLoading,
             refreshData: loadData
         }}>

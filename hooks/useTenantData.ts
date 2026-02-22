@@ -1,107 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useDataContext } from '../context/DataContext';
 import { Tenant, TenantPayment } from '../types';
 import { supabase } from '../services/supabaseClient';
-
-// ========== MAPPERS ==========
-
-const dbToTenant = (row: any): Tenant => ({
-    id: row.id,
-    name: row.name,
-    phone: row.phone || '',
-    email: row.email || '',
-    propertyId: row.property_id,
-});
-
-const tenantToDb = (t: Tenant): Record<string, any> => ({
-    id: t.id,
-    name: t.name,
-    phone: t.phone,
-    email: t.email,
-    property_id: t.propertyId || null,
-});
-
-const dbToPayment = (row: any): TenantPayment => ({
-    id: row.id,
-    tenantId: row.tenant_id,
-    propertyId: row.property_id,
-    amount: Number(row.amount),
-    currency: row.currency,
-    month: row.month,
-    year: row.year,
-    paidOnTime: row.paid_on_time,
-    paymentDate: row.payment_date,
-    paymentMethod: row.payment_method || 'CASH',
-    proofOfPayment: row.proof_of_payment,
-    notes: row.notes,
-});
-
-const paymentToDb = (p: TenantPayment): Record<string, any> => ({
-    id: p.id,
-    tenant_id: p.tenantId,
-    property_id: p.propertyId || null,
-    amount: p.amount,
-    currency: p.currency,
-    month: p.month,
-    year: p.year,
-    paid_on_time: p.paidOnTime,
-    payment_date: p.paymentDate,
-    payment_method: p.paymentMethod,
-    proof_of_payment: p.proofOfPayment,
-    notes: p.notes,
-});
+import { tenantToDb, paymentToDb } from '../utils/mappers';
 
 // ========== HOOK ==========
 
-export const useTenantData = () => {
-    const [tenants, setTenants] = useState<Tenant[]>([]);
-    const [payments, setPayments] = useState<TenantPayment[]>([]);
-    const [isLoadingTenants, setIsLoadingTenants] = useState(true);
-
-    useEffect(() => {
-        const load = async () => {
-            setIsLoadingTenants(true);
-            try {
-                const { data: tData } = await supabase
-                    .from('tenants')
-                    .select('*')
-                    .order('created_at', { ascending: true });
-
-                if (tData && tData.length > 0) {
-                    setTenants(tData.map(dbToTenant));
-                    console.log(`[Supabase] ✅ Loaded ${tData.length} tenants`);
-                }
-
-                const { data: pData } = await supabase
-                    .from('tenant_payments')
-                    .select('*')
-                    .order('created_at', { ascending: true });
-
-                if (pData && pData.length > 0) {
-                    setPayments(pData.map(dbToPayment));
-                    console.log(`[Supabase] ✅ Loaded ${pData.length} tenant payments`);
-                }
-            } catch (error) {
-                console.error('[Supabase] ❌ Error loading tenant data:', error);
-            } finally {
-                setIsLoadingTenants(false);
-            }
-        };
-        load();
-    }, []);
+export const useTenantData = (currentUserId?: string) => {
+    const {
+        tenants, setTenants,
+        payments, setPayments,
+        isLoading: isLoadingTenants
+    } = useDataContext();
 
     // ========== TENANT CRUD ==========
 
     const handleSaveTenant = async (tenant: Tenant) => {
+        const tenantWithUser = { ...tenant, userId: currentUserId };
         setTenants(prev => {
             const exists = prev.find(t => t.id === tenant.id);
-            if (exists) return prev.map(t => t.id === tenant.id ? tenant : t);
-            return [...prev, tenant];
+            if (exists) return prev.map(t => t.id === tenant.id ? tenantWithUser : t);
+            return [...prev, tenantWithUser];
         });
 
         try {
             const { error } = await supabase
                 .from('tenants')
-                .upsert(tenantToDb(tenant), { onConflict: 'id' });
+                .upsert(tenantToDb(tenantWithUser), { onConflict: 'id' });
             if (error) console.error('[Supabase] ❌ Error saving tenant:', error);
             else console.log(`[Supabase] ✅ Tenant saved: ${tenant.name}`);
         } catch (err) {
@@ -128,12 +52,13 @@ export const useTenantData = () => {
     // ========== PAYMENT CRUD ==========
 
     const handleRegisterPayment = async (payment: TenantPayment) => {
-        setPayments(prev => [...prev, payment]);
+        const paymentWithUser = { ...payment, userId: currentUserId };
+        setPayments(prev => [...prev, paymentWithUser]);
 
         try {
             const { error } = await supabase
                 .from('tenant_payments')
-                .insert(paymentToDb(payment));
+                .insert(paymentToDb(paymentWithUser));
             if (error) console.error('[Supabase] ❌ Error registering payment:', error);
             else console.log(`[Supabase] ✅ Payment registered for tenant: ${payment.tenantId}`);
         } catch (err) {

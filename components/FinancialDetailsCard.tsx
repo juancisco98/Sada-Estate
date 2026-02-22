@@ -18,7 +18,21 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
 }) => {
   // Filter tasks related to this property
   const expenses = maintenanceTasks.filter(task => task.propertyId === property.id);
-  const totalMaintenance = expenses.reduce((acc, task) => acc + (task.cost || task.estimatedCost || 0), 0);
+  // Calculate total maintenance by summing up all actual costs
+  const totalMaintenance = expenses.reduce((acc, expense) => {
+    const hasPartial = expense.partialExpenses && expense.partialExpenses.length > 0;
+    const totalPartial = hasPartial ? expense.partialExpenses!.reduce((sum, p) => sum + p.amount, 0) : 0;
+    const isCompleted = expense.status === 'COMPLETED';
+    const finalCost = expense.cost || 0;
+    const remainder = isCompleted ? Math.max(0, finalCost - totalPartial) : 0;
+
+    // If it has partials, sum partials + remainder
+    if (hasPartial) {
+      return acc + totalPartial + remainder;
+    }
+    // If no partials, use cost or estimatedCost
+    return acc + (expense.cost || expense.estimatedCost || 0);
+  }, 0);
 
   const totalExpenses = totalMaintenance;
   const netResult = property.monthlyRent - totalExpenses;
@@ -160,17 +174,17 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
                   const totalPartial = partials.reduce((sum, p) => sum + p.amount, 0);
                   const finalCost = expense.cost || 0;
                   const isCompleted = expense.status === 'COMPLETED';
-                  const remainder = isCompleted ? finalCost - totalPartial : 0;
+                  const remainder = isCompleted ? Math.max(0, finalCost - totalPartial) : 0;
 
                   const items = [...partials];
 
-                  if (!hasPartial || (isCompleted && remainder !== 0)) {
+                  if (!hasPartial || (isCompleted && remainder > 0)) {
                     items.push({
                       id: expense.id,
                       description: hasPartial ? 'Cierre / Ajuste Final' : expense.description,
                       mainTask: expense.description,
                       date: expense.endDate || expense.startDate,
-                      amount: hasPartial ? remainder : (expense.cost || expense.estimatedCost),
+                      amount: hasPartial ? remainder : (expense.cost || expense.estimatedCost || 0),
                       proName: professional?.name,
                       isPartial: false
                     });

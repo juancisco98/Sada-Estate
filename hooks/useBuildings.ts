@@ -3,20 +3,21 @@ import { supabase } from '../services/supabaseClient';
 import { Building } from '../types';
 import { buildingToDb } from '../utils/mappers';
 
-export const useBuildings = () => {
+export const useBuildings = (currentUserId?: string) => {
     const { buildings, setBuildings, setProperties } = useDataContext();
 
     const saveBuilding = async (building: Building) => {
+        const buildingWithUser = { ...building, userId: currentUserId };
         setBuildings(prev => {
             const exists = prev.find(b => b.id === building.id);
-            if (exists) return prev.map(b => b.id === building.id ? building : b);
-            return [...prev, building];
+            if (exists) return prev.map(b => b.id === building.id ? buildingWithUser : b);
+            return [...prev, buildingWithUser];
         });
 
         try {
             const { error } = await supabase
                 .from('buildings')
-                .upsert(buildingToDb(building), { onConflict: 'id' });
+                .upsert(buildingToDb(buildingWithUser), { onConflict: 'id' });
             if (error) console.error('[Supabase] ❌ Error saving building:', error);
             else console.log(`[Supabase] ✅ Building saved: ${building.address}`);
         } catch (err) {

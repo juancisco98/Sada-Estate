@@ -11,7 +11,11 @@ export const useProperties = (currentUserId?: string) => {
     };
 
     const saveProperties = async (savedProps: Property[]) => {
-        const propsWithUser = savedProps.map(p => ({ ...p, lastModifiedBy: currentUserId }));
+        const propsWithUser = savedProps.map(p => ({
+            ...p,
+            lastModifiedBy: currentUserId,
+            userId: currentUserId
+        }));
 
         // Optimistic update
         setProperties(prev => {

@@ -34,7 +34,8 @@ export const useMaintenance = (currentUserId?: string) => {
             description: taskDescription,
             status: TaskStatus.IN_PROGRESS,
             startDate: new Date().toISOString(),
-            estimatedCost: 0
+            estimatedCost: 0,
+            userId: currentUserId
         };
         setMaintenanceTasks(prev => [...prev, newTask]);
 
@@ -60,12 +61,12 @@ export const useMaintenance = (currentUserId?: string) => {
         }
     };
 
-    const addPartialExpense = async (propertyId: string, expense: { description: string, amount: number, date: string, by: string }) => {
+    const addPartialExpense = async (taskId: string, expense: { description: string, amount: number, date: string, by: string }) => {
         const newExpense = { ...expense, id: `pe-${Date.now()}` };
 
         // 1. Update maintenance task locally
         setMaintenanceTasks(prev => prev.map(task => {
-            if (task.propertyId === propertyId && task.status !== TaskStatus.COMPLETED) {
+            if (task.id === taskId) {
                 return {
                     ...task,
                     partialExpenses: [...(task.partialExpenses || []), newExpense]
@@ -80,8 +81,7 @@ export const useMaintenance = (currentUserId?: string) => {
             const { data: activeTasks } = await supabase
                 .from('maintenance_tasks')
                 .select('id, partial_expenses')
-                .eq('property_id', propertyId)
-                .neq('status', 'COMPLETED')
+                .eq('id', taskId)
                 .limit(1);
 
             if (activeTasks && activeTasks.length > 0) {

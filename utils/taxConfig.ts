@@ -58,39 +58,27 @@ export const getTaxConfig = (country: string): CountryTaxConfig => {
 
 // Detect country from a geocoded address string
 export const detectCountryFromAddress = (formattedAddress: string): string => {
+    if (!formattedAddress) return 'Argentina';
+
+    const parts = formattedAddress.split(',').map(p => p.trim().toLowerCase());
+    const lastPart = parts[parts.length - 1];
+
+    // Check last part first (standard for geocoded addresses)
+    if (lastPart === 'usa' || lastPart === 'united states' || lastPart === 'ee. uu.' || lastPart === 'eeuu') return 'USA';
+    if (lastPart === 'uruguay') return 'Uruguay';
+    if (lastPart === 'argentina') return 'Argentina';
+
+    // Search in parts
+    if (parts.some(p => p === 'usa' || p === 'united states')) return 'USA';
+    if (parts.some(p => p === 'uruguay')) return 'Uruguay';
+    if (parts.some(p => p === 'argentina')) return 'Argentina';
+
+    // Fallback to keyword search in whole string
     const addr = formattedAddress.toLowerCase();
 
-    if (
-        addr.includes('united states') ||
-        addr.includes('usa') ||
-        addr.includes(', us') ||
-        addr.includes('florida') ||
-        addr.includes('california') ||
-        addr.includes('new york') ||
-        addr.includes('texas') ||
-        addr.includes('miami') ||
-        addr.includes('los angeles')
-    ) {
-        return 'USA';
-    }
-
-    if (
-        addr.includes('uruguay') ||
-        addr.includes('montevideo') ||
-        addr.includes('punta del este')
-    ) {
-        return 'Uruguay';
-    }
-
-    if (
-        addr.includes('argentina') ||
-        addr.includes('buenos aires') ||
-        addr.includes('caba') ||
-        addr.includes('córdoba') ||
-        addr.includes('rosario')
-    ) {
-        return 'Argentina';
-    }
+    if (addr.includes('florida') || addr.includes('miami') || addr.includes('texas')) return 'USA';
+    if (addr.includes('montevideo') || addr.includes('punta del este')) return 'Uruguay';
+    if (addr.includes('buenos aires') || addr.includes('caba') || addr.includes('c.a.b.a.') || addr.includes('córdoba')) return 'Argentina';
 
     // Default
     return 'Argentina';

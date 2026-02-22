@@ -47,26 +47,26 @@ const Dashboard: React.FC = () => {
     updateNote: updateNoteData,
     deleteProperty: handleDeleteProperty,
     updatePropertyFields
-  } = useProperties(currentUser?.email || currentUser?.name);
+  } = useProperties(currentUser?.id);
 
   const {
     professionals,
     saveProfessional: saveProfessionalData,
     deleteProfessional: handleDeleteProfessional
-  } = useProfessionals();
+  } = useProfessionals(currentUser?.id);
 
   const {
     maintenanceTasks,
     assignProfessional: assignProfessionalData,
     finishMaintenance: finishMaintenanceData,
     addPartialExpense
-  } = useMaintenance(currentUser?.email || currentUser?.name);
+  } = useMaintenance(currentUser?.id);
 
   const {
     buildings,
     saveBuilding: handleSaveBuilding,
     deleteBuilding: handleDeleteBuilding // Note: App.tsx doesn't seem to use this widely but usePropertyData exported it
-  } = useBuildings();
+  } = useBuildings(currentUser?.id);
 
   // Tenant Data
   const {
@@ -77,7 +77,7 @@ const Dashboard: React.FC = () => {
     handleRegisterPayment,
     handleUpdatePayment,
     getTenantMetrics,
-  } = useTenantData();
+  } = useTenantData(currentUser?.id);
 
   // Selection State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -137,8 +137,11 @@ const Dashboard: React.FC = () => {
     if (currentView) {
       params.set('view', currentView);
     }
-    if (selectedProperty) {
-      params.set('property', selectedProperty.id);
+
+    // Sync property ID from either selectedProperty or financialPropertyToOpen
+    const propToSync = financialPropertyToOpen || selectedProperty;
+    if (propToSync) {
+      params.set('property', propToSync.id);
     } else {
       params.delete('property');
     }
@@ -148,7 +151,7 @@ const Dashboard: React.FC = () => {
     // but refreshes keep state.
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState(null, '', newUrl);
-  }, [currentView, selectedProperty]);
+  }, [currentView, selectedProperty, financialPropertyToOpen]);
 
   // --- Hooks Integration ---
   const {
