@@ -18,6 +18,7 @@ interface AddPropertyModalProps {
   onSave: (property: Property | Property[]) => void;
   onDelete?: (id: string) => void;
   professionals?: any[];
+  isRestrictedMode?: boolean; // Added for restricted building edits
 }
 
 const formatNumberWithDots = (value: string | number) => {
@@ -37,7 +38,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   onClose,
   onSave,
   onDelete,
-  professionals = []
+  professionals = [],
+  isRestrictedMode = false
 }) => {
   const isEditing = !!existingProperty;
 
@@ -355,8 +357,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           </div>
 
-          {/* Property Details: Rooms & Square Meters — hidden when building mode */}
-          {!isBuilding && (
+          {/* Property Details: Rooms & Square Meters — hidden when building mode or restricted */}
+          {!isBuilding && !isRestrictedMode && (
             <div className="space-y-4 pt-4 border-t border-gray-100">
               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                 <LayoutGrid className="w-4 h-4" /> Datos del Inmueble
@@ -438,8 +440,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           </div>
 
-          {/* Tenant Section — hidden when building mode */}
-          {!isBuilding && (
+          {/* Tenant Section — hidden when building mode or restricted */}
+          {!isBuilding && !isRestrictedMode && (
             <div className="space-y-4 pt-4 border-t border-gray-100">
               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Datos del Alquiler</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -491,90 +493,98 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           )}
 
           {/* === Building Toggle === */}
-          <BuildingUnitManager
-            units={buildingUnits}
-            setUnits={setBuildingUnits}
-            currency={formData.currency}
-            isEditing={isEditing}
-            isBuilding={isBuilding}
-            setIsBuilding={setIsBuilding}
-            formatNumber={formatNumberWithDots}
-          />
+          {!isRestrictedMode && (
+            <BuildingUnitManager
+              units={buildingUnits}
+              setUnits={setBuildingUnits}
+              currency={formData.currency}
+              isEditing={isEditing}
+              isBuilding={isBuilding}
+              setIsBuilding={setIsBuilding}
+              formatNumber={formatNumberWithDots}
+            />
+          )}
 
           {/* Documentos Section */}
-          <div className="space-y-3 pt-4 border-t border-gray-100">
-            <label className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <FileText className="w-4 h-4" /> Documentos / Recibos
-            </label>
-            <div className="flex flex-col gap-2">
-              {uploadedDocs.map((doc, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
-                  <Check className="w-4 h-4" /> {doc}
-                </div>
-              ))}
-              <label className="cursor-pointer inline-flex items-center gap-2 text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 border-dashed w-fit">
-                <Upload className="w-4 h-4" /> + Adjuntar Archivo (PDF, Img)
-                <input type="file" className="hidden" onChange={handleDocUpload} />
+          {!isRestrictedMode && (
+            <div className="space-y-3 pt-4 border-t border-gray-100">
+              <label className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Documentos / Recibos
               </label>
+              <div className="flex flex-col gap-2">
+                {uploadedDocs.map((doc, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
+                    <Check className="w-4 h-4" /> {doc}
+                  </div>
+                ))}
+                <label className="cursor-pointer inline-flex items-center gap-2 text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 border-dashed w-fit">
+                  <Upload className="w-4 h-4" /> + Adjuntar Archivo (PDF, Img)
+                  <input type="file" className="hidden" onChange={handleDocUpload} />
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Professional Assignment */}
-          <div className="space-y-3 pt-4 border-t border-gray-100">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Profesional / Encargado Asignado</label>
-              <div className="relative">
-                <Briefcase className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <select
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all appearance-none"
-                  value={formData.assignedProfessionalId}
-                  onChange={e => setFormData({ ...formData, assignedProfessionalId: e.target.value })}
-                  aria-label="Seleccionar profesional asignado"
-                >
-                  <option value="">Seleccionar Profesional (Opcional)...</option>
-                  {professionals.map(pro => (
-                    <option key={pro.id} value={pro.id}>{pro.name} - {pro.profession}</option>
-                  ))}
-                </select>
+          {!isRestrictedMode && (
+            <div className="space-y-3 pt-4 border-t border-gray-100">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">Profesional / Encargado Asignado</label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <select
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all appearance-none"
+                    value={formData.assignedProfessionalId}
+                    onChange={e => setFormData({ ...formData, assignedProfessionalId: e.target.value })}
+                    aria-label="Seleccionar profesional asignado"
+                  >
+                    <option value="">Seleccionar Profesional (Opcional)...</option>
+                    {professionals.map(pro => (
+                      <option key={pro.id} value={pro.id}>{pro.name} - {pro.profession}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
 
-            {/* Maintenance Description */}
-            {formData.assignedProfessionalId && (
-              <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
-                <label className="text-sm font-medium text-orange-700 flex items-center gap-1">
-                  <Hammer className="w-4 h-4" /> Descripción de la Obra / Tarea
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej: Reparación de cañería en cocina..."
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl border border-orange-200 bg-orange-50 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all"
-                  value={formData.maintenanceTaskDescription}
-                  onChange={e => setFormData({ ...formData, maintenanceTaskDescription: e.target.value })}
-                  aria-label="Descripción de la tarea"
-                />
-                <p className="text-xs text-orange-600">Especifica qué trabajo está realizando el profesional.</p>
-              </div>
-            )}
-          </div>
+              {/* Maintenance Description */}
+              {formData.assignedProfessionalId && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-sm font-medium text-orange-700 flex items-center gap-1">
+                    <Hammer className="w-4 h-4" /> Descripción de la Obra / Tarea
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Reparación de cañería en cocina..."
+                    required
+                    className="w-full px-4 py-2.5 rounded-xl border border-orange-200 bg-orange-50 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all"
+                    value={formData.maintenanceTaskDescription}
+                    onChange={e => setFormData({ ...formData, maintenanceTaskDescription: e.target.value })}
+                    aria-label="Descripción de la tarea"
+                  />
+                  <p className="text-xs text-orange-600">Especifica qué trabajo está realizando el profesional.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes Section */}
-          <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-100">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-bold text-yellow-800 uppercase tracking-wider flex items-center gap-2">
-                <StickyNote className="w-4 h-4" /> Notas y Recordatorios
-              </h3>
+          {!isRestrictedMode && (
+            <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-100">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-bold text-yellow-800 uppercase tracking-wider flex items-center gap-2">
+                  <StickyNote className="w-4 h-4" /> Notas y Recordatorios
+                </h3>
+              </div>
+              <textarea
+                placeholder="Ej: El portero se llama Jose. Recordar pedir comprobante de servicio de luz..."
+                className="w-full p-3 rounded-xl border border-yellow-200 bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none resize-none h-24 text-sm"
+                value={formData.notes}
+                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                aria-label="Notas y recordatorios"
+              />
+              <p className="text-xs text-yellow-600 mt-2 italic">* Espacio personal para anotar detalles importantes de esta propiedad.</p>
             </div>
-            <textarea
-              placeholder="Ej: El portero se llama Jose. Recordar pedir comprobante de servicio de luz..."
-              className="w-full p-3 rounded-xl border border-yellow-200 bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none resize-none h-24 text-sm"
-              value={formData.notes}
-              onChange={e => setFormData({ ...formData, notes: e.target.value })}
-              aria-label="Notas y recordatorios"
-            />
-            <p className="text-xs text-yellow-600 mt-2 italic">* Espacio personal para anotar detalles importantes de esta propiedad.</p>
-          </div>
+          )}
 
         </form>
 
