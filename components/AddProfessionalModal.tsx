@@ -39,7 +39,7 @@ const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({ onClose, on
 
   return (
     <div className="fixed inset-0 z-[1300] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-blue-50 p-6 border-b border-blue-100 flex justify-between items-center">
           <div>

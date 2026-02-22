@@ -414,7 +414,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             {
                 showAddModal && (
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-200">
-                        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in scale-95 duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in scale-95 duration-200">
                             <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
                                 <h2 className="text-xl font-bold text-gray-800">
                                     Nuevo Inquilino
@@ -488,7 +488,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             {
                 showPaymentModal && (
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-200">
-                        <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in scale-95 duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in scale-95 duration-200">
                             <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
                                 <h2 className="text-xl font-bold text-gray-800">
                                     Registrar Pago
