@@ -4,8 +4,6 @@ import { Property, PropertyStatus, Professional, MaintenanceTask, TaskStatus, Us
 // Google Auth Allowlist
 export const ALLOWED_EMAILS = [
   'juan.sada98@gmail.com',
-  'jpsada@gmail.com',
-  'sada.valeria@gmail.com',
   'svsistemas@yahoo.com',
   'antovent64@gmail.com'
 ];

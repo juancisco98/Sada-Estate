@@ -1,19 +1,13 @@
 import React, { useState, useEffect, Suspense, lazy, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { handleError } from './utils/errorHandler';
-// Force Vercel Rebuild - Timestamp: 2026-02-19-1520
-// Debugging Vercel Environment
 console.log('[App] Starting up...');
-console.log('[App] VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL ? 'Defined' : 'Missing');
-console.log('[App] VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Defined' : 'Missing');
 
 import MapBoard from './components/MapBoard';
 import PropertyCard from './components/PropertyCard';
-import VoiceAssistant from './components/VoiceAssistant';
 import Sidebar, { ViewState } from './components/Sidebar';
 import AuthScreen from './components/AuthScreen';
 import Header from './components/Header';
-import { ExpenseConfirmationModal, UpdateConfirmationModal } from './components/VoiceConfirmationModals';
 import AddPropertyModal from './components/AddPropertyModal';
 import FinishMaintenanceModal from './components/FinishMaintenanceModal';
 import AddProfessionalModal from './components/AddProfessionalModal';
@@ -28,7 +22,6 @@ import { useMaintenance } from './hooks/useMaintenance';
 import { useBuildings } from './hooks/useBuildings';
 import { useTenantData } from './hooks/useTenantData';
 import { detectCountryFromAddress } from './utils/taxConfig';
-import { useVoiceNavigation } from './hooks/useVoiceNavigation';
 import { useSearch } from './hooks/useSearch';
 
 // Lazy load dashboard views
@@ -108,27 +101,28 @@ const Dashboard: React.FC = () => {
   const [finishingProperty, setFinishingProperty] = useState<Property | null>(null);
   const [showAddProModal, setShowAddProModal] = useState(false);
   const [professionalToEdit, setProfessionalToEdit] = useState<Professional | null>(null);
+  const [assigningProfessional, setAssigningProfessional] = useState<Professional | null>(null);
 
   // --- URL State Management ---
   const isHydrated = useRef(false);
-  
+
   // Hydrate state from URL on load
   useEffect(() => {
     if (!isLoading && properties.length > 0 && !isHydrated.current) {
       const params = new URLSearchParams(window.location.search);
       const viewParam = params.get('view') as ViewState;
       const propertyIdParam = params.get('property');
-      
+
       if (viewParam && ['MAP', 'OVERVIEW', 'FINANCE', 'PROFESSIONALS', 'TENANTS'].includes(viewParam)) {
         setCurrentView(viewParam);
       }
-      
+
       if (propertyIdParam) {
         const prop = properties.find(p => p.id === propertyIdParam);
         if (prop) {
           setSelectedProperty(prop);
           if (viewParam === 'FINANCE') {
-             setFinancialPropertyToOpen(prop);
+            setFinancialPropertyToOpen(prop);
           }
         }
       }
@@ -147,7 +141,7 @@ const Dashboard: React.FC = () => {
     } else {
       params.delete('property');
     }
-    
+
     // Use replaceState to update URL without adding to history stack, 
     // ensuring back button works naturally for navigation history, 
     // but refreshes keep state.
@@ -171,49 +165,40 @@ const Dashboard: React.FC = () => {
     rawPerformSearch(query, setCurrentView, setSelectedProperty);
   };
 
-  const {
-    pendingExpense,
-    setPendingExpense,
-    pendingUpdate,
-    setPendingUpdate,
-    assigningProfessional,
-    setAssigningProfessional,
-    handleVoiceIntent,
-    confirmExpense,
-    confirmUpdate
-  } = useVoiceNavigation({
-    properties,
-    professionals,
-    currentView,
-    setCurrentView,
-    setSelectedProperty,
-    selectedProperty,
-    handleOpenAddModal: () => {
-      setPropertyToEdit(null);
-      setShowPropertyModal(true);
-    },
-    setShowAddProModal,
-    handleOpenFinishMaintenance: (prop) => setFinishingProperty(prop),
-    updatePropertyFields,
-    updateNoteData,
-    performSearch: handleSearch
-  });
-
   // --- Auth Effects ---
   useEffect(() => {
-    // Listen for auth changes directly from Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthDebug] Event: ${event}`);
-      console.log('[AuthDebug] Session:', session ? 'Exists' : 'Null');
+    // 1. Initial Session Check
+    const checkSession = async () => {
+      console.log('[Auth] Checking initial session...');
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('[Auth] Error getting session:', error);
+          return;
+        }
 
-      if (session && session.user && session.user.email) {
+        if (session) {
+          console.log('[Auth] Initial session found:', session.user.email);
+          handleAuthChange('INITIAL_SESSION', session);
+        } else {
+          console.log('[Auth] No initial session.');
+        }
+      } catch (err) {
+        console.error('[Auth] Unexpected error checking session:', err);
+      }
+    };
+
+    // Shared handler for auth changes
+    const handleAuthChange = async (event: string, session: any) => {
+      console.log(`[Auth] Event: ${event}`);
+
+      if (session?.user?.email) {
         const userEmail = session.user.email.toLowerCase();
-        console.log(`[AuthDebug] User detected: ${userEmail}`);
+        console.log(`[Auth] User detected: ${userEmail}`);
 
         // Allowlist Check
-        const isAllowed = ALLOWED_EMAILS.includes(userEmail);
-        console.log(`[AuthDebug] Is Allowed: ${isAllowed}`);
-        console.log(`[AuthDebug] Allowed List:`, ALLOWED_EMAILS);
+        const isAllowed = ALLOWED_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+        console.log(`[Auth] Is Allowed: ${isAllowed}`);
 
         if (isAllowed) {
           setCurrentUser({
@@ -221,23 +206,34 @@ const Dashboard: React.FC = () => {
             name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
             email: userEmail,
             photoURL: session.user.user_metadata?.avatar_url,
-            color: '#3b82f6' // Default color
+            color: '#3b82f6'
           });
           setIsAuthenticated(true);
         } else {
-          // Deny access
+          console.warn(`[Auth] Unauthorized access attempt: ${userEmail}`);
           await signOut();
-          handleError(new Error(`Unauthorized access attempt by ${userEmail}`), `Acceso denegado: ${userEmail} no está autorizado.`);
+          handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está en la lista permitida.`);
           setIsAuthenticated(false);
           setCurrentUser(null);
         }
       } else {
-        setIsAuthenticated(false);
-        setCurrentUser(null);
+        if (event !== 'INITIAL_SESSION' || session === null) {
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+        }
       }
+    };
+
+    checkSession();
+
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      handleAuthChange(event, session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -273,24 +269,6 @@ const Dashboard: React.FC = () => {
 
   const handleSaveProperty = (savedPropOrProps: Property | Property[]) => {
     if (Array.isArray(savedPropOrProps)) {
-      // Bulk save (Building)
-      // We need to access useProperties' saveProperties which we exposed earlier
-      // But destructured as undefined in the component currently. 
-      // Wait, I strictly need to update the destructuring in App.tsx first or now?
-      // I can assume propertyToEdit is null for bulk adds usually.
-      // Let's use saveProperties directly if available, or map saveProperty.
-      // Actually I exposed saveProperties in step 74.
-      // I need to update the destructuring in App.tsx line 47.
-
-      // Since I can't effectively update the destructuring AND this function in one go easily without context of line numbers changing...
-      // I will assume `savePropertiesData` is available (I will add it in next tool call or this one if I can match lines).
-      // Let's do a trick: I will just use savePropertyData in a loop if saveProperties isn't there, 
-      // BUT I know I added saveProperties to the hook.
-      // I will update the destructuring in a separate tool call to be safe.
-      // For now, let's implement the logic assuming savePropertiesData exists.
-
-      // Actually, to avoid breaking build, I will do the destructuring update in the NEXT step, 
-      // and here I will just implement the logic using `savePropertiesData` which I'll alias in the destructuring next.
       savePropertiesData(savedPropOrProps);
       setShowPropertyModal(false);
       setPropertyToEdit(null);
@@ -489,14 +467,6 @@ const Dashboard: React.FC = () => {
         {renderCurrentView()}
       </div>
 
-      <VoiceAssistant
-        properties={properties}
-        professionals={professionals}
-        currentView={currentView}
-        selectedItem={selectedProperty || assigningProfessional}
-        onIntent={handleVoiceIntent}
-      />
-
       {showPropertyModal && (
         <AddPropertyModal
           address={searchResult?.address}
@@ -539,21 +509,9 @@ const Dashboard: React.FC = () => {
           professional={assigningProfessional}
           properties={properties}
           onClose={() => setAssigningProfessional(null)}
-          onConfirm={handleAssignProfessionalToProperty}
+          onConfirm={(propertyId, taskDescription) => handleAssignProfessionalToProperty(propertyId, taskDescription)}
         />
       )}
-
-      <ExpenseConfirmationModal
-        pendingExpense={pendingExpense}
-        onClose={() => setPendingExpense(null)}
-        onConfirm={confirmExpense}
-      />
-
-      <UpdateConfirmationModal
-        pendingUpdate={pendingUpdate}
-        onClose={() => setPendingUpdate(null)}
-        onConfirm={confirmUpdate}
-      />
     </div>
   );
 };
