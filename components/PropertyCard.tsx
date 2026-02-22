@@ -1,31 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { Property, PropertyStatus } from '../types';
+import { Property, PropertyStatus, Professional } from '../types';
 
 import { formatCurrency } from '../utils/currency';
 import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2 } from 'lucide-react';
 
 interface PropertyCardProps {
   property: Property;
+  allProperties: Property[]; // Added to calculate building metrics
   onClose: () => void;
   onViewDetails: () => void;
-  onEdit?: (property: Property) => void;
+  onEdit?: (property: Property, isRestricted?: boolean) => void;
   onUpdateNote?: (id: string, note: string) => void;
   onFinishMaintenance?: (property: Property) => void;
   onDelete?: (id: string) => void;
+  professionals: Professional[];
 }
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
   property,
+  allProperties,
   onClose,
   onViewDetails,
   onEdit,
   onUpdateNote,
   onFinishMaintenance,
-  onDelete
+  onDelete,
+  professionals
 }) => {
   const [noteText, setNoteText] = useState(property.notes || '');
   const [isDirty, setIsDirty] = useState(false);
   const [timeString, setTimeString] = useState<string>('');
+
+  // Calculate building metrics if applicable
+  const buildingMetrics = React.useMemo(() => {
+    if (!property.buildingId) return null;
+
+    const units = allProperties.filter(p => p.buildingId === property.buildingId);
+    const totalRent = units.reduce((acc, p) => acc + p.monthlyRent, 0);
+    const totalRooms = units.reduce((acc, p) => acc + (p.rooms || 0), 0);
+    const totalM2 = units.reduce((acc, p) => acc + (p.squareMeters || 0), 0);
+    const lateUnits = units.filter(p => p.status === PropertyStatus.LATE).length;
+
+    return {
+      totalRent,
+      totalRooms,
+      totalM2,
+      lateUnits,
+      unitCount: units.length
+    };
+  }, [property.buildingId, allProperties]);
 
   useEffect(() => {
     setNoteText(property.notes || '');
@@ -44,12 +67,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     }
   };
 
-  /* 
   const assignedProfessional = property.assignedProfessionalId
-    ? MOCK_PROFESSIONALS.find(p => p.id === property.assignedProfessionalId)
+    ? professionals.find(p => p.id === property.assignedProfessionalId)
     : null;
-  */
-  const assignedProfessional = null; // Placeholder until we have real professional data fetching
 
   const isUnderMaintenance = !!assignedProfessional;
 
@@ -172,6 +192,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             <span>{getStatusText(property.status)}</span>
           </div>
 
+          {/* Building Status Summary */}
+          {buildingMetrics && buildingMetrics.lateUnits > 0 && (
+            <div className="flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+              <AlertCircle className="w-3 h-3" />
+              <span>{buildingMetrics.lateUnits}/{buildingMetrics.unitCount} Morosos</span>
+            </div>
+          )}
+
           {/* Maintenance Badge */}
           {isUnderMaintenance && (
             <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold border border-orange-200">
@@ -213,31 +241,45 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         )}
 
 
-        {/* Property Size Badges */}
-        {(property.rooms || property.squareMeters) && (
-          <div className="flex items-center gap-2 mb-4">
-            {property.rooms && (
+        {/* Property Size Badges / Building Summary */}
+        <div className="flex items-center gap-2 mb-4">
+          {buildingMetrics ? (
+            <>
+              <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-700 px-3 py-1 rounded-full text-xs font-bold border border-violet-200">
+                🏢 {buildingMetrics.unitCount} unidades
+              </span>
               <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">
-                🏠 {property.rooms} amb
+                🏠 {buildingMetrics.totalRooms} amb tot.
               </span>
-            )}
-            {property.squareMeters && (
               <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-bold border border-purple-200">
-                📐 {property.squareMeters} m²
+                📐 {buildingMetrics.totalM2} m² tot.
               </span>
-            )}
-          </div>
-        )}
+            </>
+          ) : (
+            <>
+              {property.rooms && (
+                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">
+                  🏠 {property.rooms} amb
+                </span>
+              )}
+              {property.squareMeters && (
+                <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-bold border border-purple-200">
+                  📐 {property.squareMeters} m²
+                </span>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Dual Currency Rent Display */}
         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col gap-1">
           <div className="flex justify-between items-center text-gray-700">
             <span className="flex items-center gap-2 text-sm font-medium">
-              <Home className="w-4 h-4 text-gray-400" /> Alquiler Mensual
+              <Home className="w-4 h-4 text-gray-400" /> {buildingMetrics ? 'Alquiler Total Edificio' : 'Alquiler Mensual'}
             </span>
             <div className="text-right">
               <div className="font-bold text-lg text-gray-900">
-                {formatCurrency(property.monthlyRent, 'ARS')}
+                {formatCurrency(buildingMetrics ? buildingMetrics.totalRent : property.monthlyRent, 'ARS')}
               </div>
             </div>
           </div>
@@ -269,10 +311,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 p-6 pt-0">
         {onEdit && (
           <button
-            onClick={() => onEdit(property)}
+            onClick={() => onEdit(property, !!property.buildingId)}
             className="w-full bg-gray-100 text-gray-700 py-4 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
           >
             <Pencil className="w-4 h-4" /> Editar

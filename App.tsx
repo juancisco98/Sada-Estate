@@ -98,6 +98,7 @@ const Dashboard: React.FC = () => {
   // Modal States
   const [showPropertyModal, setShowPropertyModal] = useState(false);
   const [propertyToEdit, setPropertyToEdit] = useState<Property | null>(null);
+  const [isRestrictedEdit, setIsRestrictedEdit] = useState(false);
   const [finishingProperty, setFinishingProperty] = useState<Property | null>(null);
   const [showAddProModal, setShowAddProModal] = useState(false);
   const [professionalToEdit, setProfessionalToEdit] = useState<Professional | null>(null);
@@ -259,11 +260,13 @@ const Dashboard: React.FC = () => {
 
   const handleOpenAddModal = () => {
     setPropertyToEdit(null);
+    setIsRestrictedEdit(false);
     setShowPropertyModal(true);
   };
 
-  const handleOpenEditModal = (prop: Property) => {
+  const handleOpenEditModal = (prop: Property, isRestricted: boolean = false) => {
     setPropertyToEdit(prop);
+    setIsRestrictedEdit(isRestricted);
     setShowPropertyModal(true);
   };
 
@@ -298,6 +301,11 @@ const Dashboard: React.FC = () => {
     finishMaintenanceData(finishingProperty.id, rating, speedRating, comment, cost);
     setFinishingProperty(null);
     toast.success("Obra finalizada y calificación guardada con éxito.");
+    // Force refresh the property in selection if it was selected
+    if (selectedProperty?.id === finishingProperty.id) {
+      const updated = properties.find(p => p.id === finishingProperty.id);
+      if (updated) setSelectedProperty(updated);
+    }
   };
 
   const handleSaveProfessional = (newPro: Professional) => {
@@ -337,6 +345,7 @@ const Dashboard: React.FC = () => {
                   onAddProperty={handleOpenAddModal}
                   onDeleteProperty={handleDeleteProperty}
                   onAddExpense={addPartialExpense}
+                  onFinishMaintenance={(prop) => setFinishingProperty(prop)}
                 />
               </Suspense>
             </div>
@@ -373,6 +382,7 @@ const Dashboard: React.FC = () => {
                   onAssignProfessional={(pro) => setAssigningProfessional(pro)}
                   onDeleteProfessional={handleDeleteProfessional}
                   onEditProfessional={handleEditProfessional}
+                  onFinishMaintenance={(prop) => setFinishingProperty(prop)}
                 />
               </Suspense>
             </div>
@@ -412,12 +422,14 @@ const Dashboard: React.FC = () => {
             {selectedProperty && (
               <PropertyCard
                 property={selectedProperty}
+                allProperties={properties}
                 onClose={() => setSelectedProperty(null)}
                 onViewDetails={handleViewMetrics}
                 onEdit={handleOpenEditModal}
                 onUpdateNote={handleUpdateNote}
                 onFinishMaintenance={(prop) => setFinishingProperty(prop)}
                 onDelete={handleDeleteProperty}
+                professionals={professionals}
               />
             )}
           </>
@@ -472,10 +484,12 @@ const Dashboard: React.FC = () => {
           address={searchResult?.address}
           coordinates={searchResult ? [searchResult.lat, searchResult.lng] : undefined}
           existingProperty={propertyToEdit}
+          isRestrictedMode={isRestrictedEdit}
           detectedCountry={searchResult?.address ? detectCountryFromAddress(searchResult.address) : undefined}
           onClose={() => {
             setShowPropertyModal(false);
             setPropertyToEdit(null);
+            setIsRestrictedEdit(false);
           }}
           onSave={handleSaveProperty}
           onDelete={handleDeleteProperty}

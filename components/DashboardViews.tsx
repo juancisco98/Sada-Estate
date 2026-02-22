@@ -30,7 +30,7 @@ import { formatCurrency, convertCurrency } from '../utils/currency';
 import { useMaintenanceTimer } from '../hooks/useMaintenanceTimer';
 
 // --- Sub-component for Active Maintenance Label in Professionals View ---
-const ActiveJobIndicator: React.FC<{ property: Property }> = ({ property }) => {
+const ActiveJobIndicator: React.FC<{ property: Property, onFinish?: (p: Property) => void }> = ({ property, onFinish }) => {
   const timer = useMaintenanceTimer(property.professionalAssignedDate);
 
   return (
@@ -63,6 +63,7 @@ interface OverviewViewProps {
   onAddProperty?: () => void;
   onDeleteProperty?: (id: string) => void;
   onAddExpense?: (propertyId: string, expense: { description: string, amount: number, date: string, by: string }) => void;
+  onFinishMaintenance?: (property: Property) => void;
 }
 
 // --- 1. Visión General (Overview) ---
@@ -73,7 +74,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   maintenanceTasks = [],
   onAddProperty,
   onDeleteProperty,
-  onAddExpense
+  onAddExpense,
+  onFinishMaintenance
 }) => {
 
   // Calculate Total Income in ARS
@@ -271,6 +273,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       >
                         <DollarSign className="w-3 h-3" /> Ver Gastos Parciales
                       </button>
+
+                      {onFinishMaintenance && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onFinishMaintenance(property);
+                          }}
+                          className="w-full mt-1.5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <CheckCircle className="w-4 h-4" /> Finalizar Obra & Calificar
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -632,6 +646,7 @@ interface ProfessionalDetailsViewProps {
   onBack: () => void;
   onDelete?: (id: string) => void;
   onEdit?: (pro: Professional) => void;
+  onFinishMaintenance?: (property: Property) => void;
 }
 
 const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
@@ -639,7 +654,8 @@ const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
   properties,
   onBack,
   onDelete,
-  onEdit
+  onEdit,
+  onFinishMaintenance
 }) => {
   // 1. Current Assignments
   const activeAssignments = properties.filter(p => p.assignedProfessionalId === professional.id);
@@ -758,8 +774,21 @@ const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
                   <p className="text-sm text-orange-800 italic">"{prop.maintenanceTaskDescription}"</p>
                   <p className="text-xs text-gray-500 mt-1">Iniciado: {new Date(prop.professionalAssignedDate!).toLocaleDateString()}</p>
                 </div>
-                <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Timer className="w-5 h-5 text-orange-600" />
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <Timer className="w-5 h-5 text-orange-600" />
+                  </div>
+                  {onFinishMaintenance && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onFinishMaintenance(prop);
+                      }}
+                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold rounded-lg shadow-sm transition-colors"
+                    >
+                      Finalizar
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -814,6 +843,7 @@ interface ProfessionalsViewProps {
   onAssignProfessional?: (pro: Professional) => void;
   onDeleteProfessional?: (id: string) => void;
   onEditProfessional?: (pro: Professional) => void;
+  onFinishMaintenance?: (property: Property) => void;
 }
 
 export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
@@ -822,7 +852,8 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
   onAddProfessional,
   onAssignProfessional,
   onDeleteProfessional,
-  onEditProfessional
+  onEditProfessional,
+  onFinishMaintenance
 }) => {
   const [selectedPro, setSelectedPro] = useState<Professional | null>(null);
 
@@ -834,6 +865,7 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
         onBack={() => setSelectedPro(null)}
         onDelete={onDeleteProfessional}
         onEdit={onEditProfessional}
+        onFinishMaintenance={onFinishMaintenance}
       />
     );
   }
@@ -898,7 +930,7 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
 
               {/* Active Maintenance Indicator for Professionals */}
               {isBusy && (
-                <ActiveJobIndicator property={assignedProperty} />
+                <ActiveJobIndicator property={assignedProperty} onFinish={onFinishMaintenance} />
               )}
 
               <div className="mt-6 flex gap-3">
