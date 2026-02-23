@@ -209,42 +209,53 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    // Check if we're returning from an OAuth redirect (hash contains access_token)
-    const hashParams = window.location.hash;
-    const isOAuthRedirect = hashParams && (hashParams.includes('access_token') || hashParams.includes('error'));
-
-    if (isOAuthRedirect) {
-      console.log('[Auth] Detected OAuth redirect, waiting for onAuthStateChange...');
-      // Don't call getSession - let onAuthStateChange handle the token exchange
-    } else {
-      // Normal page load - check for existing session
-      const checkSession = async () => {
-        console.log('[Auth] Checking initial session...');
-        try {
-          const { data: { session }, error } = await supabase.auth.getSession();
-          if (error) {
-            console.error('[Auth] Error getting session:', error);
-            return;
-          }
-
-          if (session) {
-            console.log('[Auth] Initial session found:', session.user.email);
-            handleAuthChange('INITIAL_SESSION', session);
-          } else {
-            console.log('[Auth] No initial session.');
-          }
-        } catch (err) {
-          console.error('[Auth] Unexpected error checking session:', err);
-        }
-      };
-      checkSession();
-    }
-
-    // Listen for all auth changes (handles OAuth redirect token exchange)
+    // Listen for all auth changes FIRST (this is the single source of truth)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`[Auth] onAuthStateChange fired: ${event}`);
       handleAuthChange(event, session);
     });
+
+    // Check if we're returning from a PKCE OAuth redirect (?code= in URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+
+    if (code) {
+      console.log('[Auth] Detected PKCE code in URL, exchanging for session...');
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        if (error) {
+          console.error('[Auth] PKCE code exchange failed:', error);
+          handleError(error, 'Error al intercambiar código de autenticación.');
+        } else {
+          console.log('[Auth] ✅ PKCE code exchange successful');
+          // Clean up the URL (remove ?code=... from address bar)
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState(null, '', cleanUrl);
+        }
+      });
+    } else {
+      // Check for hash-based redirect (implicit flow fallback)
+      const hashParams = window.location.hash;
+      const isHashRedirect = hashParams && (hashParams.includes('access_token') || hashParams.includes('error'));
+
+      if (isHashRedirect) {
+        console.log('[Auth] Detected hash-based OAuth redirect, onAuthStateChange will handle it...');
+      } else {
+        // Normal page load - check for existing session
+        console.log('[Auth] Normal page load, checking for existing session...');
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+          if (error) {
+            console.error('[Auth] Error getting session:', error);
+            return;
+          }
+          if (session) {
+            console.log('[Auth] Existing session found:', session.user.email);
+            handleAuthChange('INITIAL_SESSION', session);
+          } else {
+            console.log('[Auth] No existing session.');
+          }
+        });
+      }
+    }
 
     return () => {
       subscription.unsubscribe();

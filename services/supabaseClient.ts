@@ -6,7 +6,14 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 let supabaseInstance: SupabaseClient | null = null;
 
 if (supabaseUrl && supabaseAnonKey) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            flowType: 'pkce',
+            detectSessionInUrl: true,
+            autoRefreshToken: true,
+            persistSession: true,
+        }
+    });
     console.log(`[Supabase] ✅ Client initialized for: ${supabaseUrl}`);
 } else {
     console.warn('[Supabase] ⚠️ Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.');
