@@ -171,27 +171,6 @@ const Dashboard: React.FC = () => {
 
   // --- Auth Effects ---
   useEffect(() => {
-    // 1. Initial Session Check
-    const checkSession = async () => {
-      console.log('[Auth] Checking initial session...');
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('[Auth] Error getting session:', error);
-          return;
-        }
-
-        if (session) {
-          console.log('[Auth] Initial session found:', session.user.email);
-          handleAuthChange('INITIAL_SESSION', session);
-        } else {
-          console.log('[Auth] No initial session.');
-        }
-      } catch (err) {
-        console.error('[Auth] Unexpected error checking session:', err);
-      }
-    };
-
     // Shared handler for auth changes
     const handleAuthChange = async (event: string, session: any) => {
       console.log(`[Auth] Event: ${event}`);
@@ -213,25 +192,57 @@ const Dashboard: React.FC = () => {
             color: '#3b82f6'
           });
           setIsAuthenticated(true);
+          console.log('[Auth] ✅ User authenticated successfully');
         } else {
-          console.warn(`[Auth] Unauthorized access attempt: ${userEmail}`);
+          console.warn(`[Auth] ❌ Unauthorized access attempt: ${userEmail}`);
           await signOut();
           handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está en la lista permitida.`);
           setIsAuthenticated(false);
           setCurrentUser(null);
         }
       } else {
-        if (event !== 'INITIAL_SESSION' || session === null) {
+        if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && session === null)) {
+          console.log('[Auth] No active session / signed out');
           setIsAuthenticated(false);
           setCurrentUser(null);
         }
       }
     };
 
-    checkSession();
+    // Check if we're returning from an OAuth redirect (hash contains access_token)
+    const hashParams = window.location.hash;
+    const isOAuthRedirect = hashParams && (hashParams.includes('access_token') || hashParams.includes('error'));
 
-    // 2. Listen for auth changes
+    if (isOAuthRedirect) {
+      console.log('[Auth] Detected OAuth redirect, waiting for onAuthStateChange...');
+      // Don't call getSession - let onAuthStateChange handle the token exchange
+    } else {
+      // Normal page load - check for existing session
+      const checkSession = async () => {
+        console.log('[Auth] Checking initial session...');
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error('[Auth] Error getting session:', error);
+            return;
+          }
+
+          if (session) {
+            console.log('[Auth] Initial session found:', session.user.email);
+            handleAuthChange('INITIAL_SESSION', session);
+          } else {
+            console.log('[Auth] No initial session.');
+          }
+        } catch (err) {
+          console.error('[Auth] Unexpected error checking session:', err);
+        }
+      };
+      checkSession();
+    }
+
+    // Listen for all auth changes (handles OAuth redirect token exchange)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`[Auth] onAuthStateChange fired: ${event}`);
       handleAuthChange(event, session);
     });
 
