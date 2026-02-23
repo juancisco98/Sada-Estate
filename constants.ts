@@ -5,7 +5,10 @@ import { Property, PropertyStatus, Professional, MaintenanceTask, TaskStatus, Us
 export const ALLOWED_EMAILS = [
   'juan.sada98@gmail.com',
   'svsistemas@yahoo.com',
-  'antovent64@gmail.com'
+  'antovent64@gmail.com',
+  'digital.tecnoba@gmail.com',
+  'ventrescaantonia@gmail.com',
+  'antopaypal64@gmail.com'
 ];
 
 // Buenos Aires Center
