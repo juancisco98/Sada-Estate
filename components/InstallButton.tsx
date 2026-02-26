@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
+import { logger } from '../utils/logger';
+
+interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 const InstallButton: React.FC = () => {
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [isInstallable, setIsInstallable] = useState(false);
 
     useEffect(() => {
-        const handleBeforeInstallPrompt = (e: any) => {
-            // Prevent the mini-infobar from appearing on mobile
+        const handleBeforeInstallPrompt = (e: Event) => {
             e.preventDefault();
-            // Stash the event so it can be triggered later.
-            setDeferredPrompt(e);
-            // Update UI notify the user they can install the PWA
+            setDeferredPrompt(e as BeforeInstallPromptEvent);
             setIsInstallable(true);
         };
 
@@ -30,7 +33,7 @@ const InstallButton: React.FC = () => {
 
         // Wait for the user to respond to the prompt
         const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
+        logger.log(`User response to the install prompt: ${outcome}`);
 
         // We've used the prompt, and can't use it again, discard it
         setDeferredPrompt(null);
@@ -53,4 +56,4 @@ const InstallButton: React.FC = () => {
     );
 };
 
-export default InstallButton;
+export default React.memo(InstallButton);

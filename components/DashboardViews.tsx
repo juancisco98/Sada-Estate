@@ -1,6 +1,7 @@
 // Force update
 import React, { useState, useEffect, useMemo } from 'react';
-import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Building } from '../types';
+import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Building, TenantPayment } from '../types';
+import { useDataContext } from '../context/DataContext';
 import {
   TrendingUp,
   AlertTriangle,
@@ -26,7 +27,8 @@ import IncomeBreakdownPanel from './IncomeBreakdownPanel';
 import MaintenanceDetailsModal from './MaintenanceDetailsModal';
 
 // --- Helper Functions ---
-import { formatCurrency, convertCurrency } from '../utils/currency';
+import { formatCurrency } from '../utils/currency';
+import { MAINTENANCE_BUDGET_RATIO } from '../constants';
 import { useMaintenanceTimer } from '../hooks/useMaintenanceTimer';
 
 // --- Sub-component for Active Maintenance Label in Professionals View ---
@@ -78,23 +80,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onFinishMaintenance
 }) => {
 
-  // Calculate Total Income in ARS
-  const totalIncome = properties.reduce((acc, p) => {
-    return acc + p.monthlyRent;
-  }, 0);
+  const totalIncome = useMemo(() =>
+    properties.reduce((acc, p) => acc + p.monthlyRent, 0),
+    [properties]
+  );
 
-  const totalBudget = totalIncome * 0.15; // 15% rule mentioned in UI text (was 0.85 in code but text says 15%)
-  // Actually code said `totalBudget = totalIncome * 0.85`, but text said "15% del ingreso". 
-  // Let's stick to text logic: Budget for maintenance is 15%.
+  const totalBudget = useMemo(() => totalIncome * MAINTENANCE_BUDGET_RATIO, [totalIncome]);
 
-  // Calculate expenses from tasks
-  const currentExpenses = maintenanceTasks.reduce((acc, task) => {
-    // We can filter by date if needed, for now sum all logic
-    // Or maybe only those with cost > 0 or status COMPLETED?
-    // Let's sum estimatedCost for IN_PROGRESS and cost for COMPLETED
-    const cost = task.cost || task.estimatedCost || 0;
-    return acc + cost;
-  }, 0);
+  const currentExpenses = useMemo(() =>
+    maintenanceTasks.reduce((acc, task) => {
+      const cost = task.cost || task.estimatedCost || 0;
+      return acc + cost;
+    }, 0),
+    [maintenanceTasks]
+  );
 
   const progress = totalBudget > 0 ? (currentExpenses / totalBudget) * 100 : 0;
 
@@ -436,9 +435,15 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   // --- Single currency properties (ARS) ---
   const arsProperties = properties; // All properties are now ARS
 
-  // --- Monthly income grids (12 months) ---
+  // --- Get actual payments from context ---
+  const { payments } = useDataContext();
+
+  // --- Monthly income grids (12 months) based on ACTUAL payments ---
   const arsMonthly = Array.from({ length: 12 }, (_, i) => {
-    return arsProperties.reduce((sum, p) => sum + p.monthlyRent, 0);
+    const monthPayments = payments.filter(
+      p => p.month === i + 1 && p.year === selectedYear
+    );
+    return monthPayments.reduce((sum, p) => sum + p.amount, 0);
   });
 
   const arsYearTotal = arsMonthly.reduce((a, b) => a + b, 0);
@@ -772,7 +777,7 @@ const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
                 <div>
                   <p className="font-bold text-gray-900">{prop.address}</p>
                   <p className="text-sm text-orange-800 italic">"{prop.maintenanceTaskDescription}"</p>
-                  <p className="text-xs text-gray-500 mt-1">Iniciado: {new Date(prop.professionalAssignedDate!).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">Iniciado: {prop.professionalAssignedDate ? new Date(prop.professionalAssignedDate).toLocaleDateString() : '—'}</p>
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">

@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { logger } from '../utils/logger';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -14,16 +15,13 @@ if (supabaseUrl && supabaseAnonKey) {
             persistSession: true,
         }
     });
-    console.log(`[Supabase] ✅ Client initialized for: ${supabaseUrl}`);
+    logger.log('[Supabase] Client initialized.');
 } else {
-    console.warn('[Supabase] ⚠️ Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.');
-    console.warn('[Supabase] ⚠️ Running in offline mode with mock data.');
+    logger.warn('[Supabase] Missing env vars. Running in offline mode.');
 }
 
 // Export a proxy that won't crash when supabase is null.
-// All .from() calls will return errors caught by data hooks' try/catch → fallback to mock data.
-// Export a proxy that won't crash when supabase is null.
-// All .from() calls will return errors caught by data hooks' try/catch → fallback to mock data.
+// All .from() calls will return errors caught by data hooks' try/catch.
 export const supabase: SupabaseClient = supabaseInstance || new Proxy({} as SupabaseClient, {
     get(_target, prop) {
         if (prop === 'from') {
@@ -31,7 +29,7 @@ export const supabase: SupabaseClient = supabaseInstance || new Proxy({} as Supa
                 get(_t, method) {
                     // Return empty data for select/insert/update/delete prevents crashes
                     if (['select', 'insert', 'update', 'delete', 'upsert'].includes(method as string)) {
-                        console.error(`[Supabase Proxy] Attempted ${String(method)} on missing client.`);
+                        logger.error(`[Supabase Proxy] Attempted ${String(method)} on missing client.`);
                         return () => Promise.resolve({ data: [], error: { message: 'Supabase not configured (Missing Envs)' } });
                     }
                     return () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } });

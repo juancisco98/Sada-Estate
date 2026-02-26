@@ -1,8 +1,16 @@
 import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment } from '../types';
+import {
+    DbBuildingRow,
+    DbPropertyRow,
+    DbProfessionalRow,
+    DbMaintenanceTaskRow,
+    DbTenantRow,
+    DbTenantPaymentRow
+} from '../types/dbRows';
 
 // ========== BUILDING MAPPERS ==========
 
-export const dbToBuilding = (row: any): Building => ({
+export const dbToBuilding = (row: DbBuildingRow): Building => ({
     id: row.id,
     address: row.address,
     coordinates: row.coordinates as [number, number],
@@ -13,7 +21,7 @@ export const dbToBuilding = (row: any): Building => ({
     userId: row.user_id,
 });
 
-export const buildingToDb = (b: Building): Record<string, any> => ({
+export const buildingToDb = (b: Building): Record<string, unknown> => ({
     id: b.id,
     address: b.address,
     coordinates: b.coordinates,
@@ -26,7 +34,7 @@ export const buildingToDb = (b: Building): Record<string, any> => ({
 
 // ========== MAPPERS: DB (snake_case) <-> App (camelCase) ==========
 
-export const dbToProperty = (row: any): Property => ({
+export const dbToProperty = (row: DbPropertyRow): Property => ({
     id: row.id,
     address: row.address,
     tenantName: row.tenant_name,
@@ -52,7 +60,7 @@ export const dbToProperty = (row: any): Property => ({
     userId: row.user_id,
 });
 
-export const propertyToDb = (p: Property): Record<string, any> => ({
+export const propertyToDb = (p: Property): Record<string, unknown> => ({
     id: p.id,
     address: p.address,
     tenant_name: p.tenantName,
@@ -78,7 +86,7 @@ export const propertyToDb = (p: Property): Record<string, any> => ({
     user_id: p.userId || undefined,
 });
 
-export const dbToProfessional = (row: any): Professional => ({
+export const dbToProfessional = (row: DbProfessionalRow): Professional => ({
     id: row.id,
     name: row.name,
     profession: row.profession,
@@ -90,7 +98,7 @@ export const dbToProfessional = (row: any): Professional => ({
     userId: row.user_id,
 });
 
-export const professionalToDb = (p: Professional): Record<string, any> => ({
+export const professionalToDb = (p: Professional): Record<string, unknown> => ({
     id: p.id,
     name: p.name,
     profession: p.profession,
@@ -102,7 +110,7 @@ export const professionalToDb = (p: Professional): Record<string, any> => ({
     user_id: p.userId || undefined,
 });
 
-export const dbToTask = (row: any): MaintenanceTask => ({
+export const dbToTask = (row: DbMaintenanceTaskRow): MaintenanceTask => ({
     id: row.id,
     propertyId: row.property_id,
     professionalId: row.professional_id,
@@ -116,7 +124,7 @@ export const dbToTask = (row: any): MaintenanceTask => ({
     userId: row.user_id,
 });
 
-export const taskToDb = (t: MaintenanceTask): Record<string, any> => ({
+export const taskToDb = (t: MaintenanceTask): Record<string, unknown> => ({
     id: t.id,
     property_id: t.propertyId,
     professional_id: t.professionalId,
@@ -132,7 +140,7 @@ export const taskToDb = (t: MaintenanceTask): Record<string, any> => ({
 
 // ========== TENANT MAPPERS ==========
 
-export const dbToTenant = (row: any): Tenant => ({
+export const dbToTenant = (row: DbTenantRow): Tenant => ({
     id: row.id,
     name: row.name,
     phone: row.phone || '',
@@ -141,7 +149,7 @@ export const dbToTenant = (row: any): Tenant => ({
     userId: row.user_id,
 });
 
-export const tenantToDb = (t: Tenant): Record<string, any> => ({
+export const tenantToDb = (t: Tenant): Record<string, unknown> => ({
     id: t.id,
     name: t.name,
     phone: t.phone,
@@ -150,7 +158,7 @@ export const tenantToDb = (t: Tenant): Record<string, any> => ({
     user_id: t.userId || undefined,
 });
 
-export const dbToPayment = (row: any): TenantPayment => ({
+export const dbToPayment = (row: DbTenantPaymentRow): TenantPayment => ({
     id: row.id,
     tenantId: row.tenant_id,
     propertyId: row.property_id,
@@ -160,13 +168,13 @@ export const dbToPayment = (row: any): TenantPayment => ({
     year: row.year,
     paidOnTime: row.paid_on_time,
     paymentDate: row.payment_date,
-    paymentMethod: row.payment_method || 'CASH',
-    proofOfPayment: row.proof_of_payment,
-    notes: row.notes,
-    userId: row.user_id,
+    paymentMethod: (row.payment_method as 'CASH' | 'TRANSFER') || 'CASH',
+    proofOfPayment: row.proof_of_payment ?? undefined,
+    notes: row.notes ?? undefined,
+    userId: row.user_id ?? undefined,
 });
 
-export const paymentToDb = (p: TenantPayment): Record<string, any> => ({
+export const paymentToDb = (p: TenantPayment): Record<string, unknown> => ({
     id: p.id,
     tenant_id: p.tenantId,
     property_id: p.propertyId || null,

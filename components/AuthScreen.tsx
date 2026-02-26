@@ -1,31 +1,31 @@
-import React, { useState } from 'react';
-import { Mail, Lock, User, ArrowRight, KeyRound, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { logger } from '../utils/logger';
 
+const AUTO_CLEAR_ERROR_MS = 5000;
 
-
-interface AuthScreenProps { }
-
-type AuthView = 'LOGIN' | 'REGISTER' | 'RECOVERY';
-
-const AuthScreen: React.FC<AuthScreenProps> = () => {
+const AuthScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(''), AUTO_CLEAR_ERROR_MS);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError('');
 
-    // Dynamically import to avoid circular dependencies if any, though here it's fine.
-    // Using the helper from services
     const { signInWithGoogle } = await import('../services/supabaseClient');
     const { error: authError } = await signInWithGoogle();
 
     if (authError) {
-      console.error("Google Login Error:", authError);
+      logger.error("Google Login Error:", authError);
       setError('Error al iniciar sesión con Google. Verifica tu conexión.');
       setIsLoading(false);
     }
-    // If successful, Supabase will redirect, so no need to stop loading manually immediately
   };
 
   return (

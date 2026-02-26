@@ -1,5 +1,5 @@
-
 import { supabase } from './supabaseClient';
+import { logger } from '../utils/logger';
 
 const BUCKET_NAME = 'payment-proofs';
 
@@ -22,7 +22,7 @@ export const uploadPaymentProof = async (file: File, folder: string = 'general')
             });
 
         if (error) {
-            console.error('Error uploading file:', error.message);
+            logger.error('Error uploading file:', error.message);
             throw error;
         }
 
@@ -32,7 +32,7 @@ export const uploadPaymentProof = async (file: File, folder: string = 'general')
 
         return publicUrlData.publicUrl;
     } catch (error) {
-        console.error('Upload failed:', error);
+        logger.error('Upload failed:', error);
         return null;
     }
 };

@@ -2,6 +2,8 @@ import { useDataContext } from '../context/DataContext';
 import { supabase } from '../services/supabaseClient';
 import { Professional, MaintenanceTask, TaskStatus } from '../types';
 import { taskToDb, professionalToDb } from '../utils/mappers';
+import { supabaseUpdate, supabaseInsert } from '../utils/supabaseHelpers';
+import { logger } from '../utils/logger';
 
 export const useMaintenance = (currentUserId?: string) => {
     const {
@@ -12,7 +14,6 @@ export const useMaintenance = (currentUserId?: string) => {
     } = useDataContext();
 
     const assignProfessional = async (propertyId: string, professional: Professional, taskDescription: string) => {
-        // 1. Update Property locally
         setProperties(prev => prev.map(p => {
             if (p.id === propertyId) {
                 return {
@@ -26,7 +27,6 @@ export const useMaintenance = (currentUserId?: string) => {
             return p;
         }));
 
-        // 2. Create Maintenance Task locally
         const newTask: MaintenanceTask = {
             id: `t-${Date.now()}`,
             propertyId,
@@ -39,32 +39,19 @@ export const useMaintenance = (currentUserId?: string) => {
         };
         setMaintenanceTasks(prev => [...prev, newTask]);
 
-        // 3. Persist to Supabase
-        try {
-            await supabase
-                .from('properties')
-                .update({
-                    assigned_professional_id: professional.id,
-                    professional_assigned_date: new Date().toISOString(),
-                    maintenance_task_description: taskDescription,
-                    last_modified_by: currentUserId || null
-                })
-                .eq('id', propertyId);
+        await supabaseUpdate('properties', propertyId, {
+            assigned_professional_id: professional.id,
+            professional_assigned_date: new Date().toISOString(),
+            maintenance_task_description: taskDescription,
+            last_modified_by: currentUserId || null
+        }, 'property assignment');
 
-            await supabase
-                .from('maintenance_tasks')
-                .insert(taskToDb(newTask));
-
-            console.log(`[Supabase] ✅ Professional assigned & task created`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception assigning professional:', err);
-        }
+        await supabaseInsert('maintenance_tasks', taskToDb(newTask), 'maintenance task');
     };
 
     const addPartialExpense = async (taskId: string, expense: { description: string, amount: number, date: string, by: string }) => {
         const newExpense = { ...expense, id: `pe-${Date.now()}` };
 
-        // 1. Update maintenance task locally
         setMaintenanceTasks(prev => prev.map(task => {
             if (task.id === taskId) {
                 return {
@@ -75,9 +62,7 @@ export const useMaintenance = (currentUserId?: string) => {
             return task;
         }));
 
-        // 2. Persist to Supabase
         try {
-            // Find the active task
             const { data: activeTasks } = await supabase
                 .from('maintenance_tasks')
                 .select('id, partial_expenses')
@@ -86,22 +71,16 @@ export const useMaintenance = (currentUserId?: string) => {
 
             if (activeTasks && activeTasks.length > 0) {
                 const currentExpenses = activeTasks[0].partial_expenses || [];
-                await supabase
-                    .from('maintenance_tasks')
-                    .update({
-                        partial_expenses: [...currentExpenses, newExpense]
-                    })
-                    .eq('id', activeTasks[0].id);
-
-                console.log(`[Supabase] ✅ Partial expense added`);
+                await supabaseUpdate('maintenance_tasks', activeTasks[0].id, {
+                    partial_expenses: [...currentExpenses, newExpense]
+                }, 'partial expense');
             }
         } catch (err) {
-            console.error('[Supabase] ❌ Exception adding partial expense:', err);
+            logger.error('[Supabase] Exception adding partial expense:', err);
         }
     };
 
     const finishMaintenance = async (propertyId: string, rating?: number, speedRating?: number, comment?: string, finalCost?: number) => {
-        // 1. Update property locally
         setProperties(prev => {
             const property = prev.find(p => p.id === propertyId);
             const proId = property?.assignedProfessionalId;
@@ -122,15 +101,7 @@ export const useMaintenance = (currentUserId?: string) => {
                                 reviews: [...currentReviews, { rating, comment: comment || '', date: new Date().toISOString() }]
                             };
 
-                            // Persist professional update
-                            supabase
-                                .from('professionals')
-                                .update(professionalToDb(updatedPro))
-                                .eq('id', proId)
-                                .then(({ error }) => {
-                                    if (error) console.error('[Supabase] ❌ Error updating pro rating:', error);
-                                });
-
+                            supabaseUpdate('professionals', proId, professionalToDb(updatedPro), 'professional rating');
                             return updatedPro;
                         }
                         return pro;
@@ -151,7 +122,6 @@ export const useMaintenance = (currentUserId?: string) => {
             });
         });
 
-        // 2. Update maintenance task locally
         setMaintenanceTasks(prev => prev.map(task => {
             if (task.propertyId === propertyId && task.status !== TaskStatus.COMPLETED) {
                 return {
@@ -164,18 +134,13 @@ export const useMaintenance = (currentUserId?: string) => {
             return task;
         }));
 
-        // 3. Persist to Supabase
-        try {
-            await supabase
-                .from('properties')
-                .update({
-                    assigned_professional_id: null,
-                    professional_assigned_date: null,
-                    maintenance_task_description: null,
-                })
-                .eq('id', propertyId);
+        await supabaseUpdate('properties', propertyId, {
+            assigned_professional_id: null,
+            professional_assigned_date: null,
+            maintenance_task_description: null,
+        }, 'property maintenance clear');
 
-            // Find the active task for this property
+        try {
             const { data: activeTasks } = await supabase
                 .from('maintenance_tasks')
                 .select('id')
@@ -184,19 +149,14 @@ export const useMaintenance = (currentUserId?: string) => {
                 .limit(1);
 
             if (activeTasks && activeTasks.length > 0) {
-                await supabase
-                    .from('maintenance_tasks')
-                    .update({
-                        status: 'COMPLETED',
-                        cost: finalCost || 0,
-                        end_date: new Date().toISOString()
-                    })
-                    .eq('id', activeTasks[0].id);
+                await supabaseUpdate('maintenance_tasks', activeTasks[0].id, {
+                    status: 'COMPLETED',
+                    cost: finalCost || 0,
+                    end_date: new Date().toISOString()
+                }, 'maintenance completion');
             }
-
-            console.log(`[Supabase] ✅ Maintenance finished for property ${propertyId}`);
         } catch (err) {
-            console.error('[Supabase] ❌ Exception finishing maintenance:', err);
+            logger.error('[Supabase] Exception finishing maintenance:', err);
         }
     };
 

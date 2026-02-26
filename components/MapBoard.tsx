@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { Property, PropertyStatus } from '../types';
-import { MAP_CENTER } from '../constants';
+import { MAP_CENTER, MAP_RESIZE_DELAY_MS } from '../constants';
 import { formatCurrency } from '../utils/currency';
 
 // Fix Leaflet Default Icon issue in React
@@ -88,15 +88,23 @@ const createSearchIcon = () => {
   });
 };
 
-const MapController = ({ center }: { center?: [number, number] }) => {
+const MapController = ({ center, properties }: { center?: [number, number]; properties: Property[] }) => {
   const map = useMap();
 
   // Fix: Force map resize calculation when component mounts (fixes gray bug)
   useEffect(() => {
     setTimeout(() => {
       map.invalidateSize();
-    }, 200);
+    }, MAP_RESIZE_DELAY_MS);
   }, [map]);
+
+  // On mount, fit to property bounds
+  useEffect(() => {
+    if (!center && properties.length > 0) {
+      const bounds = L.latLngBounds(properties.map(p => p.coordinates));
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+    }
+  }, [map, properties.length]); // only on mount / property count change
 
   useEffect(() => {
     if (center) {
@@ -114,25 +122,28 @@ const MapController = ({ center }: { center?: [number, number] }) => {
 }
 
 
-const ReturnToStartButton = () => {
+const ReturnToStartButton = ({ properties }: { properties: Property[] }) => {
   const map = useMap();
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    map.flyTo(MAP_CENTER, 13, { duration: 1.5 });
+    if (properties.length > 0) {
+      const bounds = L.latLngBounds(properties.map(p => p.coordinates));
+      map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 15, duration: 1.5 });
+    } else {
+      map.flyTo(MAP_CENTER, 13, { duration: 1.5 });
+    }
   };
 
-  // Position it below the standard zoom control (which is usually top-right)
   return (
-    <div className="leaflet-top leaflet-right" style={{ pointerEvents: 'none', top: '80px' }}>
-      <div className="leaflet-control leaflet-bar pointer-events-auto">
+    <div className="leaflet-top leaflet-right" style={{ pointerEvents: 'none', top: '100px' }}>
+      <div className="leaflet-control pointer-events-auto">
         <button
           onClick={handleClick}
-          className="bg-white text-black hover:bg-gray-100 flex items-center justify-center w-[30px] h-[30px] shadow-sm bg-clip-padding border border-[#ccc]"
-          title="Volver a mi ubicación (Buenos Aires)"
-          style={{ borderRadius: '2px' }} // Match leaflet style
+          className="bg-white text-black hover:bg-gray-100 flex items-center justify-center w-[40px] h-[40px] shadow-lg rounded-xl"
+          title="Ver todas las propiedades"
         >
-          <span className="text-lg">🏠</span>
+          <span className="text-xl">🏠</span>
         </button>
       </div>
     </div>
@@ -193,8 +204,8 @@ const MapBoard: React.FC<MapBoardProps> = ({
         zoomControl={true}
         attributionControl={false}
       >
-        <MapController center={center} />
-        <ReturnToStartButton />
+        <MapController center={center} properties={properties} />
+        <ReturnToStartButton properties={properties} />
         {/* Using CartoDB Positron for the "Google Maps Light" neutral aesthetic */}
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"

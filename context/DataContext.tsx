@@ -9,6 +9,7 @@ import {
     dbToPayment
 } from '../utils/mappers';
 import { handleError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
 
 interface DataContextType {
     properties: Property[];
@@ -64,30 +65,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (tenantsResult.error) throw tenantsResult.error;
             if (paymentsResult.error) throw paymentsResult.error;
 
-            if (prosResult.data) {
-                setProfessionals(prosResult.data.map(dbToProfessional));
-                console.log(`[Supabase] ✅ Loaded ${prosResult.data.length} professionals`);
-            }
-            if (propsResult.data) {
-                setProperties(propsResult.data.map(dbToProperty));
-                console.log(`[Supabase] ✅ Loaded ${propsResult.data.length} properties`);
-            }
-            if (tasksResult.data) {
-                setMaintenanceTasks(tasksResult.data.map(dbToTask));
-                console.log(`[Supabase] ✅ Loaded ${tasksResult.data.length} tasks`);
-            }
-            if (buildingsResult.data) {
-                setBuildings(buildingsResult.data.map(dbToBuilding));
-                console.log(`[Supabase] ✅ Loaded ${buildingsResult.data.length} buildings`);
-            }
-            if (tenantsResult.data) {
-                setTenants(tenantsResult.data.map(dbToTenant));
-                console.log(`[Supabase] ✅ Loaded ${tenantsResult.data.length} tenants`);
-            }
-            if (paymentsResult.data) {
-                setPayments(paymentsResult.data.map(dbToPayment));
-                console.log(`[Supabase] ✅ Loaded ${paymentsResult.data.length} tenant payments`);
-            }
+            if (prosResult.data) setProfessionals(prosResult.data.map(dbToProfessional));
+            if (propsResult.data) setProperties(propsResult.data.map(dbToProperty));
+            if (tasksResult.data) setMaintenanceTasks(tasksResult.data.map(dbToTask));
+            if (buildingsResult.data) setBuildings(buildingsResult.data.map(dbToBuilding));
+            if (tenantsResult.data) setTenants(tenantsResult.data.map(dbToTenant));
+            if (paymentsResult.data) setPayments(paymentsResult.data.map(dbToPayment));
+
+            logger.log('[Supabase] All data loaded.');
 
         } catch (error) {
             handleError(error, 'Error al cargar los datos. Por favor recargue la página.');

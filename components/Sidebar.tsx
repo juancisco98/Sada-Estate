@@ -89,4 +89,4 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, User, Phone, DollarSign } from 'lucide-react';
-import { Property, PropertyStatus } from '../types';
+import { Property, PropertyStatus, Professional } from '../types';
+import { DEFAULT_PROPERTY_IMAGE } from '../constants';
 
 import { getTaxConfig } from '../utils/taxConfig';
 import { toast } from 'sonner';
@@ -17,7 +18,7 @@ interface AddPropertyModalProps {
   onClose: () => void;
   onSave: (property: Property | Property[]) => void;
   onDelete?: (id: string) => void;
-  professionals?: any[];
+  professionals?: Professional[];
   isRestrictedMode?: boolean; // Added for restricted building edits
 }
 
@@ -97,7 +98,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       setFormData(prev => ({
         ...prev,
         address: address,
-        imageUrl: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=1000&auto=format&fit=crop',
+        imageUrl: DEFAULT_PROPERTY_IMAGE,
         notes: '',
         country: initialCountry,
         currency: 'ARS', // Always ARS
@@ -300,100 +301,147 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[1300] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center">
+        <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              {isEditing ? 'Editar Propiedad' : 'Agregar Propiedad'}
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isEditing ? 'Editar Propiedad' : 'Nueva Propiedad'}
             </h2>
-            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-              <MapPin className="w-3 h-3" /> {isEditing ? existingProperty?.address : address || 'Dirección manual'}
+            <p className="text-sm text-gray-400 flex items-center gap-1.5 mt-1">
+              <MapPin className="w-3.5 h-3.5" /> {isEditing ? existingProperty?.address : address || 'Dirección manual'}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors" aria-label="Cerrar modal">
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="p-2.5 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors" aria-label="Cerrar modal">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">
+        <form onSubmit={handleSubmit} className="px-8 py-6 overflow-y-auto space-y-7">
 
-          {/* Photo Upload Section */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Foto de Portada</label>
-
-            <div className="flex gap-4 items-stretch h-32">
-              {/* Preview */}
-              <div className="w-32 h-full rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0 relative">
-                {formData.imageUrl ? (
-                  <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <ImageIcon className="w-8 h-8 opacity-50" />
-                  </div>
-                )}
-              </div>
-
-              {/* Upload Button */}
-              <label className="flex-1 cursor-pointer group">
-                <div className="w-full h-full rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-all flex flex-col items-center justify-center gap-2">
-                  <div className="bg-white p-2 rounded-full shadow-sm border border-gray-200 group-hover:border-blue-200">
-                    <Upload className="w-5 h-5 text-gray-500 group-hover:text-blue-600" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700">Subir foto</p>
-                    <p className="text-xs text-gray-400">JPG, PNG del dispositivo</p>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    aria-label="Subir foto de portada"
-                  />
+          {/* ROW 1: Photo + Property Details side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Photo Upload */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Foto de Portada</label>
+              <div className="flex gap-3 items-stretch h-28">
+                <div className="w-28 h-full rounded-xl overflow-hidden bg-gray-50 border border-gray-200 flex-shrink-0">
+                  {formData.imageUrl ? (
+                    <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                      <ImageIcon className="w-7 h-7" />
+                    </div>
+                  )}
                 </div>
-              </label>
+                <label className="flex-1 cursor-pointer group">
+                  <div className="w-full h-full rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 hover:bg-blue-50 hover:border-blue-300 transition-all flex flex-col items-center justify-center gap-1.5">
+                    <Upload className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />
+                    <p className="text-xs font-medium text-gray-500 group-hover:text-blue-600">Subir foto</p>
+                    <p className="text-[10px] text-gray-400">JPG, PNG</p>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} aria-label="Subir foto de portada" />
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Property Details: Rooms & m2 */}
+            {!isBuilding && !isRestrictedMode && (
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <LayoutGrid className="w-3.5 h-3.5" /> Datos del Inmueble
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">Ambientes</label>
+                    <div className="relative">
+                      <LayoutGrid className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number" min="1" max="20" placeholder="Ej: 3" required={!isEditing}
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-semibold"
+                        value={formData.rooms} onChange={e => setFormData({ ...formData, rooms: e.target.value })} aria-label="Cantidad de ambientes"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">Metros² (m²)</label>
+                    <div className="relative">
+                      <Ruler className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number" min="1" placeholder="Ej: 72" required={!isEditing}
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-semibold"
+                        value={formData.squareMeters} onChange={e => setFormData({ ...formData, squareMeters: e.target.value })} aria-label="Metros cuadrados"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {/* Country inline with property details */}
+                <div className="space-y-1 pt-1">
+                  <label className="text-xs font-medium text-gray-600">País {taxConfig.flag}</label>
+                  <select
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={formData.country} onChange={handleCountryChange} aria-label="Seleccionar país"
+                  >
+                    <option value="Argentina">AR Argentina</option>
+                    <option value="USA">US Estados Unidos</option>
+                    <option value="Uruguay">UY Uruguay</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ROW 2: Address full width */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" /> Dirección
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <input
+                type="text" placeholder="Dirección completa de la propiedad" required
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} aria-label="Dirección de la propiedad"
+              />
             </div>
           </div>
 
-          {/* Property Details: Rooms & Square Meters — hidden when building mode or restricted */}
+          {/* ROW 3: Tenant data — 3 columns */}
           {!isBuilding && !isRestrictedMode && (
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4" /> Datos del Inmueble
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 pt-2 border-t border-gray-100">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Datos del Alquiler</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Ambientes</label>
+                  <label className="text-xs font-medium text-gray-600">Inquilino</label>
                   <div className="relative">
-                    <LayoutGrid className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <User className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                     <input
-                      type="number"
-                      min="1"
-                      max="20"
-                      placeholder="Ej: 3"
-                      required={!isEditing}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
-                      value={formData.rooms}
-                      onChange={e => setFormData({ ...formData, rooms: e.target.value })}
-                      aria-label="Cantidad de ambientes"
+                      type="text" placeholder="Nombre o Vacante"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      value={formData.tenantName} onChange={e => setFormData({ ...formData, tenantName: e.target.value })} aria-label="Nombre del inquilino"
                     />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Metros² (m²)</label>
+                  <label className="text-xs font-medium text-gray-600">Teléfono</label>
                   <div className="relative">
-                    <Ruler className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                     <input
-                      type="number"
-                      min="1"
-                      placeholder="Ej: 72"
-                      required={!isEditing}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
-                      value={formData.squareMeters}
-                      onChange={e => setFormData({ ...formData, squareMeters: e.target.value })}
-                      aria-label="Metros cuadrados"
+                      type="tel" placeholder="11-XXXX-XXXX"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      value={formData.tenantPhone} onChange={e => setFormData({ ...formData, tenantPhone: e.target.value })} aria-label="Teléfono del inquilino"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Alquiler Mensual ({formData.currency})</label>
+                  <div className="relative">
+                    <DollarSign className={`absolute left-3 top-2.5 w-4 h-4 ${formData.currency === 'USD' ? 'text-green-600' : 'text-blue-600'}`} />
+                    <input
+                      type="text" placeholder="0" required
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-semibold"
+                      value={formatNumberWithDots(formData.monthlyRent)} onChange={e => handleNumberChange('monthlyRent', e.target.value)} aria-label="Valor del alquiler mensual"
                     />
                   </div>
                 </div>
@@ -401,98 +449,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           )}
 
-          {/* Location & Currency Section */}
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <Globe className="w-4 h-4" /> Ubicación y Moneda
-            </h3>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Dirección</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Dirección de la propiedad"
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                  value={formData.address}
-                  onChange={e => setFormData({ ...formData, address: e.target.value })}
-                  aria-label="Dirección de la propiedad"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">País {taxConfig.flag}</label>
-                <select
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={formData.country}
-                  onChange={handleCountryChange}
-                  aria-label="Seleccionar país"
-                >
-                  <option value="Argentina">🇦🇷 Argentina</option>
-                  <option value="USA">🇺🇸 Estados Unidos</option>
-                  <option value="Uruguay">🇺🇾 Uruguay</option>
-                </select>
-              </div>
-              {/* Currency Selector Removed - Enforced ARS */}
-            </div>
-          </div>
-
-          {/* Tenant Section — hidden when building mode or restricted */}
-          {!isBuilding && !isRestrictedMode && (
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Datos del Alquiler</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Inquilino</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Nombre o Vacante"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                      value={formData.tenantName}
-                      onChange={e => setFormData({ ...formData, tenantName: e.target.value })}
-                      aria-label="Nombre del inquilino"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Teléfono</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      placeholder="11-XXXX-XXXX"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                      value={formData.tenantPhone}
-                      onChange={e => setFormData({ ...formData, tenantPhone: e.target.value })}
-                      aria-label="Teléfono del inquilino"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Valor Alquiler Mensual ({formData.currency})</label>
-                <div className="relative">
-                  <DollarSign className={`absolute left-3 top-3 w-5 h-5 ${formData.currency === 'USD' ? 'text-green-600' : 'text-blue-600'}`} />
-                  <input
-                    type="text"
-                    placeholder="0"
-                    required
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-semibold"
-                    value={formatNumberWithDots(formData.monthlyRent)}
-                    onChange={e => handleNumberChange('monthlyRent', e.target.value)}
-                    aria-label="Valor del alquiler mensual"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* === Building Toggle === */}
+          {/* Building Toggle */}
           {!isRestrictedMode && (
             <BuildingUnitManager
               units={buildingUnits}
@@ -505,114 +462,96 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             />
           )}
 
-          {/* Documentos Section */}
+          {/* ROW 4: Professional + Documents side by side */}
           {!isRestrictedMode && (
-            <div className="space-y-3 pt-4 border-t border-gray-100">
-              <label className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Documentos / Recibos
-              </label>
-              <div className="flex flex-col gap-2">
-                {uploadedDocs.map((doc, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
-                    <Check className="w-4 h-4" /> {doc}
-                  </div>
-                ))}
-                <label className="cursor-pointer inline-flex items-center gap-2 text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 border-dashed w-fit">
-                  <Upload className="w-4 h-4" /> + Adjuntar Archivo (PDF, Img)
-                  <input type="file" className="hidden" onChange={handleDocUpload} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-gray-100">
+              {/* Professional Assignment */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5" /> Profesional Asignado
                 </label>
-              </div>
-            </div>
-          )}
+                <select
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none"
+                  value={formData.assignedProfessionalId} onChange={e => setFormData({ ...formData, assignedProfessionalId: e.target.value })} aria-label="Seleccionar profesional asignado"
+                >
+                  <option value="">Ninguno (Opcional)</option>
+                  {professionals.map(pro => (
+                    <option key={pro.id} value={pro.id}>{pro.name} - {pro.profession}</option>
+                  ))}
+                </select>
 
-          {/* Professional Assignment */}
-          {!isRestrictedMode && (
-            <div className="space-y-3 pt-4 border-t border-gray-100">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Profesional / Encargado Asignado</label>
-                <div className="relative">
-                  <Briefcase className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <select
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all appearance-none"
-                    value={formData.assignedProfessionalId}
-                    onChange={e => setFormData({ ...formData, assignedProfessionalId: e.target.value })}
-                    aria-label="Seleccionar profesional asignado"
-                  >
-                    <option value="">Seleccionar Profesional (Opcional)...</option>
-                    {professionals.map(pro => (
-                      <option key={pro.id} value={pro.id}>{pro.name} - {pro.profession}</option>
-                    ))}
-                  </select>
-                </div>
+                {formData.assignedProfessionalId && (
+                  <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-xs font-medium text-orange-700 flex items-center gap-1">
+                      <Hammer className="w-3.5 h-3.5" /> Descripción de la Obra
+                    </label>
+                    <input
+                      type="text" placeholder="Ej: Reparación de cañería..." required
+                      className="w-full px-3 py-2 rounded-lg border border-orange-200 bg-orange-50 text-gray-900 text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                      value={formData.maintenanceTaskDescription} onChange={e => setFormData({ ...formData, maintenanceTaskDescription: e.target.value })} aria-label="Descripción de la tarea"
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Maintenance Description */}
-              {formData.assignedProfessionalId && (
-                <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-sm font-medium text-orange-700 flex items-center gap-1">
-                    <Hammer className="w-4 h-4" /> Descripción de la Obra / Tarea
+              {/* Documents */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" /> Documentos / Recibos
+                </label>
+                <div className="flex flex-col gap-2">
+                  {uploadedDocs.map((doc, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                      <Check className="w-3.5 h-3.5" /> {doc}
+                    </div>
+                  ))}
+                  <label className="cursor-pointer inline-flex items-center gap-2 text-xs text-blue-600 font-medium hover:text-blue-800 transition-colors bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 border-dashed w-fit">
+                    <Upload className="w-3.5 h-3.5" /> + Adjuntar Archivo
+                    <input type="file" className="hidden" onChange={handleDocUpload} />
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Reparación de cañería en cocina..."
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-orange-200 bg-orange-50 text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all"
-                    value={formData.maintenanceTaskDescription}
-                    onChange={e => setFormData({ ...formData, maintenanceTaskDescription: e.target.value })}
-                    aria-label="Descripción de la tarea"
-                  />
-                  <p className="text-xs text-orange-600">Especifica qué trabajo está realizando el profesional.</p>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
           {/* Notes Section */}
           {!isRestrictedMode && (
-            <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-100">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm font-bold text-yellow-800 uppercase tracking-wider flex items-center gap-2">
-                  <StickyNote className="w-4 h-4" /> Notas y Recordatorios
-                </h3>
-              </div>
+            <div className="bg-amber-50/60 rounded-xl p-4 border border-amber-100">
+              <h3 className="text-xs font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <StickyNote className="w-3.5 h-3.5" /> Notas y Recordatorios
+              </h3>
               <textarea
-                placeholder="Ej: El portero se llama Jose. Recordar pedir comprobante de servicio de luz..."
-                className="w-full p-3 rounded-xl border border-yellow-200 bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none resize-none h-24 text-sm"
-                value={formData.notes}
-                onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                aria-label="Notas y recordatorios"
+                placeholder="Ej: El portero se llama Jose. Recordar pedir comprobante..."
+                className="w-full p-3 rounded-lg border border-amber-200 bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-amber-400 outline-none resize-none h-20 text-sm"
+                value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} aria-label="Notas y recordatorios"
               />
-              <p className="text-xs text-yellow-600 mt-2 italic">* Espacio personal para anotar detalles importantes de esta propiedad.</p>
             </div>
           )}
 
         </form>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3">
-          {/* Delete Button (Only if Editing) */}
+        <div className="px-8 py-4 border-t border-gray-100 bg-gray-50/50 flex gap-3">
           {isEditing && onDelete && (
             <button
-              type="button"
-              onClick={handleDelete}
-              className="bg-red-50 text-red-600 p-3 rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center border border-red-200 shrink-0"
+              type="button" onClick={handleDelete}
+              className="bg-red-50 text-red-500 p-2.5 rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center border border-red-200 shrink-0"
               title="Eliminar Propiedad"
             >
               <Trash2 className="w-5 h-5" />
             </button>
           )}
-
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-white hover:shadow-sm transition-all"
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 font-medium text-sm hover:bg-white hover:text-gray-700 transition-all"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
-            className="flex-[2] py-3 rounded-xl bg-gray-900 text-white font-semibold hover:bg-gray-800 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+            className="flex-[2] py-2.5 rounded-xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
           >
-            <Save className="w-5 h-5" /> {isEditing ? 'Guardar Cambios' : 'Crear Propiedad'}
+            <Save className="w-4 h-4" /> {isEditing ? 'Guardar Cambios' : 'Crear Propiedad'}
           </button>
         </div>
       </div>

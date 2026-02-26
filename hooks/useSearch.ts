@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Property } from '../types';
 import { geocodeAddress } from '../utils/geocoding';
+import { handleError } from '../utils/errorHandler';
+import { logger } from '../utils/logger';
+import { ViewState } from '../components/Sidebar';
 
 export const useSearch = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -8,7 +11,7 @@ export const useSearch = () => {
     const [mapCenter, setMapCenter] = useState<[number, number] | undefined>(undefined);
     const [searchResult, setSearchResult] = useState<{ lat: number, lng: number, address: string } | null>(null);
 
-    const performSearch = async (query: string, setCurrentView: (view: any) => void, setSelectedProperty: (prop: Property | null) => void) => {
+    const performSearch = async (query: string, setCurrentView: (view: ViewState) => void, setSelectedProperty: (prop: Property | null) => void) => {
         if (!query) return;
 
         setSearchQuery(query);
@@ -28,12 +31,12 @@ export const useSearch = () => {
                     address: result.formattedAddress
                 });
             } else {
-                console.log("No se encontró la dirección.");
-                alert("No se encontró la dirección.");
+                logger.log("No se encontró la dirección.");
+                handleError(new Error('Address not found'), 'No se encontró la dirección.');
             }
         } catch (error) {
-            console.error("Search error:", error);
-            alert("Hubo un error al buscar la dirección.");
+            logger.error("Search error:", error);
+            handleError(error, 'Hubo un error al buscar la dirección.');
         } finally {
             setIsSearching(false);
         }

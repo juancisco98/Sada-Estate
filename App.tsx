@@ -1,7 +1,7 @@
-import React, { useState, useEffect, Suspense, lazy, useRef } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { handleError } from './utils/errorHandler';
-console.log('[App] Starting up...');
+import { logger } from './utils/logger';
 
 import MapBoard from './components/MapBoard';
 import PropertyCard from './components/PropertyCard';
@@ -23,6 +23,7 @@ import { useBuildings } from './hooks/useBuildings';
 import { useTenantData } from './hooks/useTenantData';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useSearch } from './hooks/useSearch';
+import type { Session } from '@supabase/supabase-js';
 
 // Lazy load dashboard views
 const OverviewView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.OverviewView })));
@@ -171,17 +172,12 @@ const Dashboard: React.FC = () => {
 
   // --- Auth Effects ---
   useEffect(() => {
-    // Shared handler for auth changes
-    const handleAuthChange = async (event: string, session: any) => {
-      console.log(`[Auth] Event: ${event}`);
+    const handleAuthChange = async (event: string, session: Session | null) => {
+      logger.log(`[Auth] Event: ${event}`);
 
       if (session?.user?.email) {
         const userEmail = session.user.email.toLowerCase();
-        console.log(`[Auth] User detected: ${userEmail}`);
-
-        // Allowlist Check
         const isAllowed = ALLOWED_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
-        console.log(`[Auth] Is Allowed: ${isAllowed}`);
 
         if (isAllowed) {
           setCurrentUser({
@@ -192,9 +188,9 @@ const Dashboard: React.FC = () => {
             color: '#3b82f6'
           });
           setIsAuthenticated(true);
-          console.log('[Auth] ✅ User authenticated successfully');
+          logger.log('[Auth] User authenticated.');
         } else {
-          console.warn(`[Auth] ❌ Unauthorized access attempt: ${userEmail}`);
+          logger.warn('[Auth] Unauthorized access attempt.');
           await signOut();
           handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está en la lista permitida.`);
           setIsAuthenticated(false);
@@ -202,56 +198,41 @@ const Dashboard: React.FC = () => {
         }
       } else {
         if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && session === null)) {
-          console.log('[Auth] No active session / signed out');
           setIsAuthenticated(false);
           setCurrentUser(null);
         }
       }
     };
 
-    // Listen for all auth changes FIRST (this is the single source of truth)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`[Auth] onAuthStateChange fired: ${event}`);
       handleAuthChange(event, session);
     });
 
-    // Check if we're returning from a PKCE OAuth redirect (?code= in URL)
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
 
     if (code) {
-      console.log('[Auth] Detected PKCE code in URL, exchanging for session...');
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
         if (error) {
-          console.error('[Auth] PKCE code exchange failed:', error);
+          logger.error('[Auth] PKCE code exchange failed:', error);
           handleError(error, 'Error al intercambiar código de autenticación.');
         } else {
-          console.log('[Auth] ✅ PKCE code exchange successful');
-          // Clean up the URL (remove ?code=... from address bar)
           const cleanUrl = window.location.origin + window.location.pathname;
           window.history.replaceState(null, '', cleanUrl);
         }
       });
     } else {
-      // Check for hash-based redirect (implicit flow fallback)
       const hashParams = window.location.hash;
       const isHashRedirect = hashParams && (hashParams.includes('access_token') || hashParams.includes('error'));
 
-      if (isHashRedirect) {
-        console.log('[Auth] Detected hash-based OAuth redirect, onAuthStateChange will handle it...');
-      } else {
-        // Normal page load - check for existing session
-        console.log('[Auth] Normal page load, checking for existing session...');
+      if (!isHashRedirect) {
         supabase.auth.getSession().then(({ data: { session }, error }) => {
           if (error) {
-            console.error('[Auth] Error getting session:', error);
+            logger.error('[Auth] Error getting session:', error);
             return;
           }
           if (session) {
-            console.log('[Auth] Existing session found:', session.user.email);
             handleAuthChange('INITIAL_SESSION', session);
-          } else {
-            console.log('[Auth] No existing session.');
           }
         });
       }
@@ -262,40 +243,40 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await signOut();
     setIsAuthenticated(false);
     setCurrentUser(null);
-  };
+  }, []);
 
   // --- Handlers ---
 
-  const handlePropertySelect = (property: Property) => {
+  const handlePropertySelect = useCallback((property: Property) => {
     setSelectedProperty(property);
     setSearchResult(null);
-  };
+  }, [setSearchResult]);
 
-  const handleViewMetrics = () => {
+  const handleViewMetrics = useCallback(() => {
     if (selectedProperty) {
       setFinancialPropertyToOpen(selectedProperty);
       setCurrentView('FINANCE');
       setSelectedProperty(null);
     }
-  };
+  }, [selectedProperty]);
 
-  const handleOpenAddModal = () => {
+  const handleOpenAddModal = useCallback(() => {
     setPropertyToEdit(null);
     setIsRestrictedEdit(false);
     setShowPropertyModal(true);
-  };
+  }, []);
 
-  const handleOpenEditModal = (prop: Property, isRestricted: boolean = false) => {
+  const handleOpenEditModal = useCallback((prop: Property, isRestricted: boolean = false) => {
     setPropertyToEdit(prop);
     setIsRestrictedEdit(isRestricted);
     setShowPropertyModal(true);
-  };
+  }, []);
 
-  const handleSaveProperty = (savedPropOrProps: Property | Property[]) => {
+  const handleSaveProperty = useCallback((savedPropOrProps: Property | Property[]) => {
     if (Array.isArray(savedPropOrProps)) {
       savePropertiesData(savedPropOrProps);
       setShowPropertyModal(false);
@@ -303,7 +284,6 @@ const Dashboard: React.FC = () => {
       setSearchResult(null);
       setSearchQuery('');
     } else {
-      // Single save
       savePropertyData(savedPropOrProps);
       setShowPropertyModal(false);
       setPropertyToEdit(null);
@@ -314,46 +294,44 @@ const Dashboard: React.FC = () => {
         setSelectedProperty(savedPropOrProps);
       }
     }
-  };
+  }, [savePropertiesData, savePropertyData, propertyToEdit, setSearchResult, setSearchQuery]);
 
-  // Quick Note Update Handler
-  const handleUpdateNote = (propertyId: string, newNote: string) => {
+  const handleUpdateNote = useCallback((propertyId: string, newNote: string) => {
     updateNoteData(propertyId, newNote);
-  };
+  }, [updateNoteData]);
 
-  const confirmFinishMaintenance = (rating: number, speedRating: number, comment: string, cost: number) => {
+  const confirmFinishMaintenance = useCallback((rating: number, speedRating: number, comment: string, cost: number) => {
     if (!finishingProperty) return;
     finishMaintenanceData(finishingProperty.id, rating, speedRating, comment, cost);
     setFinishingProperty(null);
     toast.success("Obra finalizada y calificación guardada con éxito.");
-    // Force refresh the property in selection if it was selected
     if (selectedProperty?.id === finishingProperty.id) {
       const updated = properties.find(p => p.id === finishingProperty.id);
       if (updated) setSelectedProperty(updated);
     }
-  };
+  }, [finishingProperty, finishMaintenanceData, selectedProperty, properties]);
 
-  const handleSaveProfessional = (newPro: Professional) => {
+  const handleSaveProfessional = useCallback((newPro: Professional) => {
     saveProfessionalData(newPro);
     setShowAddProModal(false);
     setProfessionalToEdit(null);
-  };
+  }, [saveProfessionalData]);
 
-  const handleEditProfessional = (pro: Professional) => {
+  const handleEditProfessional = useCallback((pro: Professional) => {
     setProfessionalToEdit(pro);
     setShowAddProModal(true);
-  };
+  }, []);
 
-  const handleAssignProfessionalToProperty = (propertyId: string, taskDescription: string) => {
+  const handleAssignProfessionalToProperty = useCallback((propertyId: string, taskDescription: string) => {
     if (!assigningProfessional) return;
     assignProfessionalData(propertyId, assigningProfessional, taskDescription);
     setAssigningProfessional(null);
     toast.success(`Asignado ${assigningProfessional.name} correctamente.`);
-  };
+  }, [assigningProfessional, assignProfessionalData]);
 
-  const handleSearchClick = () => {
+  const handleSearchClick = useCallback(() => {
     handleSearch(searchQuery);
-  };
+  }, [handleSearch, searchQuery]);
 
   const renderCurrentView = () => {
     switch (currentView) {

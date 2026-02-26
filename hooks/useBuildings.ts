@@ -2,6 +2,8 @@ import { useDataContext } from '../context/DataContext';
 import { supabase } from '../services/supabaseClient';
 import { Building } from '../types';
 import { buildingToDb } from '../utils/mappers';
+import { supabaseUpsert, supabaseDelete } from '../utils/supabaseHelpers';
+import { logger } from '../utils/logger';
 
 export const useBuildings = (currentUserId?: string) => {
     const { buildings, setBuildings, setProperties } = useDataContext();
@@ -14,31 +16,21 @@ export const useBuildings = (currentUserId?: string) => {
             return [...prev, buildingWithUser];
         });
 
-        try {
-            const { error } = await supabase
-                .from('buildings')
-                .upsert(buildingToDb(buildingWithUser), { onConflict: 'id' });
-            if (error) console.error('[Supabase] ❌ Error saving building:', error);
-            else console.log(`[Supabase] ✅ Building saved: ${building.address}`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception saving building:', err);
-        }
+        await supabaseUpsert('buildings', buildingToDb(buildingWithUser), `building ${building.address}`);
     };
 
     const deleteBuilding = async (buildingId: string) => {
         setBuildings(prev => prev.filter(b => b.id !== buildingId));
-        // Unlink properties
         setProperties(prev => prev.map(p =>
             p.buildingId === buildingId ? { ...p, buildingId: undefined, unitLabel: undefined } : p
         ));
 
         try {
             await supabase.from('properties').update({ building_id: null, unit_label: '' }).eq('building_id', buildingId);
-            const { error } = await supabase.from('buildings').delete().eq('id', buildingId);
-            if (error) console.error('[Supabase] ❌ Error deleting building:', error);
         } catch (err) {
-            console.error('[Supabase] ❌ Exception deleting building:', err);
+            logger.error('[Supabase] Exception unlinking properties from building:', err);
         }
+        await supabaseDelete('buildings', buildingId, 'building');
     };
 
     return {

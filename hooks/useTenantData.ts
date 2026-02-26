@@ -1,9 +1,7 @@
 import { useDataContext } from '../context/DataContext';
 import { Tenant, TenantPayment } from '../types';
-import { supabase } from '../services/supabaseClient';
 import { tenantToDb, paymentToDb } from '../utils/mappers';
-
-// ========== HOOK ==========
+import { supabaseUpsert, supabaseDelete, supabaseInsert, supabaseUpdate } from '../utils/supabaseHelpers';
 
 export const useTenantData = (currentUserId?: string) => {
     const {
@@ -11,8 +9,6 @@ export const useTenantData = (currentUserId?: string) => {
         payments, setPayments,
         isLoading: isLoadingTenants
     } = useDataContext();
-
-    // ========== TENANT CRUD ==========
 
     const handleSaveTenant = async (tenant: Tenant) => {
         const tenantWithUser = { ...tenant, userId: currentUserId };
@@ -22,51 +18,20 @@ export const useTenantData = (currentUserId?: string) => {
             return [...prev, tenantWithUser];
         });
 
-        try {
-            const { error } = await supabase
-                .from('tenants')
-                .upsert(tenantToDb(tenantWithUser), { onConflict: 'id' });
-            if (error) console.error('[Supabase] ❌ Error saving tenant:', error);
-            else console.log(`[Supabase] ✅ Tenant saved: ${tenant.name}`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception saving tenant:', err);
-        }
+        await supabaseUpsert('tenants', tenantToDb(tenantWithUser), `tenant ${tenant.name}`);
     };
 
     const handleDeleteTenant = async (tenantId: string) => {
         setTenants(prev => prev.filter(t => t.id !== tenantId));
         setPayments(prev => prev.filter(p => p.tenantId !== tenantId));
-
-        try {
-            const { error } = await supabase
-                .from('tenants')
-                .delete()
-                .eq('id', tenantId);
-            if (error) console.error('[Supabase] ❌ Error deleting tenant:', error);
-            else console.log(`[Supabase] ✅ Tenant deleted: ${tenantId}`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception deleting tenant:', err);
-        }
+        await supabaseDelete('tenants', tenantId, 'tenant');
     };
-
-    // ========== PAYMENT CRUD ==========
 
     const handleRegisterPayment = async (payment: TenantPayment) => {
         const paymentWithUser = { ...payment, userId: currentUserId };
         setPayments(prev => [...prev, paymentWithUser]);
-
-        try {
-            const { error } = await supabase
-                .from('tenant_payments')
-                .insert(paymentToDb(paymentWithUser));
-            if (error) console.error('[Supabase] ❌ Error registering payment:', error);
-            else console.log(`[Supabase] ✅ Payment registered for tenant: ${payment.tenantId}`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception registering payment:', err);
-        }
+        await supabaseInsert('tenant_payments', paymentToDb(paymentWithUser), `payment for tenant ${payment.tenantId}`);
     };
-
-    // ========== METRICS ==========
 
     const getTenantMetrics = (tenantId: string) => {
         const tenantPayments = payments.filter(p => p.tenantId === tenantId);
@@ -75,7 +40,6 @@ export const useTenantData = (currentUserId?: string) => {
         const onTimePayments = tenantPayments.filter(p => p.paidOnTime).length;
         const onTimeRate = totalPayments > 0 ? (onTimePayments / totalPayments) * 100 : 0;
 
-        // Monthly breakdown (current year)
         const currentYear = new Date().getFullYear();
         const monthlyBreakdown = Array.from({ length: 12 }, (_, i) => {
             const monthPayments = tenantPayments.filter(p => p.month === i + 1 && p.year === currentYear);
@@ -98,18 +62,7 @@ export const useTenantData = (currentUserId?: string) => {
 
     const handleUpdatePayment = async (payment: TenantPayment) => {
         setPayments(prev => prev.map(p => p.id === payment.id ? payment : p));
-
-        try {
-            const { error } = await supabase
-                .from('tenant_payments')
-                .update(paymentToDb(payment))
-                .eq('id', payment.id);
-
-            if (error) console.error('[Supabase] ❌ Error updating payment:', error);
-            else console.log(`[Supabase] ✅ Payment updated: ${payment.id}`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception updating payment:', err);
-        }
+        await supabaseUpdate('tenant_payments', payment.id, paymentToDb(payment), `payment ${payment.id}`);
     };
 
     return {

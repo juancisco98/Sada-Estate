@@ -1,15 +1,17 @@
+import { logger } from './logger';
 
-// Fallback rates (units per 1 USD) - Keeps structure but mostly unused now except if we add convert back
+// Fallback rates (units per 1 USD)
 export const EXCHANGE_RATES: Record<string, number> = {
     ARS: 1200,
     USD: 1,
     UYU: 42,
 };
 
+import { CURRENCY_CACHE_DURATION_MS } from '../constants';
+
 // --- Live Rate Cache ---
 let cachedArsRate: number | null = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Fetches live ARS/USD official rate from dolarapi.com.
@@ -19,7 +21,7 @@ export const fetchLiveArsRate = async (): Promise<number> => {
     const now = Date.now();
 
     // Return cached if still fresh
-    if (cachedArsRate && (now - cacheTimestamp) < CACHE_DURATION_MS) {
+    if (cachedArsRate && (now - cacheTimestamp) < CURRENCY_CACHE_DURATION_MS) {
         return cachedArsRate;
     }
 
@@ -29,10 +31,10 @@ export const fetchLiveArsRate = async (): Promise<number> => {
         const rate = data.venta || data.compra || EXCHANGE_RATES.ARS;
         cachedArsRate = rate;
         cacheTimestamp = now;
-        console.log(`[Currency] Live ARS rate fetched: ${rate}`);
+        logger.log(`[Currency] Live ARS rate fetched: ${rate}`);
         return rate;
     } catch (error) {
-        console.warn('[Currency] Failed to fetch live rate, using fallback:', EXCHANGE_RATES.ARS);
+        logger.warn('[Currency] Failed to fetch live rate, using fallback:', EXCHANGE_RATES.ARS);
         return EXCHANGE_RATES.ARS;
     }
 };

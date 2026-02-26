@@ -1,7 +1,7 @@
 import { useDataContext } from '../context/DataContext';
-import { supabase } from '../services/supabaseClient';
 import { Professional } from '../types';
 import { professionalToDb } from '../utils/mappers';
+import { supabaseUpsert, supabaseDelete } from '../utils/supabaseHelpers';
 
 export const useProfessionals = (currentUserId?: string) => {
     const { professionals, setProfessionals } = useDataContext();
@@ -14,32 +14,12 @@ export const useProfessionals = (currentUserId?: string) => {
             return [...prev, proWithUser];
         });
 
-        try {
-            const { error } = await supabase
-                .from('professionals')
-                .upsert(professionalToDb(proWithUser), { onConflict: 'id' });
-
-            if (error) console.error('[Supabase] ❌ Error saving professional:', error);
-            else console.log(`[Supabase] ✅ Professional saved: ${newPro.name}`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception saving professional:', err);
-        }
+        await supabaseUpsert('professionals', professionalToDb(proWithUser), `professional ${newPro.name}`);
     };
 
     const deleteProfessional = async (proId: string) => {
         setProfessionals(prev => prev.filter(p => p.id !== proId));
-
-        try {
-            const { error } = await supabase
-                .from('professionals')
-                .delete()
-                .eq('id', proId);
-
-            if (error) console.error('[Supabase] ❌ Error deleting professional:', error);
-            else console.log(`[Supabase] ✅ Professional deleted: ${proId}`);
-        } catch (err) {
-            console.error('[Supabase] ❌ Exception deleting professional:', err);
-        }
+        await supabaseDelete('professionals', proId, 'professional');
     };
 
     return {
