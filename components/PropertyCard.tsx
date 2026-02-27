@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Property, PropertyStatus, Professional } from '../types';
 
 import { formatCurrency } from '../utils/currency';
-import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2 } from 'lucide-react';
+import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2, ArrowLeft } from 'lucide-react';
 
 interface PropertyCardProps {
   property: Property;
@@ -13,6 +13,7 @@ interface PropertyCardProps {
   onUpdateNote?: (id: string, note: string) => void;
   onFinishMaintenance?: (property: Property) => void;
   onDelete?: (id: string) => void;
+  onBack?: () => void;
   professionals: Professional[];
 }
 
@@ -25,6 +26,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   onUpdateNote,
   onFinishMaintenance,
   onDelete,
+  onBack,
   professionals
 }) => {
   const [noteText, setNoteText] = useState(property.notes || '');
@@ -156,7 +158,18 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         <img src={property.imageUrl} alt={property.address} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
 
-        <div className="absolute top-4 right-4 flex gap-2">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="absolute top-3 left-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm font-semibold min-h-[40px]"
+            aria-label="Volver al edificio"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Edificio
+          </button>
+        )}
+
+        <div className="absolute top-3 right-3 flex gap-2">
           {onDelete && (
             <button
               onClick={() => {
@@ -165,14 +178,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   onClose();
                 }
               }}
-              className="bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors flex items-center justify-center"
+              className="bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors flex items-center justify-center min-w-[40px] min-h-[40px]"
               title="Eliminar Propiedad"
             >
               <Trash2 className="w-5 h-5" />
             </button>
           )}
 
-          <button onClick={onClose} className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-1.5 rounded-full transition-colors" aria-label="Cerrar detalles">
+          <button onClick={onClose} className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center" aria-label="Cerrar detalles">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

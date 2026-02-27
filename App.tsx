@@ -84,6 +84,7 @@ const Dashboard: React.FC = () => {
   // Selection State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
+  const [previousBuilding, setPreviousBuilding] = useState<Building | null>(null);
 
   // Sync selectedProperty with latest data
   useEffect(() => {
@@ -466,6 +467,7 @@ const Dashboard: React.FC = () => {
                 }
                 onClose={() => setSelectedBuilding(null)}
                 onSelectUnit={(unit) => {
+                  setPreviousBuilding(selectedBuilding);
                   setSelectedBuilding(null);
                   setSelectedProperty(unit);
                 }}
@@ -475,12 +477,20 @@ const Dashboard: React.FC = () => {
               <PropertyCard
                 property={selectedProperty}
                 allProperties={properties}
-                onClose={() => setSelectedProperty(null)}
+                onClose={() => {
+                  setSelectedProperty(null);
+                  setPreviousBuilding(null);
+                }}
                 onViewDetails={handleViewMetrics}
                 onEdit={handleOpenEditModal}
                 onUpdateNote={handleUpdateNote}
                 onFinishMaintenance={(prop) => setFinishingProperty(prop)}
                 onDelete={handleDeleteProperty}
+                onBack={previousBuilding ? () => {
+                  setSelectedProperty(null);
+                  setSelectedBuilding(previousBuilding);
+                  setPreviousBuilding(null);
+                } : undefined}
                 professionals={professionals}
               />
             )}
