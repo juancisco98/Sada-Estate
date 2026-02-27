@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import FinancialDetailsCard from './FinancialDetailsCard';
 import IncomeBreakdownPanel from './IncomeBreakdownPanel';
+import ExpenseBreakdownModal from './ExpenseBreakdownModal';
 import MaintenanceDetailsModal from './MaintenanceDetailsModal';
 
 // --- Helper Functions ---
@@ -419,6 +420,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [expandedSection, setExpandedSection] = useState<'ARS' | 'USD' | null>(null);
+  const [selectedExpenseMonth, setSelectedExpenseMonth] = useState<number | null>(null);
 
   // Auto-select property if passed from parent
   useEffect(() => {
@@ -448,21 +450,59 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
   const arsYearTotal = arsMonthly.reduce((a, b) => a + b, 0);
 
-  // --- Annual expenses from maintenance tasks ---
-  // Assuming maintenanceTasks cost is now in ARS as well or we just treat it as number
-  // If tasks have currency, we might need to assume ARS. For now assuming raw number is ARS.
-  const annualExpensesARS = maintenanceTasks.reduce((acc, task) => {
-    const cost = task.cost || task.estimatedCost || 0;
-    return acc + cost;
-  }, 0);
+  // --- Monthly expenses from maintenance tasks ---
+  const arsExpensesMonthly = Array.from({ length: 12 }, (_, i) => {
+    return maintenanceTasks.reduce((sum, task) => {
+      let taskMonthTotal = 0;
+      const hasPartials = task.partialExpenses && task.partialExpenses.length > 0;
+
+      if (hasPartials) {
+        task.partialExpenses!.forEach(pe => {
+          const d = new Date(pe.date);
+          if (d.getMonth() === i && d.getFullYear() === selectedYear) {
+            taskMonthTotal += pe.amount;
+          }
+        });
+        if (task.status === 'COMPLETED' && task.endDate) {
+          const endD = new Date(task.endDate);
+          if (endD.getMonth() === i && endD.getFullYear() === selectedYear) {
+            const totalPartial = task.partialExpenses!.reduce((s, p) => s + p.amount, 0);
+            const remainder = Math.max(0, (task.cost || 0) - totalPartial);
+            taskMonthTotal += remainder;
+          }
+        }
+      } else {
+        const refDate = new Date(task.endDate || task.startDate);
+        if (refDate.getMonth() === i && refDate.getFullYear() === selectedYear) {
+          taskMonthTotal += (task.cost || task.estimatedCost || 0);
+        }
+      }
+      return sum + taskMonthTotal;
+    }, 0);
+  });
+
+  const annualExpensesARS = arsExpensesMonthly.reduce((a, b) => a + b, 0);
 
   // --- Net balance ---
   const arsYearNet = arsYearTotal - annualExpensesARS;
 
-  // --- Per-property financials ---
+  // --- Per-property financials (includes partial expenses from in-progress tasks) ---
   const propertyFinancials = properties.map(p => {
     const propTasks = maintenanceTasks.filter(t => t.propertyId === p.id);
-    const propExpenses = propTasks.reduce((acc, t) => acc + (t.cost || t.estimatedCost || 0), 0);
+    const propExpenses = propTasks.reduce((acc, t) => {
+      const hasPartials = t.partialExpenses && t.partialExpenses.length > 0;
+      const totalPartial = hasPartials ? t.partialExpenses!.reduce((s, pe) => s + pe.amount, 0) : 0;
+      const isCompleted = t.status === 'COMPLETED';
+      const finalCost = t.cost || 0;
+
+      if (hasPartials) {
+        // Sum all partials + remainder if completed
+        const remainder = isCompleted ? Math.max(0, finalCost - totalPartial) : 0;
+        return acc + totalPartial + remainder;
+      }
+      // No partials: use cost or estimatedCost
+      return acc + (t.cost || t.estimatedCost || 0);
+    }, 0);
     const net = p.monthlyRent - propExpenses;
     return { ...p, expenses: propExpenses, netResult: net };
   });
@@ -566,6 +606,56 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
           <IncomeBreakdownPanel properties={arsProperties} buildings={buildings} currency="ARS" />
         )}
       </section>
+
+      {/* === MONTHLY GRID: GASTOS === */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
+                Gastos Mensuales
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">Mantenimiento y obras por mes — Haga clic en un mes para ver el detalle</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xl font-bold text-gray-900">{formatCurrency(annualExpensesARS, 'ARS')}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
+          {arsExpensesMonthly.map((amount, i) => {
+            const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
+            const hasExpenses = amount > 0;
+            return (
+              <div
+                key={i}
+                onClick={() => hasExpenses && setSelectedExpenseMonth(i)}
+                className={`p-3 text-center transition-colors ${
+                  isCurrent ? 'bg-red-50' : hasExpenses ? 'hover:bg-red-50 cursor-pointer' : 'hover:bg-gray-50'
+                } ${hasExpenses ? 'cursor-pointer' : ''}`}
+              >
+                <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-red-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
+                <p className={`text-sm font-bold mt-1 ${amount > 0 ? (isCurrent ? 'text-red-700' : 'text-red-600') : 'text-gray-700'}`}>
+                  {amount > 0 ? formatCurrency(amount, 'ARS') : '—'}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* === EXPENSE BREAKDOWN MODAL === */}
+      {selectedExpenseMonth !== null && (
+        <ExpenseBreakdownModal
+          month={selectedExpenseMonth}
+          year={selectedYear}
+          maintenanceTasks={maintenanceTasks}
+          properties={properties}
+          professionals={professionals}
+          onClose={() => setSelectedExpenseMonth(null)}
+        />
+      )}
 
       {/* === PROPERTY DETAIL TABLE === */}
       <section>
