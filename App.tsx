@@ -12,7 +12,8 @@ import AddPropertyModal from './components/AddPropertyModal';
 import FinishMaintenanceModal from './components/FinishMaintenanceModal';
 import AddProfessionalModal from './components/AddProfessionalModal';
 import AssignProfessionalModal from './components/AssignProfessionalModal';
-import { Property, Professional, User } from './types';
+import BuildingCard from './components/BuildingCard';
+import { Property, Professional, User, Building } from './types';
 import { DataProvider, useDataContext } from './context/DataContext';
 import { supabase, signOut } from './services/supabaseClient';
 import { ALLOWED_EMAILS } from './constants';
@@ -82,6 +83,7 @@ const Dashboard: React.FC = () => {
 
   // Selection State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
 
   // Sync selectedProperty with latest data
   useEffect(() => {
@@ -252,9 +254,19 @@ const Dashboard: React.FC = () => {
   // --- Handlers ---
 
   const handlePropertySelect = useCallback((property: Property) => {
+    setSelectedBuilding(null);
     setSelectedProperty(property);
     setSearchResult(null);
   }, [setSearchResult]);
+
+  const handleBuildingSelect = useCallback((buildingId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (building) {
+      setSelectedProperty(null);
+      setSelectedBuilding(building);
+      setSearchResult(null);
+    }
+  }, [buildings, setSearchResult]);
 
   const handleViewMetrics = useCallback(() => {
     if (selectedProperty) {
@@ -418,10 +430,22 @@ const Dashboard: React.FC = () => {
             <MapBoard
               properties={properties}
               onPropertySelect={handlePropertySelect}
+              onBuildingSelect={handleBuildingSelect}
               center={mapCenter}
               searchResult={searchResult}
               onAddProperty={handleOpenAddModal}
             />
+            {selectedBuilding && (
+              <BuildingCard
+                building={selectedBuilding}
+                units={properties.filter(p => p.buildingId === selectedBuilding.id)}
+                onClose={() => setSelectedBuilding(null)}
+                onSelectUnit={(unit) => {
+                  setSelectedBuilding(null);
+                  setSelectedProperty(unit);
+                }}
+              />
+            )}
             {selectedProperty && (
               <PropertyCard
                 property={selectedProperty}
