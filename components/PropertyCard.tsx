@@ -154,14 +154,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* lastUser display removed */}
 
       {/* Property Image Header */}
-      <div className="h-40 w-full relative">
+      <div className="h-32 w-full relative">
         <img src={property.imageUrl} alt={property.address} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        <div className="absolute inset-0 bg-black/20"></div>
 
         {onBack && (
           <button
             onClick={onBack}
-            className="absolute top-3 left-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm font-semibold min-h-[40px]"
+            className="absolute top-3 left-3 bg-black/30 hover:bg-black/50 backdrop-blur-md text-white px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm font-semibold min-h-[40px]"
             aria-label="Volver al edificio"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -178,24 +178,25 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   onClose();
                 }
               }}
-              className="bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors flex items-center justify-center min-w-[40px] min-h-[40px]"
+              className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors flex items-center justify-center min-w-[40px] min-h-[40px]"
               title="Eliminar Propiedad"
             >
               <Trash2 className="w-5 h-5" />
             </button>
           )}
 
-          <button onClick={onClose} className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center" aria-label="Cerrar detalles">
+          <button onClick={onClose} className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center" aria-label="Cerrar detalles">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
+      </div>
 
-        <div className="absolute bottom-4 left-6 text-white">
-          <h3 className="text-2xl font-bold shadow-sm">{property.address}</h3>
-          <p className="text-white/90 text-sm font-medium">{property.tenantName}</p>
-        </div>
+      {/* Address & Tenant - below image for readability */}
+      <div className="px-6 pt-4 pb-2">
+        <h3 className="text-lg font-bold text-gray-900 leading-snug">{property.address}</h3>
+        <p className="text-sm text-gray-500 mt-0.5">{property.tenantName}</p>
       </div>
 
       <div className="p-6">

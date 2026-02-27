@@ -55,39 +55,40 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
       }}
     >
       {/* Header Image */}
-      <div className="h-36 w-full relative">
+      <div className="h-28 w-full relative">
         {imageUrl ? (
           <img src={imageUrl} alt={building.address} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-            <Building2 className="w-16 h-16 text-white/30" />
+            <Building2 className="w-12 h-12 text-white/30" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+        <div className="absolute inset-0 bg-black/20"></div>
 
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+          className="absolute top-3 right-3 bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
           aria-label="Cerrar"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+      </div>
 
-        <div className="absolute bottom-4 left-5 right-5">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full">
-              Edificio
+      {/* Address & badges - below image */}
+      <div className="px-5 pt-4 pb-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="bg-violet-100 text-violet-700 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-violet-200">
+            Edificio
+          </span>
+          {lateCount > 0 && (
+            <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2.5 py-1 rounded-full border border-red-200">
+              {lateCount} moroso{lateCount > 1 ? 's' : ''}
             </span>
-            {lateCount > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {lateCount} moroso{lateCount > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-          <h3 className="text-xl font-bold text-white leading-tight">{building.address}</h3>
+          )}
         </div>
+        <h3 className="text-lg font-bold text-gray-900 leading-snug">{building.address}</h3>
       </div>
 
       {/* Summary Stats */}
