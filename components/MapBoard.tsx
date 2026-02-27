@@ -161,29 +161,56 @@ const MapBoard: React.FC<MapBoardProps> = ({
   onAddProperty
 }) => {
   // Separate properties into standalone vs building-grouped
+  // Groups by buildingId first, then by shared address for properties without buildingId
   const { standalone, buildingGroups } = useMemo(() => {
-    const standalone: Property[] = [];
-    const groupMap = new Map<string, Property[]>();
+    const standaloneTemp: Property[] = [];
+    const buildingIdMap = new Map<string, Property[]>();
+    const noBuildingId: Property[] = [];
 
     properties.forEach(prop => {
       if (prop.buildingId) {
-        const group = groupMap.get(prop.buildingId) || [];
+        const group = buildingIdMap.get(prop.buildingId) || [];
         group.push(prop);
-        groupMap.set(prop.buildingId, group);
+        buildingIdMap.set(prop.buildingId, group);
       } else {
-        standalone.push(prop);
+        noBuildingId.push(prop);
       }
     });
 
+    // Group properties without buildingId by normalized address (first part before first comma)
+    const addressMap = new Map<string, Property[]>();
+    noBuildingId.forEach(prop => {
+      const baseAddress = prop.address.split(',')[0].trim().toLowerCase();
+      const group = addressMap.get(baseAddress) || [];
+      group.push(prop);
+      addressMap.set(baseAddress, group);
+    });
+
+    // Address groups with 2+ properties become building groups; singles stay standalone
+    const addressGroups: { buildingId: string; units: Property[]; coordinates: [number, number]; address: string }[] = [];
+    addressMap.forEach((units, baseAddress) => {
+      if (units.length >= 2) {
+        addressGroups.push({
+          buildingId: `addr:${baseAddress}`,
+          units,
+          coordinates: units[0].coordinates as [number, number],
+          address: units[0].address.split(',')[0],
+        });
+      } else {
+        standaloneTemp.push(units[0]);
+      }
+    });
+
+    const buildingIdGroups = Array.from(buildingIdMap.entries()).map(([buildingId, units]) => ({
+      buildingId,
+      units,
+      coordinates: units[0].coordinates as [number, number],
+      address: units[0].address.split(',')[0],
+    }));
+
     return {
-      standalone,
-      buildingGroups: Array.from(groupMap.entries()).map(([buildingId, units]) => ({
-        buildingId,
-        units,
-        // Use the first unit's coordinates as the building pin location
-        coordinates: units[0].coordinates as [number, number],
-        address: units[0].address.split(',')[0], // Short address
-      })),
+      standalone: standaloneTemp,
+      buildingGroups: [...buildingIdGroups, ...addressGroups],
     };
   }, [properties]);
 

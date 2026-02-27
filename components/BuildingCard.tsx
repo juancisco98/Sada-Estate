@@ -126,15 +126,17 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold text-gray-900 group-hover:text-violet-600 transition-colors">
-                        {unit.unitLabel || 'Unidad'}
+                        {unit.unitLabel || unit.tenantName || 'Unidad'}
                       </p>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusInfo.cls}`}>
                         {statusInfo.text}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {unit.tenantName || 'Sin inquilino'}
-                    </p>
+                    {unit.unitLabel && unit.tenantName && (
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
+                        {unit.tenantName}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-bold text-gray-900">{formatCurrency(unit.monthlyRent, 'ARS')}</p>

@@ -260,13 +260,34 @@ const Dashboard: React.FC = () => {
   }, [setSearchResult]);
 
   const handleBuildingSelect = useCallback((buildingId: string) => {
-    const building = buildings.find(b => b.id === buildingId);
-    if (building) {
-      setSelectedProperty(null);
-      setSelectedBuilding(building);
-      setSearchResult(null);
+    // Handle address-based groups (prefixed with "addr:")
+    if (buildingId.startsWith('addr:')) {
+      const baseAddress = buildingId.slice(5); // remove "addr:" prefix
+      const groupUnits = properties.filter(
+        p => !p.buildingId && p.address.split(',')[0].trim().toLowerCase() === baseAddress
+      );
+      if (groupUnits.length > 0) {
+        const virtualBuilding: Building = {
+          id: buildingId,
+          address: groupUnits[0].address,
+          coordinates: groupUnits[0].coordinates,
+          country: groupUnits[0].country,
+          currency: groupUnits[0].currency,
+          imageUrl: groupUnits[0].imageUrl,
+        };
+        setSelectedProperty(null);
+        setSelectedBuilding(virtualBuilding);
+        setSearchResult(null);
+      }
+    } else {
+      const building = buildings.find(b => b.id === buildingId);
+      if (building) {
+        setSelectedProperty(null);
+        setSelectedBuilding(building);
+        setSearchResult(null);
+      }
     }
-  }, [buildings, setSearchResult]);
+  }, [buildings, properties, setSearchResult]);
 
   const handleViewMetrics = useCallback(() => {
     if (selectedProperty) {
@@ -438,7 +459,11 @@ const Dashboard: React.FC = () => {
             {selectedBuilding && (
               <BuildingCard
                 building={selectedBuilding}
-                units={properties.filter(p => p.buildingId === selectedBuilding.id)}
+                units={
+                  selectedBuilding.id.startsWith('addr:')
+                    ? properties.filter(p => !p.buildingId && p.address.split(',')[0].trim().toLowerCase() === selectedBuilding.id.slice(5))
+                    : properties.filter(p => p.buildingId === selectedBuilding.id)
+                }
                 onClose={() => setSelectedBuilding(null)}
                 onSelectUnit={(unit) => {
                   setSelectedBuilding(null);
