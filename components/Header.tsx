@@ -26,15 +26,15 @@ const Header: React.FC<HeaderProps> = ({
     onNavigateToMap
 }) => {
     return (
-        <div className="absolute top-0 left-0 right-0 z-[800] p-4 pointer-events-none">
-            <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-3xl p-3 flex items-center justify-between pointer-events-auto max-w-[95%] xl:max-w-7xl mx-auto border border-white/50">
-                <div className="flex items-center gap-4">
+        <div className="absolute top-0 left-0 right-0 z-[800] p-2 sm:p-4 pointer-events-none">
+            <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-2xl sm:rounded-3xl p-2 sm:p-3 flex items-center justify-between pointer-events-auto max-w-[98%] sm:max-w-[95%] xl:max-w-7xl mx-auto border border-white/50">
+                <div className="flex items-center gap-2 sm:gap-4">
                     <button
                         onClick={onMenuClick}
                         className="p-2 hover:bg-gray-100 rounded-2xl text-gray-800 transition-colors active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label="Abrir menú"
                     >
-                        <Menu className="w-6 h-6" />
+                        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
 
                     <div className="hidden md:flex flex-col">
@@ -52,22 +52,22 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                     <InstallButton />
                     {currentView === 'MAP' && (
-                        <div className="flex items-center bg-gray-100/80 hover:bg-white border border-transparent hover:border-blue-200 rounded-2xl px-3 py-2 min-h-[44px] transition-all focus-within:ring-4 focus-within:ring-blue-100 shadow-inner">
+                        <div className="flex items-center bg-gray-100/80 hover:bg-white border border-transparent hover:border-blue-200 rounded-xl sm:rounded-2xl px-2 sm:px-3 py-1.5 sm:py-2 min-h-[40px] sm:min-h-[44px] transition-all focus-within:ring-4 focus-within:ring-blue-100 shadow-inner">
                             {isSearching ? (
-                                <Loader2 className="w-5 h-5 text-blue-500 animate-spin mr-2" />
+                                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 animate-spin mr-1.5 sm:mr-2" />
                             ) : (
                                 <button onClick={onSearchSubmit} className="cursor-pointer hover:text-blue-600 transition-colors" aria-label="Buscar">
-                                    <Search className="w-5 h-5 text-gray-500 mr-2" />
+                                    <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 mr-1.5 sm:mr-2" />
                                 </button>
                             )}
                             <input
                                 type="text"
-                                placeholder="Buscar dirección (Ej: Miami...)"
+                                placeholder="Buscar dirección..."
                                 aria-label="Buscar dirección"
-                                className="bg-transparent border-none outline-none text-base text-gray-800 w-40 md:w-72 placeholder-gray-400 font-medium"
+                                className="bg-transparent border-none outline-none text-sm sm:text-base text-gray-800 w-28 sm:w-40 md:w-72 placeholder-gray-400 font-medium"
                                 value={searchQuery}
                                 onChange={(e) => onSearchChange(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && onSearchSubmit()}

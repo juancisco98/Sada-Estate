@@ -22,7 +22,10 @@ export default defineConfig(({ mode }) => {
           theme_color: '#ffffff',
           background_color: '#ffffff',
           display: 'standalone',
+          orientation: 'portrait',
           start_url: '/',
+          scope: '/',
+          categories: ['business', 'finance'],
           icons: [
             {
               src: 'pwa-192x192.svg',
@@ -38,6 +41,12 @@ export default defineConfig(({ mode }) => {
               src: 'logo-sv.png',
               sizes: '512x512',
               type: 'image/png'
+            },
+            {
+              src: 'logo-sv.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         },

@@ -183,49 +183,51 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         }
     };
 
-    const getPropertyAddress = (propertyId: string | null) => {
+    const getPropertyAddress = (propertyId: string | null, short = false) => {
         if (!propertyId) return 'Sin asignar';
         const prop = properties.find(p => p.id === propertyId);
-        return prop ? (prop.unitLabel ? `${prop.address} - ${prop.unitLabel}` : prop.address) : 'Desconocido';
+        if (!prop) return 'Desconocido';
+        const addr = short ? prop.address.split(',')[0] : prop.address;
+        return prop.unitLabel ? `${addr} - ${prop.unitLabel}` : addr;
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-24">
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
                         Inquilinos
                     </h1>
-                    <p className="text-gray-500 mt-1 text-sm">
+                    <p className="text-gray-500 text-sm">
                         {tenants.length} {tenants.length === 1 ? 'inquilino' : 'inquilinos'} registrado{tenants.length !== 1 ? 's' : ''}
                     </p>
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all active:scale-95 min-h-[44px]"
                 >
                     <UserPlus size={18} /> Agregar Inquilino
                 </button>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-2xl border border-blue-200">
-                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Total Inquilinos</p>
-                    <p className="text-3xl font-bold text-blue-900 mt-1">{tenants.length}</p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-2xl border border-blue-200">
+                    <p className="text-[10px] sm:text-xs font-bold text-blue-700 uppercase tracking-wider">Total Inquilinos</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-900 mt-1">{tenants.length}</p>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-2xl border border-green-200">
-                    <p className="text-xs font-bold text-green-700 uppercase tracking-wider">Con Inmueble</p>
-                    <p className="text-3xl font-bold text-green-900 mt-1">{tenants.filter(t => t.propertyId).length}</p>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-2xl border border-green-200">
+                    <p className="text-[10px] sm:text-xs font-bold text-green-700 uppercase tracking-wider">Con Inmueble</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-green-900 mt-1">{tenants.filter(t => t.propertyId).length}</p>
                 </div>
-                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-5 rounded-2xl border border-yellow-200">
-                    <p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Pagos Registrados</p>
-                    <p className="text-3xl font-bold text-yellow-900 mt-1">{payments.length}</p>
+                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-2xl border border-yellow-200">
+                    <p className="text-[10px] sm:text-xs font-bold text-yellow-700 uppercase tracking-wider">Pagos Registrados</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-yellow-900 mt-1">{payments.length}</p>
                 </div>
-                <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-5 rounded-2xl border border-pink-200">
-                    <p className="text-xs font-bold text-pink-700 uppercase tracking-wider">Vacantes</p>
-                    <p className="text-3xl font-bold text-pink-900 mt-1">{vacantProperties.length}</p>
+                <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-2xl border border-pink-200">
+                    <p className="text-[10px] sm:text-xs font-bold text-pink-700 uppercase tracking-wider">Vacantes</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-pink-900 mt-1">{vacantProperties.length}</p>
                 </div>
             </div>
 
@@ -247,12 +249,12 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                             <div key={tenant.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
                                 {/* Main Row */}
                                 <div
-                                    className="flex items-center p-5 gap-4 cursor-pointer"
+                                    className="flex items-center p-3 sm:p-5 gap-3 sm:gap-4 cursor-pointer"
                                     onClick={() => setExpandedTenant(isExpanded ? null : tenant.id)}
                                 >
                                     {/* Avatar */}
                                     <div
-                                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm`}
+                                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-bold text-base sm:text-lg shrink-0 shadow-sm"
                                         style={{
                                             background: `linear-gradient(135deg, ${metrics.onTimeRate >= 80 ? '#22c55e' : metrics.onTimeRate >= 50 ? '#f59e0b' : '#ef4444'}, ${metrics.onTimeRate >= 80 ? '#16a34a' : metrics.onTimeRate >= 50 ? '#d97706' : '#dc2626'})`
                                         }}
@@ -262,23 +264,16 @@ const TenantsView: React.FC<TenantsViewProps> = ({
 
                                     {/* Info */}
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-bold text-gray-800 text-lg">
+                                        <h3 className="font-bold text-gray-800 text-base sm:text-lg truncate">
                                             {tenant.name}
                                         </h3>
-                                        <div className="flex items-center gap-4 mt-1 flex-wrap">
-                                            <span className="flex items-center gap-1.5 text-gray-500 text-sm">
-                                                <Home size={14} /> {getPropertyAddress(tenant.propertyId)}
-                                            </span>
-                                            {tenant.phone && (
-                                                <span className="flex items-center gap-1.5 text-gray-500 text-sm">
-                                                    <Phone size={14} /> {tenant.phone}
-                                                </span>
-                                            )}
-                                        </div>
+                                        <p className="text-xs sm:text-sm text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
+                                            <Home size={12} className="shrink-0" /> {getPropertyAddress(tenant.propertyId, true)}
+                                        </p>
                                     </div>
 
                                     {/* Metrics Summary */}
-                                    <div className="flex items-center gap-6 shrink-0">
+                                    <div className="flex items-center gap-4 sm:gap-6 shrink-0">
                                         <div className="text-right hidden sm:block">
                                             <p className="text-[10px] text-gray-400 font-bold uppercase">PUNTUALIDAD</p>
                                             <p className={`text-base font-bold ${metrics.onTimeRate >= 80 ? 'text-green-600' : metrics.onTimeRate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
@@ -300,20 +295,20 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     <div className="border-t border-gray-100 p-5 bg-gray-50/50 space-y-5 animate-in slide-in-from-top-2 duration-200">
 
                                         {/* Owner View: Financial Summary */}
-                                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                                            <p className="text-xs font-bold text-gray-500 uppercase mb-3">
+                                        <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200 shadow-sm">
+                                            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase mb-2 sm:mb-3">
                                                 Balance de la Propiedad
                                             </p>
-                                            <div className="grid grid-cols-3 gap-4">
+                                            <div className="grid grid-cols-3 gap-2 sm:gap-4">
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-semibold mb-1">INGRESOS (Alquileres)</p>
-                                                    <p className="text-lg font-bold text-green-600">
+                                                    <p className="text-[10px] sm:text-xs text-gray-500 font-semibold mb-1">INGRESOS</p>
+                                                    <p className="text-sm sm:text-lg font-bold text-green-600">
                                                         {formatCurrency(metrics.totalPaid, metrics.currency)}
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-semibold mb-1">GASTOS (Mantenimiento)</p>
-                                                    <p className="text-lg font-bold text-red-500">
+                                                    <p className="text-[10px] sm:text-xs text-gray-500 font-semibold mb-1">GASTOS</p>
+                                                    <p className="text-sm sm:text-lg font-bold text-red-500">
                                                         {(() => {
                                                             const propExpenses = maintenanceTasks
                                                                 .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
@@ -323,8 +318,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-semibold mb-1">RESULTADO NETO</p>
-                                                    <p className="text-lg font-bold text-gray-800">
+                                                    <p className="text-[10px] sm:text-xs text-gray-500 font-semibold mb-1">NETO</p>
+                                                    <p className="text-sm sm:text-lg font-bold text-gray-800">
                                                         {(() => {
                                                             const propExpenses = maintenanceTasks
                                                                 .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')

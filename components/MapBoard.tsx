@@ -207,11 +207,11 @@ const ReturnToStartButton = ({ properties }: { properties: Property[] }) => {
   };
 
   return (
-    <div className="leaflet-top leaflet-right" style={{ pointerEvents: 'none', top: '100px' }}>
+    <div className="leaflet-top leaflet-right" style={{ pointerEvents: 'none', top: '80px' }}>
       <div className="leaflet-control pointer-events-auto">
         <button
           onClick={handleClick}
-          className="bg-white text-black hover:bg-gray-100 flex items-center justify-center w-[40px] h-[40px] shadow-lg rounded-xl"
+          className="bg-white text-black hover:bg-gray-100 flex items-center justify-center w-[44px] h-[44px] shadow-lg rounded-xl border border-gray-200"
           title="Ver todas las propiedades"
         >
           <span className="text-xl">🏠</span>
@@ -369,7 +369,7 @@ const MapBoard: React.FC<MapBoardProps> = ({
           e.stopPropagation();
           onAddProperty && onAddProperty();
         }}
-        className="fixed bottom-24 right-6 z-[1000] w-14 h-14 bg-gray-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-gray-800 hover:scale-110 active:scale-95 transition-all md:bottom-8"
+        className="fixed bottom-6 right-5 z-[1000] w-14 h-14 bg-gray-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-gray-800 hover:scale-110 active:scale-95 transition-all"
         title="Crear Nueva Propiedad"
         aria-label="Crear nueva propiedad"
       >

@@ -7,7 +7,12 @@
   <link rel="icon" type="image/png" href="/logo-sv.png" />
   <link rel="apple-touch-icon" href="/logo-sv.png" />
   <meta name="theme-color" content="#ffffff" />
-  <title>SV Prop</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="SV Propiedades" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Gestión Inmobiliaria Inteligente" />
+  <title>SV Propiedades</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,7 +55,14 @@
       display: none;
     }
 
-    /* Bigger, more visible zoom controls */
+    /* Hide zoom controls on mobile — touch gestures are enough */
+    @media (max-width: 768px) {
+      .leaflet-control-zoom {
+        display: none !important;
+      }
+    }
+
+    /* Bigger, more visible zoom controls (desktop only) */
     .leaflet-control-zoom a {
       width: 40px !important;
       height: 40px !important;
