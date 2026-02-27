@@ -208,22 +208,19 @@ const MapBoard: React.FC<MapBoardProps> = ({
       address: units[0].address.split(',')[0],
     }));
 
-    // Offset standalone markers that overlap (very close coordinates)
-    const PROXIMITY_THRESHOLD = 0.0002; // ~20 meters
-    const OFFSET_AMOUNT = 0.00025; // ~25 meters spread
-    const offsetStandalone = standaloneTemp.map((prop, i) => {
-      // Find all properties at roughly the same position
+    // Nudge standalone markers that overlap so both are visible
+    const PROXIMITY_THRESHOLD = 0.00015; // ~15 meters
+    const NUDGE = 0.00008; // ~8 meters — just enough to not overlap
+    const offsetStandalone = standaloneTemp.map((prop) => {
       const cluster = standaloneTemp.filter(other =>
         Math.abs(other.coordinates[0] - prop.coordinates[0]) < PROXIMITY_THRESHOLD &&
         Math.abs(other.coordinates[1] - prop.coordinates[1]) < PROXIMITY_THRESHOLD
       );
       if (cluster.length <= 1) return { ...prop, displayCoordinates: prop.coordinates };
-      // Position in cluster
       const idx = cluster.findIndex(p => p.id === prop.id);
-      const angle = (2 * Math.PI * idx) / cluster.length;
-      const offsetLat = prop.coordinates[0] + OFFSET_AMOUNT * Math.cos(angle);
-      const offsetLng = prop.coordinates[1] + OFFSET_AMOUNT * Math.sin(angle);
-      return { ...prop, displayCoordinates: [offsetLat, offsetLng] as [number, number] };
+      // Spread horizontally (longitude) so they sit side by side on the street
+      const offsetLng = (idx - (cluster.length - 1) / 2) * NUDGE;
+      return { ...prop, displayCoordinates: [prop.coordinates[0], prop.coordinates[1] + offsetLng] as [number, number] };
     });
 
     return {
