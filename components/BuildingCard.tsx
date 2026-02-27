@@ -67,7 +67,7 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
 
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+          className="absolute top-3 right-3 bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Cerrar"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

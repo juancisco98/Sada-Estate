@@ -5,6 +5,8 @@ export enum PropertyStatus {
   WARNING = 'WARNING', // Próximo a vencer / Vacante (Amarillo)
 }
 
+export type PropertyType = 'casa' | 'edificio' | 'local';
+
 export interface User {
   id: string;
   name: string;
@@ -48,6 +50,7 @@ export interface Property {
   // Building / Unit
   buildingId?: string;
   unitLabel?: string;
+  propertyType: PropertyType;
   userId?: string;
 }
 

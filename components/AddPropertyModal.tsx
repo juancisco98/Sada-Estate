@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, User, Phone, DollarSign } from 'lucide-react';
-import { Property, PropertyStatus, Professional } from '../types';
+import { Property, PropertyStatus, Professional, PropertyType } from '../types';
 import { DEFAULT_PROPERTY_IMAGE } from '../constants';
 
 import { getTaxConfig } from '../utils/taxConfig';
@@ -66,6 +66,9 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     // Country & Currency
     country: detectedCountry || 'Argentina',
     currency: 'ARS',
+
+    // Property type
+    propertyType: 'casa' as PropertyType,
   });
 
   // Mock state for document uploads
@@ -90,6 +93,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         squareMeters: existingProperty.squareMeters?.toString() || '',
         country: existingProperty.country || 'Argentina',
         currency: existingProperty.currency || 'ARS',
+        propertyType: existingProperty.propertyType || (existingProperty.buildingId ? 'edificio' : 'casa'),
       });
     } else if (address) {
       const initialCountry = detectedCountry || 'Argentina';
@@ -248,6 +252,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           currency: formData.currency,
           buildingId: buildingId,
           unitLabel: unit.label,
+          propertyType: 'edificio',
         };
         buildingProperties.push(unitProp);
       }
@@ -283,7 +288,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       rooms: Number(formData.rooms) || undefined,
       squareMeters: Number(formData.squareMeters) || undefined,
       country: formData.country,
-      currency: formData.currency
+      currency: formData.currency,
+      propertyType: formData.propertyType || 'casa',
     };
     onSave(propertyToSave);
     toast.success(isEditing ? 'Propiedad actualizada' : 'Propiedad creada');
@@ -449,17 +455,53 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           )}
 
-          {/* Building Toggle */}
-          {!isRestrictedMode && (
-            <BuildingUnitManager
-              units={buildingUnits}
-              setUnits={setBuildingUnits}
-              currency={formData.currency}
-              isEditing={isEditing}
-              isBuilding={isBuilding}
-              setIsBuilding={setIsBuilding}
-              formatNumber={formatNumberWithDots}
-            />
+          {/* Property Type Selector */}
+          {!isRestrictedMode && !isEditing && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Tipo de Propiedad
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    { type: 'casa' as PropertyType, label: 'Casa', icon: '🏠', activeBg: 'bg-teal-600', activeBorder: 'border-teal-300', inactiveBg: 'bg-teal-50', inactiveBorder: 'border-teal-200' },
+                    { type: 'edificio' as PropertyType, label: 'Edificio', icon: '🏢', activeBg: 'bg-violet-600', activeBorder: 'border-violet-300', inactiveBg: 'bg-violet-50', inactiveBorder: 'border-violet-200' },
+                    { type: 'local' as PropertyType, label: 'Local', icon: '🏪', activeBg: 'bg-amber-600', activeBorder: 'border-amber-300', inactiveBg: 'bg-amber-50', inactiveBorder: 'border-amber-200' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.type}
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({ ...prev, propertyType: opt.type }));
+                        setIsBuilding(opt.type === 'edificio');
+                      }}
+                      className={`p-3 rounded-xl border-2 font-bold text-sm flex flex-col items-center gap-1 transition-all min-h-[56px] ${
+                        formData.propertyType === opt.type
+                          ? `${opt.activeBg} text-white ${opt.activeBorder} shadow-lg`
+                          : `${opt.inactiveBg} ${opt.inactiveBorder} text-gray-700 hover:shadow-md`
+                      }`}
+                    >
+                      <span className="text-xl">{opt.icon}</span>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Building Unit Manager — only when edificio is selected */}
+              {formData.propertyType === 'edificio' && (
+                <BuildingUnitManager
+                  units={buildingUnits}
+                  setUnits={setBuildingUnits}
+                  currency={formData.currency}
+                  isEditing={isEditing}
+                  isBuilding={true}
+                  setIsBuilding={() => {}}
+                  formatNumber={formatNumberWithDots}
+                  hideToggle={true}
+                />
+              )}
+            </div>
           )}
 
           {/* ROW 4: Professional + Documents side by side */}
@@ -535,7 +577,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           {isEditing && onDelete && (
             <button
               type="button" onClick={handleDelete}
-              className="bg-red-50 text-red-500 p-2.5 rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center border border-red-200 shrink-0"
+              className="bg-red-50 text-red-500 p-2.5 rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center border border-red-200 shrink-0 min-h-[44px] min-w-[44px]"
               title="Eliminar Propiedad"
             >
               <Trash2 className="w-5 h-5" />
@@ -543,13 +585,13 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           )}
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 font-medium text-sm hover:bg-white hover:text-gray-700 transition-all"
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 font-medium text-sm hover:bg-white hover:text-gray-700 transition-all min-h-[44px]"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
-            className="flex-[2] py-2.5 rounded-xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+            className="flex-[2] py-2.5 rounded-xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 min-h-[44px]"
           >
             <Save className="w-4 h-4" /> {isEditing ? 'Guardar Cambios' : 'Crear Propiedad'}
           </button>

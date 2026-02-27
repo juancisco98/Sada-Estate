@@ -71,6 +71,76 @@ const createBuildingIcon = (unitCount: number) => {
   });
 };
 
+// House icon — rounded square with house emoji, status-colored
+const createHouseIcon = (property: Property) => {
+  let borderColor = 'border-teal-200';
+  let bgColor = 'bg-teal-600';
+
+  if (property.assignedProfessionalId) {
+    borderColor = 'border-orange-200';
+    bgColor = 'bg-orange-500';
+  } else {
+    switch (property.status) {
+      case PropertyStatus.CURRENT: borderColor = 'border-green-200'; bgColor = 'bg-green-600'; break;
+      case PropertyStatus.LATE: borderColor = 'border-red-200'; bgColor = 'bg-red-600'; break;
+      case PropertyStatus.WARNING: borderColor = 'border-yellow-200'; bgColor = 'bg-yellow-500'; break;
+    }
+  }
+
+  const html = `
+    <div class="relative w-9 h-9 rounded-xl shadow-lg border-[3px] ${borderColor} ${bgColor} flex items-center justify-center transform hover:scale-110 transition-transform duration-200">
+      <div class="text-white text-sm">🏠</div>
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: 'custom-house-icon',
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+  });
+};
+
+// Local/shop icon — rounded square with shop emoji, status-colored
+const createLocalIcon = (property: Property) => {
+  let borderColor = 'border-amber-200';
+  let bgColor = 'bg-amber-600';
+
+  if (property.assignedProfessionalId) {
+    borderColor = 'border-orange-200';
+    bgColor = 'bg-orange-500';
+  } else {
+    switch (property.status) {
+      case PropertyStatus.CURRENT: borderColor = 'border-green-200'; bgColor = 'bg-green-600'; break;
+      case PropertyStatus.LATE: borderColor = 'border-red-200'; bgColor = 'bg-red-600'; break;
+      case PropertyStatus.WARNING: borderColor = 'border-yellow-200'; bgColor = 'bg-yellow-500'; break;
+    }
+  }
+
+  const html = `
+    <div class="relative w-9 h-9 rounded-xl shadow-lg border-[3px] ${borderColor} ${bgColor} flex items-center justify-center transform hover:scale-110 transition-transform duration-200">
+      <div class="text-white text-sm">🏪</div>
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: 'custom-local-icon',
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+  });
+};
+
+// Select the appropriate icon for a standalone property based on its type
+const getStandaloneIcon = (property: Property) => {
+  const type = property.propertyType || (property.buildingId ? 'edificio' : 'casa');
+  switch (type) {
+    case 'casa': return createHouseIcon(property);
+    case 'local': return createLocalIcon(property);
+    default: return createCustomIcon(property);
+  }
+};
+
 const createSearchIcon = () => {
   const html = `
     <div class="relative w-10 h-10 flex items-center justify-center">
@@ -250,7 +320,7 @@ const MapBoard: React.FC<MapBoardProps> = ({
           <Marker
             key={prop.id}
             position={prop.displayCoordinates}
-            icon={createCustomIcon(prop)}
+            icon={getStandaloneIcon(prop)}
             eventHandlers={{
               click: () => onPropertySelect(prop),
             }}

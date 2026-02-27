@@ -1,6 +1,6 @@
 // Force update
 import React, { useState, useEffect, useMemo } from 'react';
-import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Building, TenantPayment } from '../types';
+import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Building, TenantPayment, PropertyType } from '../types';
 import { useDataContext } from '../context/DataContext';
 import {
   TrendingUp,
@@ -81,6 +81,37 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onFinishMaintenance
 }) => {
 
+  // Property type helper (backward compatible)
+  const getPropertyType = (p: Property): PropertyType => {
+    return p.propertyType || (p.buildingId ? 'edificio' : 'casa');
+  };
+
+  // Category filter state
+  const [activeCategory, setActiveCategory] = useState<'all' | 'casa' | 'edificio' | 'local'>('all');
+
+  // Categorize properties
+  const categorized = useMemo(() => {
+    const casas = properties.filter(p => getPropertyType(p) === 'casa');
+    const edificioProps = properties.filter(p => getPropertyType(p) === 'edificio');
+    const locales = properties.filter(p => getPropertyType(p) === 'local');
+
+    // Group edificio properties by buildingId or shared address
+    const buildingMap = new Map<string, Property[]>();
+    edificioProps.forEach(p => {
+      const key = p.buildingId || `addr:${p.address.split(',')[0].trim().toLowerCase()}`;
+      const group = buildingMap.get(key) || [];
+      group.push(p);
+      buildingMap.set(key, group);
+    });
+
+    return { casas, edificioGroups: Array.from(buildingMap.entries()), locales };
+  }, [properties]);
+
+  const filteredProperties = useMemo(() => {
+    if (activeCategory === 'all') return properties;
+    return properties.filter(p => getPropertyType(p) === activeCategory);
+  }, [properties, activeCategory]);
+
   const totalIncome = useMemo(() =>
     properties.reduce((acc, p) => acc + p.monthlyRent, 0),
     [properties]
@@ -116,18 +147,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div className="flex items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900">Visión General</h2>
-            <p className="text-gray-500">Estado de mis propiedades y actividad reciente.</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Visión General</h2>
+            <p className="text-gray-500 text-sm sm:text-base">Estado de mis propiedades y actividad reciente.</p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 flex-wrap w-full sm:w-auto">
           {onDeleteProperty && (
             <button
               onClick={() => setIsDeleteMode(!isDeleteMode)}
-              className={`p-3 rounded-full shadow-lg flex items-center gap-2 px-6 transition-all ${isDeleteMode
+              className={`p-3 rounded-full shadow-lg flex items-center gap-2 px-4 sm:px-6 transition-all min-h-[44px] ${isDeleteMode
                 ? 'bg-red-600 text-white hover:bg-red-700 ring-2 ring-red-300'
                 : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'
                 }`}
@@ -141,22 +172,125 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           {onAddProperty && !isDeleteMode && (
             <button
               onClick={onAddProperty}
-              className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 shadow-lg flex items-center gap-2 px-6"
+              className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 shadow-lg flex items-center gap-2 px-4 sm:px-6 min-h-[44px]"
             >
               <span className="font-bold text-lg">+</span>
-              <span className="font-semibold">Agregar Propiedad</span>
+              <span className="font-semibold text-sm sm:text-base">Agregar</span>
             </button>
           )}
         </div>
       </header>
 
+      {/* Category Filter Buttons */}
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { key: 'all' as const, label: 'Todas', icon: '📋', count: properties.length },
+          { key: 'casa' as const, label: 'Casas', icon: '🏠', count: categorized.casas.length },
+          { key: 'edificio' as const, label: 'Edificios', icon: '🏢', count: categorized.edificioGroups.length },
+          { key: 'local' as const, label: 'Locales', icon: '🏪', count: categorized.locales.length },
+        ]).map(cat => (
+          <button
+            key={cat.key}
+            onClick={() => setActiveCategory(cat.key)}
+            className={`px-4 py-2.5 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all min-h-[44px] ${
+              activeCategory === cat.key
+                ? 'bg-gray-900 text-white shadow-lg'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <span>{cat.icon}</span>
+            {cat.label}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+              activeCategory === cat.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+            }`}>{cat.count}</span>
+          </button>
+        ))}
+      </div>
+
       {/* SECTION 1: Property Cards */}
       <section>
         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-blue-600" /> Mis Propiedades
+          <MapPin className="w-5 h-5 text-blue-600" /> {activeCategory === 'edificio' ? 'Mis Edificios' : activeCategory === 'casa' ? 'Mis Casas' : activeCategory === 'local' ? 'Mis Locales' : 'Mis Propiedades'}
         </h3>
+
+        {/* Building grouped view when Edificios filter is active */}
+        {activeCategory === 'edificio' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {categorized.edificioGroups.map(([groupKey, units]) => {
+              const firstUnit = units[0];
+              const totalRent = units.reduce((acc, u) => acc + u.monthlyRent, 0);
+              const lateCount = units.filter(u => u.status === PropertyStatus.LATE).length;
+
+              return (
+                <div key={groupKey} className="bg-white rounded-3xl shadow-sm border-2 border-violet-200 overflow-hidden">
+                  {/* Building header with image */}
+                  <div className="h-36 w-full relative">
+                    {firstUnit.imageUrl ? (
+                      <img src={firstUnit.imageUrl} alt={firstUnit.address} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+                        <Building2 className="w-12 h-12 text-white/30" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/20"></div>
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-violet-600 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-lg">
+                        🏢 Edificio
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <h4 className="text-lg font-bold text-gray-900 mb-2">{firstUnit.address}</h4>
+                    <div className="flex gap-2 flex-wrap mb-4">
+                      <span className="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full font-bold border border-violet-200">
+                        {units.length} {units.length === 1 ? 'unidad' : 'unidades'}
+                      </span>
+                      <span className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-bold border border-green-200">
+                        {formatCurrency(totalRent, 'ARS')}/mes
+                      </span>
+                      {lateCount > 0 && (
+                        <span className="text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-full font-bold border border-red-200">
+                          {lateCount} moroso{lateCount > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    {/* Unit list */}
+                    <div className="space-y-1 max-h-[220px] overflow-y-auto">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Departamentos</p>
+                      {units
+                        .sort((a, b) => (a.unitLabel || '').localeCompare(b.unitLabel || ''))
+                        .map(unit => {
+                          const hasPro = !!unit.assignedProfessionalId;
+                          return (
+                            <div
+                              key={unit.id}
+                              onClick={() => onEditProperty && onEditProperty(unit)}
+                              className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 cursor-pointer group transition-colors"
+                            >
+                              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                                hasPro ? 'bg-orange-500' :
+                                unit.status === PropertyStatus.CURRENT ? 'bg-green-500' :
+                                unit.status === PropertyStatus.LATE ? 'bg-red-500' : 'bg-yellow-400'
+                              }`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 group-hover:text-violet-600 transition-colors">
+                                  {unit.unitLabel || 'Unidad'}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">{unit.tenantName}</p>
+                              </div>
+                              <p className="text-sm font-bold text-gray-700 flex-shrink-0">{formatCurrency(unit.monthlyRent, 'ARS')}</p>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {properties.map(property => {
+          {filteredProperties.map(property => {
             const maintenance = getMaintenanceInfo(property);
             const isMaintenance = !!maintenance;
 
@@ -195,6 +329,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     alt={property.address}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
+                  {/* Property Type Badge */}
+                  <div className="absolute top-4 left-4">
+                    {getPropertyType(property) === 'casa' && (
+                      <span className="bg-teal-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏠 Casa</span>
+                    )}
+                    {getPropertyType(property) === 'local' && (
+                      <span className="bg-amber-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏪 Local</span>
+                    )}
+                    {getPropertyType(property) === 'edificio' && (
+                      <span className="bg-violet-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏢 Edificio</span>
+                    )}
+                  </div>
                   {/* Status Badge & Delete Button */}
                   <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
                     {onDeleteProperty && (
@@ -339,6 +485,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             );
           })}
         </div>
+        )}
       </section>
 
       <div className="border-t border-gray-200 my-8"></div>

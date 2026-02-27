@@ -161,7 +161,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         {onBack && (
           <button
             onClick={onBack}
-            className="absolute top-3 left-3 bg-black/30 hover:bg-black/50 backdrop-blur-md text-white px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm font-semibold min-h-[40px]"
+            className="absolute top-3 left-3 bg-black/30 hover:bg-black/50 backdrop-blur-md text-white px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm font-semibold min-h-[44px]"
             aria-label="Volver al edificio"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -178,14 +178,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   onClose();
                 }
               }}
-              className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors flex items-center justify-center min-w-[40px] min-h-[40px]"
+              className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors flex items-center justify-center min-w-[44px] min-h-[44px]"
               title="Eliminar Propiedad"
             >
               <Trash2 className="w-5 h-5" />
             </button>
           )}
 
-          <button onClick={onClose} className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center" aria-label="Cerrar detalles">
+          <button onClick={onClose} className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Cerrar detalles">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

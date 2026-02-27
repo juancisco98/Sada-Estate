@@ -38,6 +38,7 @@ export interface DbPropertyRow {
     exchange_rate?: number | string | null;
     building_id?: string | null;
     unit_label?: string | null;
+    property_type?: string | null;
     user_id?: string | null;
     created_at?: string;
 }

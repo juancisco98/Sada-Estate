@@ -19,6 +19,7 @@ interface BuildingUnitManagerProps {
     isBuilding: boolean;
     setIsBuilding: (value: boolean) => void;
     formatNumber: (value: string | number) => string;
+    hideToggle?: boolean;
 }
 
 export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
@@ -28,7 +29,8 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
     isEditing,
     isBuilding,
     setIsBuilding,
-    formatNumber
+    formatNumber,
+    hideToggle = false
 }) => {
     const [expandedUnit, setExpandedUnit] = useState<number>(0);
 
@@ -51,8 +53,9 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
     if (isEditing) return null;
 
     return (
-        <div className="bg-violet-50 rounded-2xl p-5 border border-violet-100 space-y-4">
-            <div className="flex justify-between items-center">
+        <div className={`${hideToggle ? '' : 'bg-violet-50 rounded-2xl p-5 border border-violet-100'} space-y-4`}>
+            {!hideToggle && (
+              <div className="flex justify-between items-center">
                 <h3 className="text-sm font-bold text-violet-900 uppercase tracking-wider flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-violet-600" /> ¿Es un Edificio?
                 </h3>
@@ -64,9 +67,10 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                 >
                     <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBuilding ? 'translate-x-6' : 'translate-x-0.5'}`}></span>
                 </button>
-            </div>
+              </div>
+            )}
 
-            {isBuilding && (
+            {(isBuilding || hideToggle) && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                     <p className="text-xs text-violet-700">Define cada piso/departamento con sus datos individuales:</p>
 

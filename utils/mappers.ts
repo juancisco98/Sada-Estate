@@ -1,4 +1,4 @@
-import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment } from '../types';
+import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment, PropertyType } from '../types';
 import {
     DbBuildingRow,
     DbPropertyRow,
@@ -57,6 +57,7 @@ export const dbToProperty = (row: DbPropertyRow): Property => ({
     exchangeRate: row.exchange_rate ? Number(row.exchange_rate) : undefined,
     buildingId: row.building_id || undefined,
     unitLabel: row.unit_label || undefined,
+    propertyType: (row.property_type as PropertyType) || (row.building_id ? 'edificio' : 'casa'),
     userId: row.user_id,
 });
 
@@ -83,6 +84,7 @@ export const propertyToDb = (p: Property): Record<string, unknown> => ({
     exchange_rate: p.exchangeRate || null,
     building_id: p.buildingId || null,
     unit_label: p.unitLabel || '',
+    property_type: p.propertyType || 'casa',
     user_id: p.userId || undefined,
 });
 

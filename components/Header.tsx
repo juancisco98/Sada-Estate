@@ -31,7 +31,7 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onMenuClick}
-                        className="p-2 hover:bg-gray-100 rounded-2xl text-gray-800 transition-colors active:scale-95"
+                        className="p-2 hover:bg-gray-100 rounded-2xl text-gray-800 transition-colors active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label="Abrir menú"
                     >
                         <Menu className="w-6 h-6" />
@@ -55,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="flex items-center gap-3">
                     <InstallButton />
                     {currentView === 'MAP' && (
-                        <div className="flex items-center bg-gray-100/80 hover:bg-white border border-transparent hover:border-blue-200 rounded-2xl px-3 py-2 transition-all focus-within:ring-4 focus-within:ring-blue-100 shadow-inner">
+                        <div className="flex items-center bg-gray-100/80 hover:bg-white border border-transparent hover:border-blue-200 rounded-2xl px-3 py-2 min-h-[44px] transition-all focus-within:ring-4 focus-within:ring-blue-100 shadow-inner">
                             {isSearching ? (
                                 <Loader2 className="w-5 h-5 text-blue-500 animate-spin mr-2" />
                             ) : (
