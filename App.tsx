@@ -25,6 +25,8 @@ import { useTenantData } from './hooks/useTenantData';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useSearch } from './hooks/useSearch';
 import type { Session } from '@supabase/supabase-js';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 // Lazy load dashboard views
 const OverviewView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.OverviewView })));
@@ -211,6 +213,40 @@ const Dashboard: React.FC = () => {
       handleAuthChange(event, session);
     });
 
+    const handleAppUrlOpen = (data: any) => {
+      logger.log('[Auth] App opened with URL:', data.url);
+      if (data.url.includes('com.svpropiedades.app://login-callback')) {
+        // The URL could be parsed like a normal URL
+        // However, iOS/Android URLs might need manual extracting if it contains hash or search
+        const urlStr = data.url.replace('#', '?'); // Convert hash to search if needed for easy parsing of PKCE
+        try {
+          const url = new URL(urlStr);
+          const code = url.searchParams.get('code');
+          if (code) {
+            logger.log('[Auth] Exchanging code from native deep link');
+            supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+              if (error) {
+                logger.error('[Auth] PKCE code exchange failed on native:', error);
+              }
+            });
+          } else {
+            // In case it comes as a hash fragment like access_token=xxx
+            const access_token = url.searchParams.get('access_token');
+            const refresh_token = url.searchParams.get('refresh_token');
+            if (access_token && refresh_token) {
+              supabase.auth.setSession({ access_token, refresh_token });
+            }
+          }
+        } catch (e) {
+          logger.error('Error parsing deep link url', e);
+        }
+      }
+    };
+
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener('appUrlOpen', handleAppUrlOpen);
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
 
@@ -243,6 +279,9 @@ const Dashboard: React.FC = () => {
 
     return () => {
       subscription.unsubscribe();
+      if (Capacitor.isNativePlatform()) {
+        CapacitorApp.removeAllListeners();
+      }
     };
   }, []);
 

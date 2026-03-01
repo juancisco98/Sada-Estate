@@ -48,12 +48,19 @@ export const supabase: SupabaseClient = supabaseInstance || new Proxy({} as Supa
     }
 });
 
+import { Capacitor } from '@capacitor/core';
+
 export const signInWithGoogle = async () => {
     if (!supabaseInstance) return { error: { message: 'Supabase not configured' } };
+
+    // Determine the redirect URL based on platform
+    const isNative = Capacitor.isNativePlatform();
+    const redirectToUrl = isNative ? 'com.svpropiedades.app://login-callback' : window.location.origin;
+
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin,
+            redirectTo: redirectToUrl,
         },
     });
     return { data, error };
