@@ -121,6 +121,7 @@ export interface PartialExpense {
   amount: number;
   date: string; // ISO string
   by: string; // User who added it
+  proofUrl?: string; // URL to uploaded receipt/proof
 }
 
 export interface ExpenseLog {

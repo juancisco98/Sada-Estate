@@ -49,7 +49,7 @@ export const useMaintenance = (currentUserId?: string) => {
         await supabaseInsert('maintenance_tasks', taskToDb(newTask), 'maintenance task');
     };
 
-    const addPartialExpense = async (taskId: string, expense: { description: string, amount: number, date: string, by: string }) => {
+    const addPartialExpense = async (taskId: string, expense: { description: string, amount: number, date: string, by: string, proofUrl?: string }) => {
         const newExpense = { ...expense, id: `pe-${Date.now()}` };
 
         setMaintenanceTasks(prev => prev.map(task => {

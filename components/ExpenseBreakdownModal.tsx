@@ -1,6 +1,6 @@
 import React from 'react';
 import { MaintenanceTask, Property, Professional } from '../types';
-import { X, Receipt, Calendar, Hammer, Building2, Home } from 'lucide-react';
+import { X, Receipt, Calendar, Hammer, Building2, Home, ExternalLink } from 'lucide-react';
 import { formatCurrency } from '../utils/currency';
 
 const MONTH_NAMES_FULL = [
@@ -28,6 +28,7 @@ interface ExpenseItem {
   propertyId: string;
   tenantName: string;
   isPartial: boolean;
+  proofUrl?: string;
 }
 
 const ExpenseBreakdownModal: React.FC<ExpenseBreakdownModalProps> = ({
@@ -62,6 +63,7 @@ const ExpenseBreakdownModal: React.FC<ExpenseBreakdownModalProps> = ({
             propertyId: task.propertyId,
             tenantName: property?.tenantName || '',
             isPartial: true,
+            proofUrl: pe.proofUrl,
           });
         }
       });
@@ -215,6 +217,11 @@ const ExpenseBreakdownModal: React.FC<ExpenseBreakdownModalProps> = ({
                                   <Calendar className="w-3 h-3" />
                                   {new Date(item.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
                                 </span>
+                                {item.proofUrl && (
+                                  <a href={item.proofUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-blue-500 hover:text-blue-700 flex items-center gap-1 uppercase tracking-widest">
+                                    <ExternalLink className="w-3 h-3" /> Comprobante
+                                  </a>
+                                )}
                               </div>
                             </div>
                           </div>
