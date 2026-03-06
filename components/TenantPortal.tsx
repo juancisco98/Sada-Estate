@@ -116,20 +116,17 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                     {MONTH_NAMES.map((monthName, index) => {
                         const status = getMonthStatus(index);
-                        const isFuture = index > new Date().getMonth();
                         const payment = tenantPaymentsThisYear.find(p => p.month === index + 1);
 
                         return (
                             <button
                                 key={monthName}
-                                disabled={isFuture && status === 'PENDING'}
                                 onClick={() => setSelectedMonth(index + 1)}
-                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group
-                  ${isFuture && status === 'PENDING' ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50/50' : 'hover:-translate-y-1.5 hover:shadow-xl cursor-pointer shadow-sm'}
+                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-xl cursor-pointer shadow-sm
                   ${status === 'PAID' ? 'border-green-200 bg-gradient-to-br from-green-50 to-green-100/40 shadow-green-100' : ''}
                   ${status === 'REVISION' ? 'border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/40 shadow-yellow-100' : ''}
                   ${status === 'INCOMPLETE' ? 'border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100/40 shadow-orange-100' : ''}
-                  ${status === 'PENDING' && !isFuture ? 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-indigo-100' : ''}
+                  ${status === 'PENDING' ? 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-indigo-100' : ''}
                 `}
                             >
                                 <span className={`text-base sm:text-lg font-bold mb-1.5 transition-colors ${status === 'PAID' ? 'text-green-800' : status === 'REVISION' ? 'text-yellow-800' : status === 'INCOMPLETE' ? 'text-orange-800' : 'text-gray-700 group-hover:text-indigo-900'}`}>
@@ -155,7 +152,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                             <span className="text-[11px] font-bold text-orange-700 uppercase tracking-wider mt-0.5">Incompleto</span>
                                         </>
                                     )}
-                                    {status === 'PENDING' && !isFuture && (
+                                    {status === 'PENDING' && (
                                         <>
                                             <Calendar className="text-gray-300 w-6 h-6 group-hover:text-indigo-400 transition-colors" />
                                             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mt-0.5 group-hover:text-indigo-600 transition-colors">Pendiente</span>
