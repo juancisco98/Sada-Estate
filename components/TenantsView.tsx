@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
-import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader, Clock } from 'lucide-react';
+import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader, Clock, Edit2 } from 'lucide-react';
 import { uploadPaymentProof } from '../services/storage';
 import { toast } from 'sonner';
 import { handleError } from '../utils/errorHandler';
@@ -42,6 +42,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     const [showPaymentModal, setShowPaymentModal] = useState<string | null>(null); // tenantId
     const [editingPayment, setEditingPayment] = useState<TenantPayment | null>(null);
     const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
+    const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
     const [newTenant, setNewTenant] = useState({ name: '', phone: '', email: '', propertyId: '' });
     const [isUploading, setIsUploading] = useState(false);
     const [newPayment, setNewPayment] = useState({
@@ -61,15 +62,16 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     const handleAddTenant = () => {
         if (!newTenant.name.trim()) return;
         const tenant: Tenant = {
-            id: `ten-${Date.now()}`,
+            id: editingTenantId || `ten-${Date.now()}`,
             name: newTenant.name.trim(),
             phone: newTenant.phone.trim(),
             email: newTenant.email.trim(),
             propertyId: newTenant.propertyId || null,
         };
         onSaveTenant(tenant);
-        toast.success('Inquilino agregado correctamente');
+        toast.success(editingTenantId ? 'Inquilino actualizado correctamente' : 'Inquilino agregado correctamente');
         setNewTenant({ name: '', phone: '', email: '', propertyId: '' });
+        setEditingTenantId(null);
         setShowAddModal(false);
     };
 
@@ -402,6 +404,22 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    setNewTenant({
+                                                        name: tenant.name,
+                                                        phone: tenant.phone || '',
+                                                        email: tenant.email || '',
+                                                        propertyId: tenant.propertyId || ''
+                                                    });
+                                                    setEditingTenantId(tenant.id);
+                                                    setShowAddModal(true);
+                                                }}
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-500 border border-blue-200 text-sm font-semibold hover:bg-blue-100 transition-colors"
+                                            >
+                                                <Edit2 size={16} /> Editar
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     if (confirm(`¿Eliminar inquilino "${tenant.name}"?`)) {
                                                         onDeleteTenant(tenant.id);
                                                         toast.success('Inquilino eliminado');
@@ -428,9 +446,9 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                         <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in scale-95 duration-200">
                             <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
                                 <h2 className="text-xl font-bold text-gray-800">
-                                    Nuevo Inquilino
+                                    {editingTenantId ? 'Editar Inquilino' : 'Nuevo Inquilino'}
                                 </h2>
-                                <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                                <button onClick={() => { setShowAddModal(false); setEditingTenantId(null); setNewTenant({ name: '', phone: '', email: '', propertyId: '' }); }} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                                     <X size={20} className="text-gray-500" />
                                 </button>
                             </div>
@@ -487,7 +505,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     disabled={!newTenant.name.trim()}
                                     className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all active:scale-[0.98] ${newTenant.name.trim() ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`}
                                 >
-                                    Agregar Inquilino
+                                    {editingTenantId ? 'Guardar Cambios' : 'Agregar Inquilino'}
                                 </button>
                             </div>
                         </div>
