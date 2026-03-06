@@ -60,7 +60,7 @@ CREATE POLICY "Tenant read access to assigned properties" ON properties
     FOR SELECT TO authenticated
     USING (
         id IN (
-            SELECT "propertyId" 
+            SELECT property_id 
             FROM tenants 
             WHERE email = (auth.jwt() ->> 'email')
         )
@@ -85,14 +85,14 @@ CREATE POLICY "Family access to tenant_payments" ON tenant_payments
 CREATE POLICY "Tenant access to own payments" ON tenant_payments
     FOR ALL TO authenticated
     USING (
-        "tenantId" IN (
+        tenant_id IN (
             SELECT id 
             FROM tenants 
             WHERE email = (auth.jwt() ->> 'email')
         )
     )
     WITH CHECK (
-        "tenantId" IN (
+        tenant_id IN (
             SELECT id 
             FROM tenants 
             WHERE email = (auth.jwt() ->> 'email')

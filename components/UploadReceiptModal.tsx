@@ -71,7 +71,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
             const todayString = new Date().toISOString().split('T')[0];
 
             const paymentRecord: TenantPayment = {
-                id: existingPayment?.id || crypto.randomUUID(),
+                id: existingPayment?.id || `pay-${Date.now()}`,
                 tenantId: tenant.id,
                 propertyId: property?.id || null,
                 amount: parseFloat(amount) || 0,
