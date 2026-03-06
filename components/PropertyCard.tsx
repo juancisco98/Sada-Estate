@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Property, PropertyStatus, Professional } from '../types';
 
 import { formatCurrency } from '../utils/currency';
-import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2, ArrowLeft } from 'lucide-react';
+import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2, ArrowLeft, Users } from 'lucide-react';
 
 interface PropertyCardProps {
   property: Property;
@@ -138,10 +138,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   return (
     <div
       className={`
-      absolute bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-[420px] 
-      bg-white rounded-3xl shadow-2xl z-[1000] animate-in slide-in-from-bottom-4 duration-300 overflow-hidden
+      absolute bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-[400px] 
+      bg-white/85 backdrop-blur-2xl rounded-[36px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-white/60
+      z-[1000] animate-in slide-in-from-bottom-4 duration-300 
       ${isUnderMaintenance ? 'ring-4 ring-orange-100/50' : ''}
-      transition-all duration-300
+      transition-all duration-300 p-3
     `}
       style={{
         borderTopWidth: '6px',
@@ -154,9 +155,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* lastUser display removed */}
 
       {/* Property Image Header */}
-      <div className="h-32 w-full relative">
+      <div className="h-44 w-full relative rounded-[28px] overflow-hidden">
         <img src={property.imageUrl} alt={property.address} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white/20 to-transparent"></div>
 
         {onBack && (
           <button
@@ -185,43 +186,55 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             </button>
           )}
 
-          <button onClick={onClose} className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white p-2.5 rounded-xl transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Cerrar detalles">
+          <button onClick={onClose} className="bg-black/20 hover:bg-black/40 backdrop-blur-md text-white p-2.5 rounded-full transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center" aria-label="Cerrar detalles">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
       </div>
 
-      {/* Address & Tenant - below image for readability */}
-      <div className="px-6 pt-4 pb-2">
-        <h3 className="text-lg font-bold text-gray-900 leading-snug">{property.address}</h3>
-        <p className="text-sm text-gray-500 mt-0.5">{property.tenantName}</p>
-      </div>
-
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-5">
-          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(property.status)}`}>
+      {/* Address & Status Badges */}
+      <div className="px-4 pt-5 pb-2">
+        <div className="flex flex-wrap gap-2 mb-3">
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${getStatusColor(property.status)}`}>
             {getStatusIcon(property.status)}
             <span>{getStatusText(property.status)}</span>
           </div>
 
           {/* Building Status Summary */}
           {buildingMetrics && buildingMetrics.lateUnits > 0 && (
-            <div className="flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
-              <AlertCircle className="w-3 h-3" />
+            <div className="flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1 rounded-full text-[11px] font-bold border border-red-200">
+              <AlertCircle className="w-3.5 h-3.5" />
               <span>{buildingMetrics.lateUnits}/{buildingMetrics.unitCount} Morosos</span>
             </div>
           )}
 
           {/* Maintenance Badge */}
           {isUnderMaintenance && (
-            <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold border border-orange-200">
-              <Hammer className="w-3 h-3" />
-              <span>En Obra: {assignedProfessional?.name}</span>
+            <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[11px] font-bold border border-orange-200">
+              <Hammer className="w-3.5 h-3.5" />
+              <span>En Obra</span>
             </div>
           )}
         </div>
+
+        <h3 className="text-xl font-extrabold text-[#1f2937] leading-tight tracking-tight">{property.address}</h3>
+
+        {/* Detail row imitating the address/hours style */}
+        <div className="mt-3 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+            <Users className="w-4 h-4 text-gray-400" />
+            <span>{property.tenantName || 'Sin alquiler'}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+            <DollarSign className="w-4 h-4 text-gray-400" />
+            <span>{formatCurrency(buildingMetrics ? buildingMetrics.totalRent : property.monthlyRent, 'ARS')} • {buildingMetrics ? 'Edificio' : 'Mensual'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pb-4">
 
         {/* Maintenance Timer & Finish Button */}
         {isUnderMaintenance && (
@@ -256,28 +269,28 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
 
         {/* Property Size Badges / Building Summary */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4 mt-2">
           {buildingMetrics ? (
             <>
-              <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-700 px-3 py-1 rounded-full text-xs font-bold border border-violet-200">
+              <span className="inline-flex items-center gap-1 bg-violet-50/80 text-violet-700 px-3 py-1 rounded-full text-xs font-bold border border-violet-100">
                 🏢 {buildingMetrics.unitCount} unidades
               </span>
-              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">
+              <span className="inline-flex items-center gap-1 bg-blue-50/80 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
                 🏠 {buildingMetrics.totalRooms} amb tot.
               </span>
-              <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-bold border border-purple-200">
-                📐 {buildingMetrics.totalM2} m² tot.
+              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+                📐 {buildingMetrics.totalM2} m²
               </span>
             </>
           ) : (
             <>
               {property.rooms && (
-                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">
+                <span className="inline-flex items-center gap-1 bg-blue-50/80 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
                   🏠 {property.rooms} amb
                 </span>
               )}
               {property.squareMeters && (
-                <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-bold border border-purple-200">
+                <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
                   📐 {property.squareMeters} m²
                 </span>
               )}
@@ -285,21 +298,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           )}
         </div>
 
-        {/* Dual Currency Rent Display */}
-        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col gap-1">
-          <div className="flex justify-between items-center text-gray-700">
-            <span className="flex items-center gap-2 text-sm font-medium">
-              <Home className="w-4 h-4 text-gray-400" /> {buildingMetrics ? 'Alquiler Total Edificio' : 'Alquiler Mensual'}
-            </span>
-            <div className="text-right">
-              <div className="font-bold text-lg text-gray-900">
-                {formatCurrency(buildingMetrics ? buildingMetrics.totalRent : property.monthlyRent, 'ARS')}
-              </div>
-            </div>
-          </div>
 
-
-        </div>
         <div className="bg-yellow-50 p-2 rounded-xl border border-yellow-200 mt-4 relative group">
           <div className="flex justify-between items-center mb-1 px-1">
             <div className="text-yellow-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
@@ -325,21 +324,28 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 p-6 pt-0">
+      <div className="flex items-center justify-between gap-3 px-4 pb-4">
+        {onViewDetails && (
+          <button
+            onClick={onViewDetails}
+            className="flex-1 bg-zinc-900 text-white h-[52px] rounded-full font-bold text-sm hover:bg-zinc-800 transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
+          >
+            Métricas
+            <svg className="w-4 h-4 ml-1 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+        )}
+
         {onEdit && (
           <button
             onClick={() => onEdit(property, !!property.buildingId)}
-            className="w-full bg-gray-100 text-gray-700 py-4 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+            className="w-[52px] h-[52px] rounded-full bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm"
+            aria-label="Editar"
           >
-            <Pencil className="w-4 h-4" /> Editar
+            <Pencil className="w-5 h-5" />
           </button>
         )}
-        <button
-          onClick={onViewDetails}
-          className={`w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors shadow-md active:scale-[0.98] ${!onEdit ? 'col-span-2' : ''}`}
-        >
-          Ver Métricas
-        </button>
       </div>
     </div>
 

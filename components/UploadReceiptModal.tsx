@@ -126,13 +126,10 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-0">
-            <div
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                onClick={() => !isSubmitting && onClose()}
-            />
-
-            <div className="bg-white rounded-2xl sm:rounded-xl shadow-xl w-full max-w-md overflow-hidden relative z-10 animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0">
+        <div className="fixed inset-0 z-[1500] flex items-end sm:items-center justify-center p-4 sm:p-0">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+            {/* Modal Panel - No z-10 needed anymore */}
+            <div className="bg-white rounded-2xl sm:rounded-xl shadow-xl w-full max-w-md overflow-hidden relative animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                     <div>
                         <h2 className="text-xl font-bold text-gray-800">

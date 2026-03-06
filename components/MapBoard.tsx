@@ -211,7 +211,7 @@ const ReturnToStartButton = ({ properties }: { properties: Property[] }) => {
       <div className="leaflet-control pointer-events-auto">
         <button
           onClick={handleClick}
-          className="bg-white text-black hover:bg-gray-100 flex items-center justify-center w-[44px] h-[44px] shadow-lg rounded-xl border border-gray-200"
+          className="bg-white/85 backdrop-blur-md text-gray-800 hover:bg-white flex items-center justify-center w-[44px] h-[44px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-full border border-white/60 transition-all"
           title="Ver todas las propiedades"
         >
           <span className="text-xl">🏠</span>
