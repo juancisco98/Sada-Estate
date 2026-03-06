@@ -5,7 +5,7 @@ import { MONTH_NAMES } from '../constants';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import UploadReceiptModal from './UploadReceiptModal';
-import { LogOut, Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home } from 'lucide-react';
 
 interface TenantPortalProps {
     currentUser: User;
@@ -77,26 +77,28 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* HEADER */}
-            <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-                <div className="flex items-center gap-3">
+            <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between sticky top-0 z-10 shadow-lg shadow-indigo-900/10">
+                <div className="flex items-center gap-4">
                     {currentUser.photoURL ? (
-                        <img src={currentUser.photoURL} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+                        <img src={currentUser.photoURL} alt="Avatar" className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-white/20 shadow-md bg-white/10" />
                     ) : (
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-xl sm:text-2xl border-2 border-white/20 shadow-md">
                             {currentUser.name.charAt(0).toUpperCase()}
                         </div>
                     )}
                     <div>
-                        <h1 className="text-lg font-bold text-gray-800 leading-tight">Hola, {currentUser.name}</h1>
-                        <p className="text-sm text-gray-500">{tenantProperty ? tenantProperty.address : 'Inquilino'}</p>
+                        <h1 className="text-xl sm:text-2xl font-bold leading-tight" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>Hola, {currentUser.name.split(' ')[0]}</h1>
+                        <p className="text-indigo-100/90 text-sm font-medium flex items-center gap-1.5 mt-0.5">
+                            <Home className="w-3.5 h-3.5" /> {tenantProperty ? tenantProperty.address : 'Miembro Inquilino'}
+                        </p>
                     </div>
                 </div>
                 <button
                     onClick={onLogout}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center"
+                    className="p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-all group flex items-center justify-center"
                     title="Cerrar sesión"
                 >
-                    <LogOut className="w-5 h-5" />
+                    <LogOut className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 </button>
             </header>
 
@@ -122,44 +124,49 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                 key={monthName}
                                 disabled={isFuture && status === 'PENDING'}
                                 onClick={() => setSelectedMonth(index + 1)}
-                                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all relative overflow-hidden group
-                  ${isFuture && status === 'PENDING' ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50' : 'hover:-translate-y-1 hover:shadow-md cursor-pointer'}
-                  ${status === 'PAID' ? 'border-green-500 bg-green-50' : ''}
-                  ${status === 'REVISION' ? 'border-yellow-400 bg-yellow-50' : ''}
-                  ${status === 'INCOMPLETE' ? 'border-orange-400 bg-orange-50' : ''}
-                  ${status === 'PENDING' && !isFuture ? 'border-gray-200 bg-white hover:border-indigo-300' : ''}
+                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group
+                  ${isFuture && status === 'PENDING' ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50/50' : 'hover:-translate-y-1.5 hover:shadow-xl cursor-pointer shadow-sm'}
+                  ${status === 'PAID' ? 'border-green-200 bg-gradient-to-br from-green-50 to-green-100/40 shadow-green-100' : ''}
+                  ${status === 'REVISION' ? 'border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/40 shadow-yellow-100' : ''}
+                  ${status === 'INCOMPLETE' ? 'border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100/40 shadow-orange-100' : ''}
+                  ${status === 'PENDING' && !isFuture ? 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-indigo-100' : ''}
                 `}
                             >
-                                <span className={`text-base font-bold mb-1 ${status === 'PAID' ? 'text-green-700' : status === 'REVISION' ? 'text-yellow-700' : 'text-gray-700'}`}>
+                                <span className={`text-base sm:text-lg font-bold mb-1.5 transition-colors ${status === 'PAID' ? 'text-green-800' : status === 'REVISION' ? 'text-yellow-800' : status === 'INCOMPLETE' ? 'text-orange-800' : 'text-gray-700 group-hover:text-indigo-900'}`}>
                                     {monthName}
                                 </span>
 
-                                <div className="flex items-center gap-1 mt-1">
+                                <div className="flex flex-col items-center gap-1 mt-1">
                                     {status === 'PAID' && (
                                         <>
-                                            <CheckCircle className="text-green-600 w-5 h-5" />
-                                            <span className="text-xs font-semibold text-green-700">Completado</span>
+                                            <CheckCircle className="text-green-600 w-6 h-6" />
+                                            <span className="text-[11px] font-bold text-green-700 uppercase tracking-wider mt-0.5">Aprobado</span>
                                         </>
                                     )}
                                     {status === 'REVISION' && (
                                         <>
-                                            <Clock className="text-yellow-600 w-5 h-5" />
-                                            <span className="text-xs font-semibold text-yellow-700">En Revisión</span>
+                                            <Clock className="text-yellow-600 w-6 h-6" />
+                                            <span className="text-[11px] font-bold text-yellow-700 uppercase tracking-wider mt-0.5">En Revisión</span>
                                         </>
                                     )}
                                     {status === 'INCOMPLETE' && (
                                         <>
-                                            <AlertCircle className="text-orange-600 w-5 h-5" />
-                                            <span className="text-xs font-semibold text-orange-700">Incompleto</span>
+                                            <AlertCircle className="text-orange-500 w-6 h-6" />
+                                            <span className="text-[11px] font-bold text-orange-700 uppercase tracking-wider mt-0.5">Incompleto</span>
                                         </>
                                     )}
                                     {status === 'PENDING' && !isFuture && (
                                         <>
-                                            <Calendar className="text-gray-400 w-5 h-5 group-hover:text-indigo-500" />
-                                            <span className="text-xs font-medium text-gray-500 group-hover:text-indigo-600">Pendiente</span>
+                                            <Calendar className="text-gray-300 w-6 h-6 group-hover:text-indigo-400 transition-colors" />
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mt-0.5 group-hover:text-indigo-600 transition-colors">Pendiente</span>
                                         </>
                                     )}
                                 </div>
+                                {payment && payment.amount > 0 && status !== 'PENDING' && (
+                                    <div className="mt-3 pt-2.5 border-t border-black/5 w-full text-center">
+                                        <span className="text-[13px] font-extrabold text-gray-700" style={{ fontVariantNumeric: 'tabular-nums' }}>${payment.amount.toLocaleString('es-AR')}</span>
+                                    </div>
+                                )}
                             </button>
                         );
                     })}

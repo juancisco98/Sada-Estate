@@ -28,6 +28,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
 }) => {
     const [rentFile, setRentFile] = useState<File | null>(null);
     const [expensesFile, setExpensesFile] = useState<File | null>(null);
+    const [amount, setAmount] = useState(existingPayment?.amount?.toString() || property?.monthlyRent?.toString() || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
@@ -73,7 +74,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 id: existingPayment?.id || crypto.randomUUID(),
                 tenantId: tenant.id,
                 propertyId: property?.id || null,
-                amount: property?.monthlyRent || 0,
+                amount: parseFloat(amount) || 0,
                 currency: property?.currency || 'ARS',
                 month,
                 year,
@@ -109,6 +110,10 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
 
     const handleInitiateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+            toast.error('Debes ingresar un monto válido.');
+            return;
+        }
         if (!rentFile && !existingPayment?.proofOfPayment) {
             toast.error('Falta el comprobante de alquiler.');
             return;
@@ -190,7 +195,22 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-5">
+                            <div className="space-y-6">
+                                {/* MONTO */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Monto Total Abonado</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-3 text-gray-500 font-bold">$</span>
+                                        <input
+                                            type="number"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            placeholder="Ingresa el monto (alquiler + expensas)"
+                                            className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-gray-800 font-bold bg-white hover:bg-gray-50/50"
+                                        />
+                                    </div>
+                                </div>
+
                                 {/* ALQUILER */}
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Comprobante de Alquiler</label>
