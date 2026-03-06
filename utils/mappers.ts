@@ -172,6 +172,8 @@ export const dbToPayment = (row: DbTenantPaymentRow): TenantPayment => ({
     paymentDate: row.payment_date,
     paymentMethod: (row.payment_method as 'CASH' | 'TRANSFER') || 'CASH',
     proofOfPayment: row.proof_of_payment ?? undefined,
+    proofOfExpenses: row.proof_of_expenses ?? undefined,
+    status: (row.status as 'PENDING' | 'REVISION' | 'APPROVED') ?? undefined,
     notes: row.notes ?? undefined,
     userId: row.user_id ?? undefined,
 });
@@ -188,6 +190,8 @@ export const paymentToDb = (p: TenantPayment): Record<string, unknown> => ({
     payment_date: p.paymentDate,
     payment_method: p.paymentMethod,
     proof_of_payment: p.proofOfPayment,
+    proof_of_expenses: p.proofOfExpenses,
+    status: p.status,
     notes: p.notes,
     user_id: p.userId || undefined,
 });

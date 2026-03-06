@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
-import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader } from 'lucide-react';
+import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader, Clock } from 'lucide-react';
 import { uploadPaymentProof } from '../services/storage';
 import { toast } from 'sonner';
 import { handleError } from '../utils/errorHandler';
@@ -51,6 +51,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         paidOnTime: true,
         paymentMethod: 'CASH' as 'CASH' | 'TRANSFER',
         proofOfPayment: '',
+        proofOfExpenses: '',
+        status: 'APPROVED' as 'PENDING' | 'REVISION' | 'APPROVED',
         notes: ''
     });
 
@@ -82,6 +84,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 paidOnTime: paymentToEdit.paidOnTime,
                 paymentMethod: paymentToEdit.paymentMethod || 'CASH',
                 proofOfPayment: paymentToEdit.proofOfPayment || '',
+                proofOfExpenses: paymentToEdit.proofOfExpenses || '',
+                status: paymentToEdit.status || 'APPROVED',
                 notes: paymentToEdit.notes || ''
             });
         } else {
@@ -105,6 +109,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 paidOnTime: true,
                 paymentMethod: 'CASH',
                 proofOfPayment: '',
+                proofOfExpenses: '',
+                status: 'APPROVED',
                 notes: ''
             });
         }
@@ -124,6 +130,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 paidOnTime: newPayment.paidOnTime,
                 paymentMethod: newPayment.paymentMethod,
                 proofOfPayment: newPayment.proofOfPayment,
+                proofOfExpenses: newPayment.proofOfExpenses,
+                status: newPayment.status,
                 notes: newPayment.notes
             };
             onUpdatePayment(updatedPayment);
@@ -141,6 +149,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 paymentDate: new Date().toISOString().split('T')[0],
                 paymentMethod: newPayment.paymentMethod,
                 proofOfPayment: newPayment.proofOfPayment,
+                proofOfExpenses: newPayment.proofOfExpenses,
+                status: newPayment.status,
                 notes: newPayment.notes
             };
             onRegisterPayment(payment);
@@ -154,6 +164,8 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             paidOnTime: true,
             paymentMethod: 'CASH',
             proofOfPayment: '',
+            proofOfExpenses: '',
+            status: 'APPROVED',
             notes: ''
         });
         setShowPaymentModal(null);
@@ -161,7 +173,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         setIsUploading(false);
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'proofOfPayment' | 'proofOfExpenses') => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -171,7 +183,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             const publicUrl = await uploadPaymentProof(file, folder);
 
             if (publicUrl) {
-                setNewPayment(prev => ({ ...prev, proofOfPayment: publicUrl }));
+                setNewPayment(prev => ({ ...prev, [field]: publicUrl }));
                 toast.success('Comprobante subido correctamente');
             } else {
                 toast.error('Error al subir el comprobante. Por favor intente nuevamente.');
@@ -358,7 +370,11 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                                 {MONTH_NAMES[m.month - 1]}
                                                             </p>
                                                             {m.paid ? (
-                                                                <CheckCircle size={16} className="text-green-500 mx-auto" />
+                                                                paymentForMonth?.status === 'REVISION' || paymentForMonth?.status === 'PENDING' ? (
+                                                                    <Clock size={16} className="text-yellow-500 mx-auto" />
+                                                                ) : (
+                                                                    <CheckCircle size={16} className="text-green-500 mx-auto" />
+                                                                )
                                                             ) : (
                                                                 <div className="h-4 flex items-center justify-center">
                                                                     <div className="w-2 h-2 rounded-full bg-gray-300" />
@@ -552,7 +568,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     <input
                                         type="file"
                                         accept="image/*,application/pdf"
-                                        onChange={handleFileUpload}
+                                        onChange={(e) => handleFileUpload(e, 'proofOfPayment')}
                                         className="hidden"
                                         id="proof-upload"
                                         disabled={isUploading}
@@ -566,7 +582,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                 rel="noopener noreferrer"
                                                 className="text-xs font-semibold text-green-700 hover:underline flex items-center gap-1 truncate max-w-[200px]"
                                             >
-                                                <CheckCircle size={12} /> Ver Comprobante
+                                                <CheckCircle size={12} /> Ver Alquiler
                                             </a>
                                             <button
                                                 onClick={() => setNewPayment(p => ({ ...p, proofOfPayment: '' }))}
@@ -581,7 +597,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-gray-300 text-sm font-medium text-gray-500 hover:bg-white hover:border-gray-400 transition-all cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             {isUploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
-                                            {isUploading ? 'Subiendo...' : 'Adjuntar PDF / Foto'}
+                                            {isUploading ? 'Subiendo...' : 'Adjuntar Alquiler'}
                                         </label>
                                     )}
 
@@ -589,10 +605,75 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                         <input
                                             value={newPayment.proofOfPayment}
                                             onChange={e => setNewPayment(p => ({ ...p, proofOfPayment: e.target.value }))}
-                                            placeholder="O escribe ID de transferencia..."
+                                            placeholder="O url externa alquiler..."
                                             className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs focus:ring-2 focus:ring-green-500 outline-none mt-2"
                                         />
                                     )}
+
+                                    {/* EXPENSAS PPOOF */}
+                                    <input
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        onChange={(e) => handleFileUpload(e, 'proofOfExpenses')}
+                                        className="hidden"
+                                        id="expenses-upload"
+                                        disabled={isUploading}
+                                    />
+
+                                    {newPayment.proofOfExpenses ? (
+                                        <div className="flex items-center justify-between bg-green-50 border border-green-200 p-2 rounded-lg mt-2">
+                                            <a
+                                                href={newPayment.proofOfExpenses}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs font-semibold text-green-700 hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                                            >
+                                                <CheckCircle size={12} /> Ver Expensas
+                                            </a>
+                                            <button
+                                                onClick={() => setNewPayment(p => ({ ...p, proofOfExpenses: '' }))}
+                                                className="p-1 hover:bg-green-100 rounded text-red-400"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <label
+                                            htmlFor="expenses-upload"
+                                            className={`flex items-center justify-center gap-2 mt-2 w-full py-2 rounded-lg border border-dashed border-gray-300 text-sm font-medium text-gray-500 hover:bg-white hover:border-gray-400 transition-all cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        >
+                                            {isUploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
+                                            {isUploading ? 'Subiendo...' : 'Adjuntar Expensas'}
+                                        </label>
+                                    )}
+
+                                    {!newPayment.proofOfExpenses && (
+                                        <input
+                                            value={newPayment.proofOfExpenses}
+                                            onChange={e => setNewPayment(p => ({ ...p, proofOfExpenses: e.target.value }))}
+                                            placeholder="O url externa expensas..."
+                                            className="w-full px-3 py-1.5 rounded-lg border border-gray-200 text-xs focus:ring-2 focus:ring-green-500 outline-none mt-2"
+                                        />
+                                    )}
+                                </div>
+
+                                {/* ESTADO DEL PAGO */}
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600">Estado del Pago</label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setNewPayment(p => ({ ...p, status: 'APPROVED' }))}
+                                            className={`flex-1 py-1.5 rounded-lg text-sm font-semibold border transition-all ${newPayment.status === 'APPROVED' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                            Aprobado
+                                        </button>
+                                        <button
+                                            onClick={() => setNewPayment(p => ({ ...p, status: 'REVISION' }))}
+                                            className={`flex-1 py-1.5 rounded-lg text-sm font-semibold border transition-all ${newPayment.status === 'REVISION' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                            En Revisión
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Payment Method */}

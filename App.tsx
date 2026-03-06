@@ -33,6 +33,7 @@ const OverviewView = lazy(() => import('./components/DashboardViews').then(modul
 const FinanceView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.FinanceView })));
 const ProfessionalsView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.ProfessionalsView })));
 const TenantsView = lazy(() => import('./components/TenantsView'));
+const TenantPortal = lazy(() => import('./components/TenantPortal'));
 
 const Dashboard: React.FC = () => {
   // Auth State
@@ -190,16 +191,37 @@ const Dashboard: React.FC = () => {
             name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
             email: userEmail,
             photoURL: session.user.user_metadata?.avatar_url,
-            color: '#3b82f6'
+            color: '#3b82f6',
+            role: 'ADMIN'
           });
           setIsAuthenticated(true);
-          logger.log('[Auth] User authenticated.');
+          logger.log('[Auth] User authenticated as ADMIN.');
         } else {
-          logger.warn('[Auth] Unauthorized access attempt.');
-          await signOut();
-          handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está en la lista permitida.`);
-          setIsAuthenticated(false);
-          setCurrentUser(null);
+          // Check if email exists in tenants table
+          const { data: tenantData, error } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('email', userEmail)
+            .maybeSingle();
+
+          if (tenantData && !error) {
+            setCurrentUser({
+              id: session.user.id,
+              name: session.user.user_metadata?.full_name || tenantData.name,
+              email: userEmail,
+              photoURL: session.user.user_metadata?.avatar_url,
+              color: '#10b981',
+              role: 'TENANT'
+            });
+            setIsAuthenticated(true);
+            logger.log('[Auth] User authenticated as TENANT.');
+          } else {
+            logger.warn('[Auth] Unauthorized access attempt for ' + userEmail);
+            await signOut();
+            handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está registrado como administrador ni inquilino.`);
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+          }
         }
       } else {
         if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && session === null)) {
@@ -548,6 +570,18 @@ const Dashboard: React.FC = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-4"></div>
         <p className="text-gray-600 text-lg">Cargando datos...</p>
       </div>
+    );
+  }
+
+  if (currentUser?.role === 'TENANT') {
+    return (
+      <Suspense fallback={
+        <div className="w-full h-screen flex items-center justify-center bg-gray-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+        </div>
+      }>
+        <TenantPortal currentUser={currentUser} onLogout={handleLogout} />
+      </Suspense>
     );
   }
 

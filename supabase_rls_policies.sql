@@ -55,15 +55,49 @@ CREATE POLICY "Family access to properties" ON properties
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
 
+-- Tenant access to properties (Read-only, if assigned)
+CREATE POLICY "Tenant read access to assigned properties" ON properties
+    FOR SELECT TO authenticated
+    USING (
+        id IN (
+            SELECT "propertyId" 
+            FROM tenants 
+            WHERE email = (auth.jwt() ->> 'email')
+        )
+    );
+
 CREATE POLICY "Family access to tenants" ON tenants
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
 
+-- Tenant access to their own tenant record
+CREATE POLICY "Tenant read access to own record" ON tenants
+    FOR SELECT TO authenticated
+    USING (email = (auth.jwt() ->> 'email'));
+
 CREATE POLICY "Family access to tenant_payments" ON tenant_payments
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
+
+-- Tenant access to their own payments
+CREATE POLICY "Tenant access to own payments" ON tenant_payments
+    FOR ALL TO authenticated
+    USING (
+        "tenantId" IN (
+            SELECT id 
+            FROM tenants 
+            WHERE email = (auth.jwt() ->> 'email')
+        )
+    )
+    WITH CHECK (
+        "tenantId" IN (
+            SELECT id 
+            FROM tenants 
+            WHERE email = (auth.jwt() ->> 'email')
+        )
+    );
 
 CREATE POLICY "Family access to professionals" ON professionals
     FOR ALL TO authenticated

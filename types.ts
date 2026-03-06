@@ -13,6 +13,7 @@ export interface User {
   email: string;
   color?: string; // Hex color for visual differentiation
   photoURL?: string;
+  role?: 'ADMIN' | 'TENANT'; // Identificar si es admin (familia) o inquilino
 }
 
 export interface Building {
@@ -74,7 +75,9 @@ export interface TenantPayment {
   paidOnTime: boolean;
   paymentDate: string;
   paymentMethod?: 'CASH' | 'TRANSFER';
-  proofOfPayment?: string;
+  proofOfPayment?: string; // Comprobante de alquiler
+  proofOfExpenses?: string; // Comprobante de expensas
+  status?: 'PENDING' | 'REVISION' | 'APPROVED'; // Estado de la revisión
   notes?: string;
   userId?: string;
 }
