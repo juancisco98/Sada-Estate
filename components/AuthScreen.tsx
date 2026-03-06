@@ -48,7 +48,7 @@ const AuthScreen: React.FC = () => {
           <p className="text-blue-200 mt-2 text-sm font-medium">Gestión Inmobiliaria Inteligente</p>
           <div className="mt-4 inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-semibold px-3 py-1.5 rounded-full">
             <Lock className="w-3.5 h-3.5" />
-            Acceso Privado Familiar
+            Portal de Acceso
           </div>
         </div>
 
@@ -94,7 +94,7 @@ const AuthScreen: React.FC = () => {
           )}
 
           <p className="text-center text-gray-400 text-xs">
-            Solo emails autorizados de la familia Sada.
+            Acceso exclusivo para administradores e inquilinos registrados.
           </p>
         </div>
 
