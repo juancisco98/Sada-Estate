@@ -18,11 +18,13 @@ export async function supabaseUpsert<T>(
 
         if (error) {
             logger.error(`[Supabase] Error saving ${label}:`, error);
+            throw error;
         } else {
             logger.log(`[Supabase] ${label} saved successfully.`);
         }
     } catch (err) {
         logger.error(`[Supabase] Exception saving ${label}:`, err);
+        throw err;
     }
 }
 
@@ -42,11 +44,13 @@ export async function supabaseDelete(
 
         if (error) {
             logger.error(`[Supabase] Error deleting ${label}:`, error);
+            throw error;
         } else {
             logger.log(`[Supabase] ${label} deleted: ${id}`);
         }
     } catch (err) {
         logger.error(`[Supabase] Exception deleting ${label}:`, err);
+        throw err;
     }
 }
 
@@ -67,11 +71,13 @@ export async function supabaseUpdate(
 
         if (error) {
             logger.error(`[Supabase] Error updating ${label}:`, error);
+            throw error;
         } else {
             logger.log(`[Supabase] ${label} updated: ${id}`);
         }
     } catch (err) {
         logger.error(`[Supabase] Exception updating ${label}:`, err);
+        throw err;
     }
 }
 
@@ -90,10 +96,12 @@ export async function supabaseInsert(
 
         if (error) {
             logger.error(`[Supabase] Error inserting ${label}:`, error);
+            throw error;
         } else {
             logger.log(`[Supabase] ${label} inserted.`);
         }
     } catch (err) {
         logger.error(`[Supabase] Exception inserting ${label}:`, err);
+        throw err;
     }
 }

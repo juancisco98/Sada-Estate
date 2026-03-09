@@ -1,11 +1,21 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, TenantPayment, Tenant } from '../types';
 import { useDataContext } from '../context/DataContext';
 import { MONTH_NAMES } from '../constants';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import UploadReceiptModal from './UploadReceiptModal';
-import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home } from 'lucide-react';
+import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell } from 'lucide-react';
+
+interface Notification {
+    id: string;
+    title: string;
+    message: string;
+    type: string;
+    payment_id: string | null;
+    read: boolean;
+    created_at: string;
+}
 
 interface TenantPortalProps {
     currentUser: User;
@@ -15,6 +25,7 @@ interface TenantPortalProps {
 const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) => {
     const { tenants, payments, properties, setPayments } = useDataContext();
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     const currentYear = new Date().getFullYear();
 
     // Find the tenant record corresponding to the current user
@@ -32,17 +43,51 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
         return payments.filter(p => p.tenantId === tenantRecord.id && p.year === currentYear);
     }, [payments, tenantRecord, currentYear]);
 
+    // Load unread notifications for this tenant
+    useEffect(() => {
+        if (!currentUser?.email) return;
+        const load = async () => {
+            const { data } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('recipient_email', currentUser.email)
+                .eq('read', false)
+                .order('created_at', { ascending: false });
+            if (data) setNotifications(data as Notification[]);
+        };
+        load();
+
+        // Real-time: new notifications arrive
+        const channel = supabase
+            .channel('tenant_notifications')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_email=eq.${currentUser.email}` },
+                (payload) => setNotifications(prev => [payload.new as Notification, ...prev])
+            )
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [currentUser?.email]);
+
+    const revisionNotifications = notifications.filter(n => n.type === 'PAYMENT_REVISION');
+
+    const markNotificationsRead = async (paymentId: string | null) => {
+        const toMark = notifications.filter(n => n.type === 'PAYMENT_REVISION' && (paymentId === null || n.payment_id === paymentId));
+        if (toMark.length === 0) return;
+        const ids = toMark.map(n => n.id);
+        await supabase.from('notifications').update({ read: true }).in('id', ids);
+        setNotifications(prev => prev.filter(n => !ids.includes(n.id)));
+    };
+
     // If no tenant record is found (shouldn't happen due to login check, but fallback)
     if (!tenantRecord) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-                <div className="bg-white p-8 rounded-xl shadow-md text-center max-w-md w-full">
+            <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors duration-300">
+                <div className="bg-white dark:bg-slate-900 border border-white/40 dark:border-white/10 p-8 rounded-3xl shadow-xl text-center max-w-md w-full">
                     <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">No se encontró tu perfil</h2>
-                    <p className="text-gray-600 mb-6">Contactate con la administración para que vinculen tu cuenta de correo.</p>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">No se encontró tu perfil</h2>
+                    <p className="text-gray-600 dark:text-slate-400 mb-6">Contactate con la administración para que vinculen tu cuenta de correo.</p>
                     <button
                         onClick={onLogout}
-                        className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
+                        className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold hover:bg-indigo-700 transition-all active:scale-95"
                     >
                         Cerrar Sesión
                     </button>
@@ -52,32 +97,28 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
     }
 
     const handleUploadComplete = (newPayment: TenantPayment) => {
-        // Optimistic UI update or rely on DataProvider (if it refreshes, but mostly we update here directly)
         setPayments(prev => {
             const exists = prev.find(p => p.id === newPayment.id);
             if (exists) return prev.map(p => p.id === newPayment.id ? newPayment : p);
             return [...prev, newPayment];
         });
+        markNotificationsRead(newPayment.id);
         setSelectedMonth(null);
     };
 
     const getMonthStatus = (monthIndex: number) => {
         const payment = tenantPaymentsThisYear.find(p => p.month === monthIndex + 1);
         if (!payment) return 'PENDING';
-
-        // Si tiene comprobante pero está en estado revisión
-        if (payment.status === 'REVISION' || payment.status === 'PENDING') return 'REVISION';
-
-        // Si tiene los dos comprobantes pero no status, o status APPROVED
-        if (payment.proofOfPayment && payment.proofOfExpenses) return 'PAID';
-
-        return 'INCOMPLETE';
+        if (payment.status === 'APPROVED') return 'PAID';
+        if (payment.status === 'REVISION') return 'REVISION';
+        if (payment.proofOfPayment || payment.proofOfExpenses) return 'REVISION';
+        return 'PENDING';
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col transition-colors duration-300">
             {/* HEADER */}
-            <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between sticky top-0 z-10 shadow-lg shadow-indigo-900/10">
+            <header className="bg-gradient-to-r from-indigo-600 to-violet-700 dark:from-indigo-900 dark:to-violet-900 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between sticky top-0 z-10 shadow-lg shadow-indigo-900/20">
                 <div className="flex items-center gap-4">
                     {currentUser.photoURL ? (
                         <img src={currentUser.photoURL} alt="Avatar" className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-white/20 shadow-md bg-white/10" />
@@ -87,7 +128,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         </div>
                     )}
                     <div>
-                        <h1 className="text-xl sm:text-2xl font-bold leading-tight" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>Hola, {currentUser.name.split(' ')[0]}</h1>
+                        <h1 className="text-xl sm:text-2xl font-bold leading-tight">Hola, {currentUser.name.split(' ')[0]}</h1>
                         <p className="text-indigo-100/90 text-sm font-medium flex items-center gap-1.5 mt-0.5">
                             <Home className="w-3.5 h-3.5" /> {tenantProperty ? tenantProperty.address : 'Miembro Inquilino'}
                         </p>
@@ -105,12 +146,36 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
             {/* BODY */}
             <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 pb-20">
                 <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Panel de Pagos {currentYear}</h2>
-                    <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Panel de Pagos {currentYear}</h2>
+                    <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm sm:text-base">
                         Seleccioná el mes correspondiente para subir tus comprobantes de alquiler y expensas.
-                        <span className="font-semibold text-indigo-600 ml-1">Todo archivo subido no podrá ser modificado.</span>
+                        <span className="font-semibold text-indigo-600 dark:text-indigo-400 ml-1">Los comprobantes son revisados por la administración. Si hay algún error, serás notificado.</span>
                     </p>
                 </div>
+
+                {/* REVISION NOTIFICATIONS BANNER */}
+                {revisionNotifications.length > 0 && (
+                    <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
+                        <Bell className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-amber-800 dark:text-amber-400 mb-1">
+                                La administración requiere correcciones en tus comprobantes
+                            </p>
+                            {revisionNotifications.map(n => {
+                                const payment = tenantPaymentsThisYear.find(p => p.id === n.payment_id);
+                                return (
+                                    <button
+                                        key={n.id}
+                                        onClick={() => { if (payment) setSelectedMonth(payment.month); }}
+                                        className="block text-xs text-amber-700 dark:text-amber-300 mt-1 hover:underline text-left"
+                                    >
+                                        → {n.message}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* CALENDAR GRID */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -122,46 +187,79 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                             <button
                                 key={monthName}
                                 onClick={() => setSelectedMonth(index + 1)}
-                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-xl cursor-pointer shadow-sm
-                  ${status === 'PAID' ? 'border-green-200 bg-gradient-to-br from-green-50 to-green-100/40 shadow-green-100' : ''}
-                  ${status === 'REVISION' ? 'border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/40 shadow-yellow-100' : ''}
-                  ${status === 'INCOMPLETE' ? 'border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100/40 shadow-orange-100' : ''}
-                  ${status === 'PENDING' ? 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-indigo-100' : ''}
+                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl cursor-pointer shadow-sm
+                  ${status === 'PAID' ? 'border-emerald-200 dark:border-emerald-500/30 bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-500/10 dark:to-emerald-500/5 shadow-emerald-100 dark:shadow-none' : ''}
+                  ${status === 'REVISION' ? 'border-amber-200 dark:border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-500/10 dark:to-amber-500/5 shadow-amber-100 dark:shadow-none' : ''}
+                  ${status === 'INCOMPLETE' ? 'border-orange-200 dark:border-orange-500/30 bg-gradient-to-br from-orange-50 to-orange-100/40 dark:from-orange-500/10 dark:to-orange-500/5 shadow-orange-100 dark:shadow-none' : ''}
+                  ${status === 'PENDING' ? 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-indigo-100 dark:hover:shadow-none' : ''}
                 `}
                             >
-                                <span className={`text-base sm:text-lg font-bold mb-1.5 transition-colors ${status === 'PAID' ? 'text-green-800' : status === 'REVISION' ? 'text-yellow-800' : status === 'INCOMPLETE' ? 'text-orange-800' : 'text-gray-700 group-hover:text-indigo-900'}`}>
+                                <span className={`text-base sm:text-lg font-bold mb-1.5 transition-colors
+                  ${status === 'PAID' ? 'text-emerald-800 dark:text-emerald-400' : ''}
+                  ${status === 'REVISION' ? 'text-amber-800 dark:text-amber-400' : ''}
+                  ${status === 'INCOMPLETE' ? 'text-orange-800 dark:text-orange-400' : ''}
+                  ${status === 'PENDING' ? 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white' : ''}
+                `}>
                                     {monthName}
                                 </span>
 
                                 <div className="flex flex-col items-center gap-1 mt-1">
                                     {status === 'PAID' && (
                                         <>
-                                            <CheckCircle className="text-green-600 w-6 h-6" />
-                                            <span className="text-[11px] font-bold text-green-700 uppercase tracking-wider mt-0.5">Aprobado</span>
+                                            <CheckCircle className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
+                                            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mt-0.5">Aprobado</span>
                                         </>
                                     )}
                                     {status === 'REVISION' && (
                                         <>
-                                            <Clock className="text-yellow-600 w-6 h-6" />
-                                            <span className="text-[11px] font-bold text-yellow-700 uppercase tracking-wider mt-0.5">En Revisión</span>
+                                            <Clock className="text-amber-600 dark:text-amber-400 w-6 h-6" />
+                                            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mt-0.5">En Revisión</span>
                                         </>
                                     )}
                                     {status === 'INCOMPLETE' && (
                                         <>
-                                            <AlertCircle className="text-orange-500 w-6 h-6" />
-                                            <span className="text-[11px] font-bold text-orange-700 uppercase tracking-wider mt-0.5">Incompleto</span>
+                                            <AlertCircle className="text-orange-500 dark:text-orange-400 w-6 h-6" />
+                                            <span className="text-[11px] font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider mt-0.5">Incompleto</span>
                                         </>
                                     )}
                                     {status === 'PENDING' && (
                                         <>
-                                            <Calendar className="text-gray-300 w-6 h-6 group-hover:text-indigo-400 transition-colors" />
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mt-0.5 group-hover:text-indigo-600 transition-colors">Pendiente</span>
+                                            <Calendar className="text-slate-300 dark:text-slate-600 w-6 h-6 group-hover:text-indigo-400 dark:group-hover:text-indigo-400 transition-colors" />
+                                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-wider mt-0.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Pendiente</span>
                                         </>
                                     )}
                                 </div>
                                 {payment && payment.amount > 0 && status !== 'PENDING' && (
-                                    <div className="mt-3 pt-2.5 border-t border-black/5 w-full text-center">
-                                        <span className="text-[13px] font-extrabold text-gray-700" style={{ fontVariantNumeric: 'tabular-nums' }}>${payment.amount.toLocaleString('es-AR')}</span>
+                                    <div className="mt-3 pt-2.5 border-t border-black/5 dark:border-white/10 w-full text-center">
+                                        <span className="text-[13px] font-extrabold text-slate-700 dark:text-slate-200 tabular-nums">${payment.amount.toLocaleString('es-AR')}</span>
+                                    </div>
+                                )}
+                                {(status === 'PAID' || status === 'REVISION') && (
+                                    <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t border-black/5 dark:border-white/10 w-full">
+                                        {payment?.proofOfPayment && (
+                                            <a
+                                                href={payment.proofOfPayment}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                                                title="Ver comprobante de alquiler"
+                                                onClick={e => e.stopPropagation()}
+                                            >
+                                                <ExternalLink className="w-3 h-3" /> Alquiler
+                                            </a>
+                                        )}
+                                        {payment?.proofOfExpenses && (
+                                            <a
+                                                href={payment.proofOfExpenses}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                                                title="Ver comprobante de expensas"
+                                                onClick={e => e.stopPropagation()}
+                                            >
+                                                <ExternalLink className="w-3 h-3" /> Expensas
+                                            </a>
+                                        )}
                                     </div>
                                 )}
                             </button>

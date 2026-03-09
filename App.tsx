@@ -44,7 +44,7 @@ const Dashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Data Hooks
-  const { isLoading } = useDataContext();
+  const { isLoading, refreshData } = useDataContext();
   const {
     properties,
     saveProperty: savePropertyData,
@@ -195,32 +195,62 @@ const Dashboard: React.FC = () => {
             role: 'ADMIN'
           });
           setIsAuthenticated(true);
-          logger.log('[Auth] User authenticated as ADMIN.');
+          logger.log('[Auth] User authenticated as ADMIN (hardcoded).');
         } else {
-          // Check if email exists in tenants table
-          const { data: tenantData, error } = await supabase
-            .from('tenants')
-            .select('*')
+          // Check if email exists in allowed_emails table (Dynamic Admins)
+          const { data: adminData } = await supabase
+            .from('allowed_emails')
+            .select('email')
             .eq('email', userEmail)
             .maybeSingle();
 
-          if (tenantData && !error) {
+          if (adminData) {
             setCurrentUser({
               id: session.user.id,
-              name: session.user.user_metadata?.full_name || tenantData.name,
+              name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
               email: userEmail,
               photoURL: session.user.user_metadata?.avatar_url,
-              color: '#10b981',
-              role: 'TENANT'
+              color: '#3b82f6',
+              role: 'ADMIN'
             });
             setIsAuthenticated(true);
-            logger.log('[Auth] User authenticated as TENANT.');
+            logger.log('[Auth] User authenticated as ADMIN (database).');
           } else {
-            logger.warn('[Auth] Unauthorized access attempt for ' + userEmail);
-            await signOut();
-            handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está registrado como administrador ni inquilino.`);
-            setIsAuthenticated(false);
-            setCurrentUser(null);
+            // Check if email exists in tenants table
+            const { data: tenantData, error } = await supabase
+              .from('tenants')
+              .select('*')
+              .eq('email', userEmail)
+              .maybeSingle();
+
+            if (tenantData && !error) {
+              // Link Auth UID to tenant record if missing or different
+              if (!tenantData.user_id || tenantData.user_id !== session.user.id) {
+                await supabase
+                  .from('tenants')
+                  .update({ user_id: session.user.id })
+                  .eq('id', tenantData.id);
+                logger.log('[Auth] Linked tenant Auth UID to record.');
+                refreshData();
+              }
+
+              setCurrentUser({
+                id: session.user.id,
+                name: session.user.user_metadata?.full_name || tenantData.name,
+                email: userEmail,
+                photoURL: session.user.user_metadata?.avatar_url,
+                color: '#10b981',
+                role: 'TENANT'
+              });
+              setIsAuthenticated(true);
+              logger.log('[Auth] User authenticated as TENANT.');
+            } else {
+              logger.warn('[Auth] Unauthorized access attempt for ' + userEmail);
+              await signOut();
+              handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está registrado como administrador ni inquilino.`);
+              setIsAuthenticated(false);
+              setCurrentUser(null);
+            }
           }
         }
       } else {
@@ -432,9 +462,9 @@ const Dashboard: React.FC = () => {
     switch (currentView) {
       case 'OVERVIEW':
         return (
-          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50">
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
             <div className="max-w-7xl mx-auto">
-              <Suspense fallback={<div className="p-10 text-center">Cargando vista...</div>}>
+              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando vista...</div>}>
                 <OverviewView
                   onEditProperty={handleOpenEditModal}
                   properties={properties}
@@ -451,9 +481,9 @@ const Dashboard: React.FC = () => {
         );
       case 'FINANCE':
         return (
-          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50">
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
             <div className="max-w-7xl mx-auto">
-              <Suspense fallback={<div className="p-10 text-center">Cargando finanzas...</div>}>
+              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando finanzas...</div>}>
                 <FinanceView
                   properties={properties}
                   professionals={professionals}
@@ -467,9 +497,9 @@ const Dashboard: React.FC = () => {
         );
       case 'PROFESSIONALS':
         return (
-          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50">
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
             <div className="max-w-7xl mx-auto">
-              <Suspense fallback={<div className="p-10 text-center">Cargando profesionales...</div>}>
+              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando profesionales...</div>}>
                 <ProfessionalsView
                   properties={properties}
                   professionals={professionals}
@@ -488,9 +518,9 @@ const Dashboard: React.FC = () => {
         );
       case 'TENANTS':
         return (
-          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50">
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
             <div className="max-w-7xl mx-auto">
-              <Suspense fallback={<div className="p-10 text-center">Cargando inquilinos...</div>}>
+              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando inquilinos...</div>}>
                 <TenantsView
                   tenants={tenants}
                   payments={payments}
@@ -501,6 +531,7 @@ const Dashboard: React.FC = () => {
                   onUpdatePayment={handleUpdatePayment}
                   getTenantMetrics={getTenantMetrics}
                   maintenanceTasks={maintenanceTasks}
+                  refreshData={refreshData}
                 />
               </Suspense>
             </div>
@@ -553,6 +584,7 @@ const Dashboard: React.FC = () => {
                   setPreviousBuilding(null);
                 } : undefined}
                 professionals={professionals}
+                payments={payments}
               />
             )}
           </>
@@ -566,9 +598,9 @@ const Dashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-50">
+      <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-4"></div>
-        <p className="text-gray-600 text-lg">Cargando datos...</p>
+        <p className="text-gray-600 dark:text-gray-400 text-lg">Cargando datos...</p>
       </div>
     );
   }
@@ -586,7 +618,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="relative w-full h-screen bg-gray-100 overflow-hidden flex flex-col">
+    <div className="relative w-full h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden flex flex-col transition-colors duration-500">
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -668,6 +700,7 @@ const Dashboard: React.FC = () => {
 export default function App() {
   return (
     <DataProvider>
+      <Toaster position="top-right" richColors closeButton />
       <Dashboard />
     </DataProvider>
   );

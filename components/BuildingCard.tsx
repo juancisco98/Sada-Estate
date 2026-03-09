@@ -1,6 +1,7 @@
 import React from 'react';
 import { Building, Property, PropertyStatus } from '../types';
 import { formatCurrency } from '../utils/currency';
+import { getPropertyDisplayInfo } from '../utils/property';
 import { Home, ChevronRight, Building2, Users, DollarSign } from 'lucide-react';
 
 interface BuildingCardProps {
@@ -120,21 +121,15 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-extrabold text-gray-900 group-hover:text-violet-600 transition-colors">
-                        {unit.unitLabel || unit.tenantName || 'Unidad'}
+                        {getPropertyDisplayInfo(unit).title}
                       </p>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-sm ${statusInfo.cls}`}>
                         {statusInfo.text}
                       </span>
                     </div>
-                    {unit.tenantName ? (
-                      <p className="text-xs text-gray-500 font-medium truncate">
-                        👤 {unit.tenantName}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic truncate">
-                        Sin inquilino
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-500 font-medium truncate" title={getPropertyDisplayInfo(unit).subtitle}>
+                      {getPropertyDisplayInfo(unit).subtitle}
+                    </p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-bold text-gray-900">{formatCurrency(unit.monthlyRent, 'ARS')}</p>

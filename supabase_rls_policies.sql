@@ -3,7 +3,37 @@
 -- IMPORTANT: Run the full script. It drops old policies and creates secure ones.
 
 -- ======================================================
--- Step 1: Create allowed_emails table for backend validation
+-- Step 1: Automatically drop ALL existing policies on relevant tables
+-- This ensures no "Already exists" conflicts happen.
+-- ======================================================
+
+DO $$
+DECLARE
+    pol RECORD;
+BEGIN
+    -- Drop policies from public tables
+    FOR pol IN
+        SELECT policyname, tablename
+        FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename IN ('properties', 'tenants', 'tenant_payments', 'professionals', 'maintenance_tasks', 'buildings', 'allowed_emails')
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
+    END LOOP;
+
+    -- Drop policies from storage.objects
+    FOR pol IN
+        SELECT policyname 
+        FROM pg_policies 
+        WHERE schemaname = 'storage' AND tablename = 'objects'
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', pol.policyname);
+    END LOOP;
+END
+$$;
+
+-- ======================================================
+-- Step 2: Create allowed_emails table for backend validation
 -- ======================================================
 
 CREATE TABLE IF NOT EXISTS allowed_emails (
@@ -11,21 +41,15 @@ CREATE TABLE IF NOT EXISTS allowed_emails (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure base emails are always there
 INSERT INTO allowed_emails (email) VALUES
     ('juan.sada98@gmail.com'),
     ('svsistemas@yahoo.com'),
     ('antovent64@gmail.com')
 ON CONFLICT (email) DO NOTHING;
 
+-- Enable RLS on all tables
 ALTER TABLE allowed_emails ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow authenticated read on allowed_emails" ON allowed_emails
-    FOR SELECT TO authenticated USING (true);
-
--- ======================================================
--- Step 2: Enable RLS on data tables
--- ======================================================
-
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_payments ENABLE ROW LEVEL SECURITY;
@@ -34,28 +58,19 @@ ALTER TABLE maintenance_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE buildings ENABLE ROW LEVEL SECURITY;
 
 -- ======================================================
--- Step 3: Drop old permissive policies
+-- Step 3: Create email-validated policies
 -- ======================================================
 
-DROP POLICY IF EXISTS "Allow authenticated access to properties" ON properties;
-DROP POLICY IF EXISTS "Allow authenticated access to tenants" ON tenants;
-DROP POLICY IF EXISTS "Allow authenticated access to tenant_payments" ON tenant_payments;
-DROP POLICY IF EXISTS "Allow authenticated access to professionals" ON professionals;
-DROP POLICY IF EXISTS "Allow authenticated access to maintenance_tasks" ON maintenance_tasks;
-DROP POLICY IF EXISTS "Allow authenticated access to buildings" ON buildings;
+-- 3.1 Allowed Emails (Admin list)
+CREATE POLICY "Allow authenticated read on allowed_emails" ON allowed_emails
+    FOR SELECT TO authenticated USING (true);
 
--- ======================================================
--- Step 4: Create email-validated policies
--- All 3 family emails share the same data.
--- Only users whose JWT email is in allowed_emails can access anything.
--- ======================================================
-
+-- 3.2 Properties
 CREATE POLICY "Family access to properties" ON properties
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
 
--- Tenant access to properties (Read-only, if assigned)
 CREATE POLICY "Tenant read access to assigned properties" ON properties
     FOR SELECT TO authenticated
     USING (
@@ -66,22 +81,22 @@ CREATE POLICY "Tenant read access to assigned properties" ON properties
         )
     );
 
+-- 3.3 Tenants
 CREATE POLICY "Family access to tenants" ON tenants
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
 
--- Tenant access to their own tenant record
 CREATE POLICY "Tenant read access to own record" ON tenants
     FOR SELECT TO authenticated
     USING (email = (auth.jwt() ->> 'email'));
 
+-- 3.4 Tenant Payments
 CREATE POLICY "Family access to tenant_payments" ON tenant_payments
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
 
--- Tenant access to their own payments
 CREATE POLICY "Tenant access to own payments" ON tenant_payments
     FOR ALL TO authenticated
     USING (
@@ -99,17 +114,41 @@ CREATE POLICY "Tenant access to own payments" ON tenant_payments
         )
     );
 
+-- 3.5 Professionals
 CREATE POLICY "Family access to professionals" ON professionals
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
 
+-- 3.6 Maintenance Tasks
 CREATE POLICY "Family access to maintenance_tasks" ON maintenance_tasks
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
 
+-- 3.7 Buildings
 CREATE POLICY "Family access to buildings" ON buildings
     FOR ALL TO authenticated
     USING ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails))
     WITH CHECK ((auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails));
+
+-- ======================================================
+-- Step 4: Storage bucket policies (payment-proofs)
+-- ======================================================
+
+CREATE POLICY "Allow authenticated read on payment-proofs" ON storage.objects
+    FOR SELECT TO authenticated
+    USING (bucket_id = 'payment-proofs');
+
+CREATE POLICY "Allow authenticated insert on payment-proofs" ON storage.objects
+    FOR INSERT TO authenticated
+    WITH CHECK (bucket_id = 'payment-proofs');
+
+CREATE POLICY "Allow authenticated update on payment-proofs" ON storage.objects
+    FOR UPDATE TO authenticated
+    USING (bucket_id = 'payment-proofs');
+
+CREATE POLICY "Allow authenticated delete on payment-proofs" ON storage.objects
+    FOR DELETE TO authenticated
+    USING (bucket_id = 'payment-proofs');
+

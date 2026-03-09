@@ -15,6 +15,21 @@
   <meta name="description" content="Gestión Inmobiliaria Inteligente" />
   <title>SV Propiedades</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              bg: '#0f172a',
+              card: '#1e293b'
+            }
+          }
+        }
+      }
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,6 +42,13 @@
       /* Gray-100 equivalent for Google Maps Light feel */
       overflow: hidden;
       /* App-like feel */
+      transition: background-color 0.5s ease;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .dark body {
+      background-color: #0f172a;
     }
 
     /* Custom Scrollbar for sleek look */
@@ -42,6 +64,10 @@
       background: #cbd5e1;
       border-radius: 4px;
     }
+
+    .dark ::-webkit-scrollbar-track { background: #1e293b; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 100px; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
     /* Leaflet overrides */
     .leaflet-container {

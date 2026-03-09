@@ -5,6 +5,7 @@ import { DEFAULT_PROPERTY_IMAGE } from '../constants';
 
 import { getTaxConfig } from '../utils/taxConfig';
 import { toast } from 'sonner';
+import { logger } from '../utils/logger';
 import { BuildingUnitManager, BuildingUnit } from './properties/BuildingUnitManager';
 
 // BuildingUnit interface moved to BuildingUnitManager
@@ -189,10 +190,10 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         const result = await geocodeAddress(finalAddress);
         if (result) {
           finalCoords = [result.lat, result.lng];
-          console.log(`[Geocoding] Found coords for ${finalAddress}:`, finalCoords);
+          logger.log(`[Geocoding] Found coords for ${finalAddress}:`, finalCoords);
         }
       } catch (err) {
-        console.error("Error geocoding on save:", err);
+        logger.error("Error geocoding on save:", err);
       }
     }
 

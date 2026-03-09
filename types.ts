@@ -138,3 +138,14 @@ export interface ExpenseLog {
   confirmed: boolean;
 }
 
+export interface AppNotification {
+  id: string;
+  recipientEmail: string;
+  title: string;
+  message: string;
+  type: 'PAYMENT_SUBMITTED' | 'PAYMENT_APPROVED' | 'PAYMENT_REVISION';
+  paymentId?: string;
+  read: boolean;
+  createdAt: string;
+}
+

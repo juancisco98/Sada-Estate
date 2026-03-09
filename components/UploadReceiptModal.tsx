@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
-import { X, UploadCloud, FileText, AlertTriangle } from 'lucide-react';
+import { X, UploadCloud, FileText, AlertTriangle, Loader2, CheckCircle, Clock } from 'lucide-react';
 import { Tenant, TenantPayment, Property } from '../types';
 import { uploadFile } from '../services/storage';
 import { supabase } from '../services/supabaseClient';
+import { logger } from '../utils/logger';
 import { paymentToDb } from '../utils/mappers';
 import { toast } from 'sonner';
-import { MONTH_NAMES } from '../constants';
+import { MONTH_NAMES, ALLOWED_EMAILS } from '../constants';
+
+// UUID v4 generator that works on HTTP (crypto.randomUUID requires HTTPS)
+const generateUUID = (): string => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
 
 interface UploadReceiptModalProps {
     month: number;
@@ -28,12 +38,15 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
 }) => {
     const [rentFile, setRentFile] = useState<File | null>(null);
     const [expensesFile, setExpensesFile] = useState<File | null>(null);
+    const [deletedRent, setDeletedRent] = useState(false);
+    const [deletedExpenses, setDeletedExpenses] = useState(false);
     const [amount, setAmount] = useState(existingPayment?.amount?.toString() || property?.monthlyRent?.toString() || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
-    // If a payment exists and is not pending/incomplete without files, block editing completely as per requirement.
-    const isLocked = existingPayment ? (!!existingPayment.proofOfPayment && !!existingPayment.proofOfExpenses) : false;
+    // Only locked when APPROVED — tenant can re-upload when REVISION
+    const isLocked = existingPayment?.status === 'APPROVED';
+    const isRevision = existingPayment?.status === 'REVISION';
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'rent' | 'expenses') => {
         if (e.target.files && e.target.files.length > 0) {
@@ -43,15 +56,17 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     };
 
     const handleConfirmSubmit = async () => {
-        if ((!rentFile && !existingPayment?.proofOfPayment) || (!expensesFile && !existingPayment?.proofOfExpenses)) {
+        const hasRent = rentFile || (!deletedRent && existingPayment?.proofOfPayment);
+        const hasExpenses = expensesFile || (!deletedExpenses && existingPayment?.proofOfExpenses);
+        if (!hasRent || !hasExpenses) {
             toast.error('Debes subir ambos comprobantes (alquiler y expensas).');
             return;
         }
 
         setIsSubmitting(true);
         try {
-            let rentUrl = existingPayment?.proofOfPayment || '';
-            let expensesUrl = existingPayment?.proofOfExpenses || '';
+            let rentUrl = deletedRent ? '' : (existingPayment?.proofOfPayment || '');
+            let expensesUrl = deletedExpenses ? '' : (existingPayment?.proofOfExpenses || '');
 
             const baseFolder = `tenants/${tenant.id}/${year}-${month}`;
 
@@ -67,23 +82,22 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 expensesUrl = url;
             }
 
-            // Check date - if existing payment has date use it, else use today
             const todayString = new Date().toISOString().split('T')[0];
 
             const paymentRecord: TenantPayment = {
-                id: existingPayment?.id || `pay-${Date.now()}`,
+                id: existingPayment?.id || generateUUID(),
                 tenantId: tenant.id,
                 propertyId: property?.id || null,
                 amount: parseFloat(amount) || 0,
                 currency: property?.currency || 'ARS',
                 month,
                 year,
-                paidOnTime: true, // Optimistically assuming on time, can be recalculated by admins
+                paidOnTime: true,
                 paymentDate: existingPayment?.paymentDate || todayString,
                 paymentMethod: existingPayment?.paymentMethod || 'TRANSFER',
                 proofOfPayment: rentUrl,
                 proofOfExpenses: expensesUrl,
-                status: 'REVISION', // Goes to revision straight away
+                status: 'REVISION',
                 userId: tenant.userId,
                 notes: existingPayment?.notes || 'Cargado por inquilino'
             };
@@ -93,18 +107,33 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 .upsert(paymentToDb(paymentRecord));
 
             if (error) {
-                console.error('Supabase error:', error);
-                throw error;
+                logger.error('Supabase error:', error);
+                throw new Error(error.message || 'Error al guardar el pago en la base de datos.');
+            }
+
+            // Notify all admins (non-blocking — don't let failures abort the payment success)
+            try {
+                const notifInserts = ALLOWED_EMAILS.map(adminEmail => ({
+                    recipient_email: adminEmail,
+                    title: 'Nuevo comprobante recibido',
+                    message: `${tenant.name} subió comprobantes de ${MONTH_NAMES[month - 1]} ${year}`,
+                    type: 'PAYMENT_SUBMITTED',
+                    payment_id: paymentRecord.id,
+                }));
+                await supabase.from('notifications').insert(notifInserts);
+            } catch (notifError: any) {
+                logger.error('Notifications insert failed (non-blocking):', notifError);
+                // Don't rethrow — payment was already saved successfully
             }
 
             toast.success('Comprobantes enviados correctamente.');
             onSuccess(paymentRecord);
-        } catch (error) {
-            console.error(error);
-            toast.error('Ocurrió un error al guardar los comprobantes.');
+        } catch (error: any) {
+            logger.error('Upload receipt error:', error);
+            toast.error(error?.message || 'Ocurrió un error al guardar los comprobantes.');
+            setShowConfirm(false);
         } finally {
             setIsSubmitting(false);
-            setShowConfirm(false);
         }
     };
 
@@ -126,166 +155,221 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[1500] flex items-end sm:items-center justify-center p-4 sm:p-0">
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-            {/* Modal Panel - No z-10 needed anymore */}
-            <div className="bg-white rounded-2xl sm:rounded-xl shadow-xl w-full max-w-md overflow-hidden relative animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <div
+            className="fixed inset-0 z-[1500] flex items-end sm:items-center justify-center p-4 sm:p-0"
+            onClick={onClose}
+        >
+            <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md transition-opacity"></div>
+            <div
+                className="bg-white dark:bg-slate-900 border border-white/40 dark:border-white/10 rounded-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] relative animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 duration-300"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-800">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                             {MONTH_NAMES[month - 1]} {year}
                         </h2>
-                        <p className="text-sm text-gray-500">Carga de comprobantes</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Carga de comprobantes</p>
                     </div>
                     <button
                         onClick={onClose}
                         disabled={isSubmitting}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-95"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                {showConfirm ? (
-                    <div className="p-6">
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6 text-center">
-                            <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
-                            <h3 className="text-lg font-bold text-yellow-800 mb-2">Atención inquilino</h3>
-                            <p className="text-sm text-yellow-700 font-medium">
-                                Revisen bien lo subido porque no se va a poder modificar después. <br /><br />
-                                Una vez entregado, el mes quedará en estado de <b>Revisión</b> para la administración.
-                            </p>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowConfirm(false)}
-                                disabled={isSubmitting}
-                                className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition disabled:opacity-50"
-                            >
-                                Volver y revisar
-                            </button>
-                            <button
-                                onClick={handleConfirmSubmit}
-                                disabled={isSubmitting}
-                                className="flex-1 py-3 bg-indigo-600 rounded-lg text-white font-medium hover:bg-indigo-700 transition disabled:opacity-50 relative flex items-center justify-center"
-                            >
-                                {isSubmitting ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                ) : (
-                                    "Confirmar Envío"
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <form onSubmit={handleInitiateSubmit} className="p-6">
-
-                        {isLocked ? (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-2 text-center">
-                                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                                    <FileText className="w-6 h-6" />
-                                </div>
-                                <h3 className="text-lg font-bold text-green-800 mb-1">Comprobantes Entregados</h3>
-                                <p className="text-sm text-green-700">
-                                    Ya has subido los comprobantes de este mes exitosamente. Cualquier modificación debes solicitarla a la administración.
+                {/* Body */}
+                <div className="overflow-y-auto">
+                    {showConfirm ? (
+                        <div className="p-6">
+                            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-5 mb-6 text-center">
+                                <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                                <h3 className="text-lg font-bold text-amber-800 dark:text-amber-400 mb-2">Atención inquilino</h3>
+                                <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                                    Revisá bien lo que subiste antes de confirmar.<br /><br />
+                                    Una vez entregado, el mes quedará en estado de <b>Revisión</b> para la administración.
                                 </p>
                             </div>
-                        ) : (
-                            <div className="space-y-6">
-                                {/* MONTO */}
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Monto Total Abonado</label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-3 text-gray-500 font-bold">$</span>
-                                        <input
-                                            type="number"
-                                            value={amount}
-                                            onChange={(e) => setAmount(e.target.value)}
-                                            placeholder="Ingresa el monto (alquiler + expensas)"
-                                            className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-gray-800 font-bold bg-white hover:bg-gray-50/50"
-                                        />
-                                    </div>
-                                </div>
 
-                                {/* ALQUILER */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Comprobante de Alquiler</label>
-                                    {existingPayment?.proofOfPayment ? (
-                                        <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                            <span className="text-sm text-gray-600 flex items-center gap-2"><FileText /> Alquiler subido</span>
-                                            <a href={existingPayment.proofOfPayment} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm font-medium hover:underline">Ver</a>
-                                        </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowConfirm(false)}
+                                    disabled={isSubmitting}
+                                    className="flex-1 py-3 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all disabled:opacity-50 active:scale-95"
+                                >
+                                    Volver y revisar
+                                </button>
+                                <button
+                                    onClick={handleConfirmSubmit}
+                                    disabled={isSubmitting}
+                                    className="flex-1 py-3 bg-indigo-600 rounded-2xl text-white font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center active:scale-95"
+                                >
+                                    {isSubmitting ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
                                     ) : (
-                                        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-200 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition relative overflow-hidden">
-                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        "Confirmar Envío"
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleInitiateSubmit} className="p-6">
+
+                            {isLocked ? (
+                                /* APPROVED — locked */
+                                <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-5 text-center">
+                                    <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <CheckCircle className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-400 mb-1">Pago aprobado ✓</h3>
+                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                        La administración aprobó tu pago de {MONTH_NAMES[month - 1]} {year}.
+                                    </p>
+                                    {(existingPayment?.proofOfPayment || existingPayment?.proofOfExpenses) && (
+                                        <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-500/20">
+                                            {existingPayment.proofOfPayment && (
+                                                <a href={existingPayment.proofOfPayment} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                                                    <FileText className="w-4 h-4" /> Ver Alquiler
+                                                </a>
+                                            )}
+                                            {existingPayment.proofOfExpenses && (
+                                                <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                                                    <FileText className="w-4 h-4" /> Ver Expensas
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* REVISION banner */}
+                                    {isRevision && (
+                                        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 flex items-start gap-3">
+                                            <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm font-bold text-amber-800 dark:text-amber-400">Pago en revisión</p>
+                                                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                                                    La administración requiere que revises tus comprobantes. Podés subir nuevos archivos o confirmar los actuales.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* MONTO */}
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Monto Total Abonado</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-3 text-slate-500 dark:text-slate-400 font-bold">$</span>
+                                            <input
+                                                type="number"
+                                                value={amount}
+                                                onChange={(e) => setAmount(e.target.value)}
+                                                placeholder="Ingresa el monto (alquiler + expensas)"
+                                                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* ALQUILER */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Comprobante de Alquiler</label>
+                                        {existingPayment?.proofOfPayment && !deletedRent && (
+                                            <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
+                                                <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                                    <FileText className="w-4 h-4" />
+                                                    {rentFile ? 'Reemplazando archivo...' : 'Alquiler subido'}
+                                                </span>
+                                                <div className="flex items-center gap-3">
+                                                    <a href={existingPayment.proofOfPayment} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
+                                                    <button type="button" onClick={() => { setDeletedRent(true); setRentFile(null); }} className="text-red-400 hover:text-red-600 transition-colors" title="Eliminar archivo">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-slate-200 dark:border-white/20 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                                            <div className="flex flex-col items-center justify-center py-3">
                                                 {rentFile ? (
                                                     <div className="text-center">
-                                                        <FileText className="w-6 h-6 text-indigo-500 mx-auto mb-1" />
-                                                        <p className="text-sm font-medium text-gray-800 px-2 truncate w-48">{rentFile.name}</p>
+                                                        <FileText className="w-5 h-5 text-indigo-500 mx-auto mb-1" />
+                                                        <p className="text-xs font-medium text-slate-800 dark:text-white px-2 truncate w-48">{rentFile.name}</p>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <UploadCloud className="w-6 h-6 text-gray-400 mb-2" />
-                                                        <p className="text-xs text-gray-500 font-medium">Toca para cargar archivo de alquiler</p>
+                                                        <UploadCloud className="w-5 h-5 text-slate-400 dark:text-slate-500 mb-1" />
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                                            {existingPayment?.proofOfPayment ? 'Subir nuevo archivo de alquiler' : 'Toca para cargar archivo de alquiler'}
+                                                        </p>
                                                     </>
                                                 )}
                                             </div>
                                             <input
                                                 type="file"
                                                 className="hidden"
-                                                accept="image/*,.pdf"
+                                                accept="*/*"
                                                 onChange={(e) => handleFileChange(e, 'rent')}
                                             />
                                         </label>
-                                    )}
-                                </div>
+                                    </div>
 
-                                {/* EXPENSAS */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Comprobante de Expensas</label>
-                                    {existingPayment?.proofOfExpenses ? (
-                                        <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                            <span className="text-sm text-gray-600 flex items-center gap-2"><FileText /> Expensas subidas</span>
-                                            <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm font-medium hover:underline">Ver</a>
-                                        </div>
-                                    ) : (
-                                        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-200 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition relative overflow-hidden">
-                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    {/* EXPENSAS */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Comprobante de Expensas</label>
+                                        {existingPayment?.proofOfExpenses && !deletedExpenses && (
+                                            <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
+                                                <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                                    <FileText className="w-4 h-4" />
+                                                    {expensesFile ? 'Reemplazando archivo...' : 'Expensas subidas'}
+                                                </span>
+                                                <div className="flex items-center gap-3">
+                                                    <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
+                                                    <button type="button" onClick={() => { setDeletedExpenses(true); setExpensesFile(null); }} className="text-red-400 hover:text-red-600 transition-colors" title="Eliminar archivo">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-slate-200 dark:border-white/20 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                                            <div className="flex flex-col items-center justify-center py-3">
                                                 {expensesFile ? (
                                                     <div className="text-center">
-                                                        <FileText className="w-6 h-6 text-indigo-500 mx-auto mb-1" />
-                                                        <p className="text-sm font-medium text-gray-800 px-2 truncate w-48">{expensesFile.name}</p>
+                                                        <FileText className="w-5 h-5 text-indigo-500 mx-auto mb-1" />
+                                                        <p className="text-xs font-medium text-slate-800 dark:text-white px-2 truncate w-48">{expensesFile.name}</p>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <UploadCloud className="w-6 h-6 text-gray-400 mb-2" />
-                                                        <p className="text-xs text-gray-500 font-medium">Toca para cargar archivo de expensas</p>
+                                                        <UploadCloud className="w-5 h-5 text-slate-400 dark:text-slate-500 mb-1" />
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                                            {existingPayment?.proofOfExpenses ? 'Subir nuevo archivo de expensas' : 'Toca para cargar archivo de expensas'}
+                                                        </p>
                                                     </>
                                                 )}
                                             </div>
                                             <input
                                                 type="file"
                                                 className="hidden"
-                                                accept="image/*,.pdf"
+                                                accept="*/*"
                                                 onChange={(e) => handleFileChange(e, 'expenses')}
                                             />
                                         </label>
-                                    )}
-                                </div>
+                                    </div>
 
-                                <div className="pt-2">
-                                    <button
-                                        type="submit"
-                                        className="w-full py-3 bg-indigo-600 rounded-lg text-white font-medium hover:bg-indigo-700 transition"
-                                    >
-                                        Enviar Comprobantes
-                                    </button>
+                                    <div className="pt-2">
+                                        <button
+                                            type="submit"
+                                            className="w-full py-3 bg-indigo-600 rounded-2xl text-white font-bold hover:bg-indigo-700 transition-all active:scale-95"
+                                        >
+                                            Enviar Comprobantes
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </form>
-                )}
+                            )}
+                        </form>
+                    )}
+                </div>
             </div>
         </div>
     );

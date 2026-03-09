@@ -133,39 +133,46 @@ const ExpenseBreakdownModal: React.FC<ExpenseBreakdownModalProps> = ({
       className="fixed inset-0 z-[1300] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 md:p-8 animate-in fade-in zoom-in-95 duration-300"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-[#f8fafc] rounded-[2.5rem] w-full max-w-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden relative flex flex-col max-h-[90vh]">
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/50 dark:border-white/10 flex flex-col animate-in zoom-in-95 duration-300">
 
         {/* Header */}
-        <div className="p-8 pb-6 bg-white border-b border-slate-100">
+        <div className="p-10 pb-6 bg-white dark:bg-slate-800/50 border-b border-indigo-50/50 dark:border-white/5">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-2">Detalle de Gastos</p>
-              <h2 className="text-3xl font-black text-slate-900 leading-tight">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-1 bg-rose-500 rounded-full"></div>
+                <span className="text-[10px] font-black text-rose-500 uppercase tracking-[0.3em]">Auditoría de Gastos</span>
+              </div>
+              <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase">
                 {MONTH_NAMES_FULL[month]} {year}
               </h2>
-              <p className="text-sm text-slate-400 mt-1">
-                {expenseItems.length} gasto{expenseItems.length !== 1 ? 's' : ''} en {propertyGroups.length} inmueble{propertyGroups.length !== 1 ? 's' : ''}
+              <p className="text-sm font-bold text-slate-400 dark:text-slate-500 mt-2 uppercase tracking-widest flex items-center gap-2">
+                <Hammer className="w-4 h-4" /> {expenseItems.length} comprobantes detectados
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-3 hover:bg-slate-100 hover:shadow-md rounded-2xl text-slate-400 hover:text-slate-600 transition-all active:scale-95"
+              className="p-3 bg-slate-100/50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl transition-all active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-white/10"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
 
           {/* Month Total Card */}
-          <div className="mt-6 relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-rose-500 to-orange-500 rounded-[1.5rem] blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-            <div className="relative bg-slate-900 p-5 rounded-[1.3rem] text-white shadow-xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm">
-                  <Hammer className="w-5 h-5 text-rose-300" />
+          <div className="mt-8 relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-rose-600 to-rose-400 rounded-[1.8rem] opacity-10 blur-xl group-hover:opacity-20 transition-all"></div>
+            <div className="relative bg-slate-950 p-6 rounded-[2rem] text-white shadow-2xl flex items-center justify-between border border-white/5 overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl"></div>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 shadow-inner">
+                  <Receipt className="w-6 h-6 text-rose-400" />
                 </div>
-                <span className="text-sm font-bold text-slate-300">Total del Mes</span>
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Inversión Mensual</p>
+                  <span className="text-sm font-bold text-slate-300">Total Desembolsado</span>
+                </div>
               </div>
-              <p className="text-2xl font-black text-rose-400">{formatCurrency(monthTotal, 'ARS')}</p>
+              <p className="text-3xl font-black text-white tracking-tighter tabular-nums">{formatCurrency(monthTotal, 'ARS').split(',')[0]}<span className="text-sm text-slate-500 ml-1">ARS</span></p>
             </div>
           </div>
         </div>
@@ -175,25 +182,25 @@ const ExpenseBreakdownModal: React.FC<ExpenseBreakdownModalProps> = ({
           {propertyGroups.length > 0 ? (
             <div className="space-y-6">
               {propertyGroups.map(([propertyId, group]) => (
-                <div key={propertyId} className="bg-white rounded-[1.8rem] border border-slate-100 shadow-sm overflow-hidden">
+                <div key={propertyId} className="bg-white dark:bg-slate-800 rounded-[1.8rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
                   {/* Property Header */}
-                  <div className="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <div className="p-5 bg-slate-50 dark:bg-slate-700 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-200 rounded-xl">
-                        <Home className="w-4 h-4 text-slate-600" />
+                      <div className="p-2 bg-slate-200 dark:bg-slate-600 rounded-xl">
+                        <Home className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900 text-sm leading-tight">{group.address}</p>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight">{group.address}</p>
                         {group.tenantName && (
-                          <p className="text-xs text-slate-400 mt-0.5">{group.tenantName}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">{group.tenantName}</p>
                         )}
                       </div>
                     </div>
-                    <span className="text-base font-black text-rose-500">{formatCurrency(group.total, 'ARS')}</span>
+                    <span className="text-base font-black text-rose-500 dark:text-rose-400">{formatCurrency(group.total, 'ARS')}</span>
                   </div>
 
                   {/* Expense Items */}
-                  <div className="divide-y divide-slate-50">
+                  <div className="divide-y divide-slate-50 dark:divide-white/5">
                     {group.items
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .map(item => (

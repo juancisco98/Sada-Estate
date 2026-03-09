@@ -9,7 +9,7 @@ const BUCKET_NAME = 'payment-proofs';
  * @param folder Folder path within the bucket (e.g., 'tenants/123', 'expenses/prop-456').
  * @returns Promise resolving to the public URL of the uploaded file.
  */
-export const uploadFile = async (file: File, folder: string = 'general'): Promise<string | null> => {
+export const uploadFile = async (file: File, folder: string = 'general'): Promise<string> => {
     try {
         const fileExt = file.name.split('.').pop();
         const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
@@ -31,9 +31,9 @@ export const uploadFile = async (file: File, folder: string = 'general'): Promis
             .getPublicUrl(fileName);
 
         return publicUrlData.publicUrl;
-    } catch (error) {
+    } catch (error: any) {
         logger.error('Upload failed:', error);
-        return null;
+        throw new Error(error?.message || 'Error al subir el archivo');
     }
 };
 

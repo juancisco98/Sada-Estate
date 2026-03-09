@@ -31,18 +31,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
       )}
 
       {/* Sidebar Panel */}
-      <div className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-[1500] transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 flex justify-between items-center border-b border-gray-100">
+      <div className={`fixed top-0 left-0 h-full w-72 bg-white dark:bg-slate-950 shadow-2xl z-[1500] transform transition-transform duration-300 ease-in-out border-r dark:border-white/10 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold">SV</div>
-            <span className="font-bold text-xl text-gray-900">SV Prop</span>
+            <div className="w-8 h-8 bg-gray-900 dark:bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">SV</div>
+            <span className="font-bold text-xl text-gray-900 dark:text-white">SV Prop</span>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500" aria-label="Cerrar menú">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-500 dark:text-gray-400" aria-label="Cerrar menú">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <nav className="p-4 space-y-2 flex-1">
+        <nav className="p-4 space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-250px)]">
           {menuItems.map((item) => {
             const isActive = currentView === item.id;
             return (
@@ -52,23 +52,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
                   onNavigate(item.id as ViewState);
                   onClose();
                 }}
-                className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 ${isActive
-                  ? 'bg-blue-50 text-blue-700 shadow-sm font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-[22px] transition-all duration-300 group ${isActive
+                  ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200/50 dark:shadow-none font-bold scale-[1.02]'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white font-medium'
                   }`}
               >
-                <item.icon className={`w-6 h-6 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                <span className="text-lg">{item.label}</span>
+                <div className={`p-2 rounded-xl transition-colors ${isActive ? 'bg-white/20' : 'bg-gray-50 dark:bg-slate-800 group-hover:bg-white dark:group-hover:bg-slate-700 text-gray-400 group-hover:text-indigo-600'}`}>
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <span className="text-base font-semibold tracking-tight">{item.label}</span>
               </button>
             );
           })}
         </nav>
 
         {/* Bottom Section */}
-        <div className="absolute bottom-0 left-0 w-full p-6 space-y-4 bg-white">
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-400 uppercase font-semibold mb-2">Estado del sistema</p>
-            <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+        <div className="absolute bottom-0 left-0 w-full p-6 space-y-4 bg-white dark:bg-slate-900 border-t dark:border-white/5">
+          <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10">
+            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-2">Estado del sistema</p>
+            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 text-sm font-medium">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               Sada Voice Activo
             </div>
@@ -77,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
           {onLogout && (
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 dark:text-rose-500 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors border border-transparent hover:border-red-100 dark:hover:border-rose-500/20"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Cerrar Sesión</span>

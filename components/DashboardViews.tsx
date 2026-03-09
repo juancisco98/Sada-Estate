@@ -4,23 +4,29 @@ import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Bu
 import { useDataContext } from '../context/DataContext';
 import {
   TrendingUp,
+  TrendingDown,
   AlertTriangle,
   Clock,
   Hammer,
   DollarSign,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Building2,
   UserPlus,
   Phone,
   MapPin,
   Calendar,
   User,
+  Home,
   CheckCircle,
   AlertCircle,
   Timer,
   Trash2,
-  Briefcase
+  Briefcase,
+  Loader,
+  Edit
 } from 'lucide-react';
 import FinancialDetailsCard from './FinancialDetailsCard';
 import IncomeBreakdownPanel from './IncomeBreakdownPanel';
@@ -29,6 +35,7 @@ import MaintenanceDetailsModal from './MaintenanceDetailsModal';
 
 // --- Helper Functions ---
 import { formatCurrency } from '../utils/currency';
+import { getPropertyDisplayInfo } from '../utils/property';
 import { MAINTENANCE_BUDGET_RATIO } from '../constants';
 import { useMaintenanceTimer } from '../hooks/useMaintenanceTimer';
 
@@ -112,6 +119,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return properties.filter(p => getPropertyType(p) === activeCategory);
   }, [properties, activeCategory]);
 
+  // --- Calculate Actual Income (This Month) ---
+  const { payments } = useDataContext();
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+
+  const actualIncome = useMemo(() => {
+    return payments
+      .filter(p => p.month === currentMonth && p.year === currentYear)
+      .reduce((sum, p) => sum + p.amount, 0);
+  }, [payments, currentMonth, currentYear]);
+
   const totalIncome = useMemo(() =>
     properties.reduce((acc, p) => acc + p.monthlyRent, 0),
     [properties]
@@ -146,43 +164,44 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const [selectedMaintenanceProp, setSelectedMaintenanceProp] = useState<Property | null>(null);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-24">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    <div className="space-y-10 animate-in fade-in duration-500 pb-24">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="flex items-center gap-4">
+          <div className="w-2 h-12 bg-indigo-600 rounded-full hidden sm:block"></div>
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Visión General</h2>
-            <p className="text-gray-500 text-sm sm:text-base">Estado de mis propiedades y actividad reciente.</p>
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight">Visión General</h2>
+            <p className="text-gray-500 dark:text-slate-400 font-medium text-sm sm:text-lg">Estado de mis propiedades y actividad reciente.</p>
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap w-full sm:w-auto">
+        <div className="flex gap-3 flex-wrap w-full sm:w-auto">
           {onDeleteProperty && (
             <button
               onClick={() => setIsDeleteMode(!isDeleteMode)}
-              className={`p-3 rounded-full shadow-lg flex items-center gap-2 px-4 sm:px-6 transition-all min-h-[44px] ${isDeleteMode
-                ? 'bg-red-600 text-white hover:bg-red-700 ring-2 ring-red-300'
-                : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'
+              className={`p-3 rounded-2xl shadow-sm flex items-center gap-2 px-5 sm:px-7 transition-all min-h-[52px] font-bold ${isDeleteMode
+                ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200 shadow-lg scale-105'
+                : 'bg-white dark:bg-slate-800 text-rose-600 border border-rose-100 dark:border-rose-500/20 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:border-rose-200'
                 }`}
             >
               <Trash2 className="w-5 h-5" />
-              <span className="hidden md:inline font-bold">
-                {isDeleteMode ? 'Cancelar Eliminar' : 'Eliminar Propiedad'}
+              <span className="md:inline">
+                {isDeleteMode ? 'Listo' : 'Gestionar'}
               </span>
             </button>
           )}
           {onAddProperty && !isDeleteMode && (
             <button
               onClick={onAddProperty}
-              className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 shadow-lg flex items-center gap-2 px-4 sm:px-6 min-h-[44px]"
+              className="bg-indigo-600 text-white p-3 rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-200 dark:shadow-none flex items-center gap-2 px-5 sm:px-8 min-h-[52px] transition-all hover:scale-105 active:scale-95 group"
             >
-              <span className="font-bold text-lg">+</span>
-              <span className="font-semibold text-sm sm:text-base">Agregar</span>
+              <span className="font-black text-xl group-hover:rotate-90 transition-transform">+</span>
+              <span className="font-bold text-base">Nueva Propiedad</span>
             </button>
           )}
         </div>
       </header>
 
-      {/* Category Filter Buttons */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Category Filter Buttons - Modern Segmented Control style */}
+      <div className="bg-white/50 dark:bg-slate-800/50 p-1.5 rounded-3xl border border-gray-100 dark:border-white/10 flex gap-1 flex-wrap sm:flex-nowrap backdrop-blur-sm self-start">
         {([
           { key: 'all' as const, label: 'Todas', icon: '📋', count: properties.length },
           { key: 'casa' as const, label: 'Casas', icon: '🏠', count: categorized.casas.length },
@@ -192,17 +211,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <button
             key={cat.key}
             onClick={() => setActiveCategory(cat.key)}
-            className={`px-4 py-2.5 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all min-h-[44px] ${
-              activeCategory === cat.key
-                ? 'bg-gray-900 text-white shadow-lg'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            }`}
+            className={`flex-1 sm:flex-none px-5 py-3 rounded-[22px] font-bold text-sm flex items-center justify-center gap-2.5 transition-all min-h-[48px] ${activeCategory === cat.key
+              ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-md shadow-indigo-100/50 dark:shadow-none border border-indigo-50 dark:border-white/20'
+              : 'bg-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
           >
-            <span>{cat.icon}</span>
-            {cat.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-              activeCategory === cat.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-            }`}>{cat.count}</span>
+            <span className="text-lg grayscale-0">{cat.icon}</span>
+            <span>{cat.label}</span>
+            <span className={`px-1.5 py-0.5 rounded-lg text-[10px] ${activeCategory === cat.key ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' : 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500'}`}>
+              {cat.count}
+            </span>
           </button>
         ))}
       </div>
@@ -222,7 +240,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               const lateCount = units.filter(u => u.status === PropertyStatus.LATE).length;
 
               return (
-                <div key={groupKey} className="bg-white rounded-3xl shadow-sm border-2 border-violet-200 overflow-hidden">
+                <div key={groupKey} className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border-2 border-violet-200 dark:border-violet-500/20 overflow-hidden">
                   {/* Building header with image */}
                   <div className="h-36 w-full relative">
                     {firstUnit.imageUrl ? (
@@ -240,23 +258,23 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     </div>
                   </div>
                   <div className="p-5">
-                    <h4 className="text-lg font-bold text-gray-900 mb-2">{firstUnit.address}</h4>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{firstUnit.address}</h4>
                     <div className="flex gap-2 flex-wrap mb-4">
-                      <span className="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full font-bold border border-violet-200">
+                      <span className="text-xs bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 px-2.5 py-1 rounded-full font-bold border border-violet-200 dark:border-violet-500/20">
                         {units.length} {units.length === 1 ? 'unidad' : 'unidades'}
                       </span>
-                      <span className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-bold border border-green-200">
+                      <span className="text-xs bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full font-bold border border-green-200 dark:border-green-500/20">
                         {formatCurrency(totalRent, 'ARS')}/mes
                       </span>
                       {lateCount > 0 && (
-                        <span className="text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-full font-bold border border-red-200">
+                        <span className="text-xs bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-2.5 py-1 rounded-full font-bold border border-red-200 dark:border-red-500/20">
                           {lateCount} moroso{lateCount > 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
                     {/* Unit list */}
-                    <div className="space-y-1 max-h-[220px] overflow-y-auto">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Departamentos</p>
+                    <div className="space-y-1 max-h-[220px] overflow-y-auto antialiased">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-2 px-1">Departamentos registrados</p>
                       {units
                         .sort((a, b) => (a.unitLabel || '').localeCompare(b.unitLabel || ''))
                         .map(unit => {
@@ -265,20 +283,48 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                             <div
                               key={unit.id}
                               onClick={() => onEditProperty && onEditProperty(unit)}
-                              className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 cursor-pointer group transition-colors"
+                              className="flex items-center gap-4 p-4 rounded-[2rem] hover:bg-indigo-500/10 dark:hover:bg-indigo-500/20 cursor-pointer group transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/40 hover:translate-x-2 active:scale-95 shadow-sm hover:shadow-indigo-500/10 overflow-hidden"
                             >
-                              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                                hasPro ? 'bg-orange-500' :
-                                unit.status === PropertyStatus.CURRENT ? 'bg-green-500' :
-                                unit.status === PropertyStatus.LATE ? 'bg-red-500' : 'bg-yellow-400'
-                              }`} />
+                              {/* Status dot indicator */}
+                              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${unit.status === PropertyStatus.CURRENT ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' :
+                                unit.status === PropertyStatus.LATE ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-amber-400'
+                                }`} />
+
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-gray-900 group-hover:text-violet-600 transition-colors">
-                                  {unit.unitLabel || 'Unidad'}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">{unit.tenantName}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors tracking-tight uppercase">
+                                    {getPropertyDisplayInfo(unit).title}
+                                  </p>
+                                  {unit.status === PropertyStatus.CURRENT && <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-2 py-0.5 rounded-full">Al Día</span>}
+                                  {unit.status === PropertyStatus.LATE && <span className="text-[8px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-2 py-0.5 rounded-full">Moroso</span>}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5 antialiased">
+                                  <Home className="w-2.5 h-2.5 text-slate-400 dark:text-slate-600" />
+                                  <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+                                    {getPropertyDisplayInfo(unit).subtitle}
+                                  </p>
+                                </div>
                               </div>
-                              <p className="text-sm font-bold text-gray-700 flex-shrink-0">{formatCurrency(unit.monthlyRent, 'ARS')}</p>
+
+                              <div className="flex items-center gap-3">
+                                <div className="text-right mr-2 hidden sm:block">
+                                  <p className="text-sm font-black text-slate-700 dark:text-white tabular-nums">{formatCurrency(unit.monthlyRent, 'ARS').split(',')[0]}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Alquiler</p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onEditProperty && onEditProperty(unit);
+                                    }}
+                                    className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-indigo-100 dark:border-white/5 flex items-center gap-1.5 text-[10px] font-bold whitespace-nowrap"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    <span className="hidden xs:inline">EDITAR</span>
+                                  </button>
+                                  <ChevronRight className="w-4 h-4 text-slate-300 dark:text-indigo-400" />
+                                </div>
+                              </div>
                             </div>
                           );
                         })}
@@ -289,232 +335,310 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             })}
           </div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {filteredProperties.map(property => {
-            const maintenance = getMaintenanceInfo(property);
-            const isMaintenance = !!maintenance;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            {filteredProperties.map(property => {
+              const maintenance = getMaintenanceInfo(property);
+              const isMaintenance = !!maintenance;
 
-            return (
-              <div
-                key={property.id}
-                onClick={() => {
-                  if (isDeleteMode) {
-                    if (onDeleteProperty && window.confirm(`¿⚠️ Estás seguro que deseas ELIMINAR definitivamente la propiedad en "${property.address}"?`)) {
-                      onDeleteProperty(property.id);
+              return (
+                <div
+                  key={property.id}
+                  onClick={() => {
+                    if (isDeleteMode) {
+                      if (onDeleteProperty && window.confirm(`¿⚠️ Estás seguro que deseas ELIMINAR definitivamente la propiedad en "${property.address}"?`)) {
+                        onDeleteProperty(property.id);
+                      }
+                    } else {
+                      onEditProperty && onEditProperty(property);
                     }
-                  } else {
-                    onEditProperty && onEditProperty(property);
-                  }
-                }}
-                className={`
-                  bg-white rounded-3xl shadow-sm overflow-hidden transition-all cursor-pointer relative group
+                  }}
+                  className={`
+                  bg-white dark:bg-slate-900 rounded-3xl shadow-sm overflow-hidden transition-all duration-300 cursor-pointer relative group
                   ${isDeleteMode
-                    ? 'border-4 border-red-500 ring-4 ring-red-100 scale-95 opacity-90 hover:opacity-100 hover:scale-100 animate-pulse'
-                    : (isMaintenance ? 'border-4 border-orange-400 ring-4 ring-orange-100/30' : 'border border-gray-100 hover:border-blue-200 hover:shadow-lg')
-                  }
+                      ? 'border-4 border-red-500 ring-4 ring-red-100 scale-95 opacity-90 hover:opacity-100 hover:scale-100 animate-pulse'
+                      : (isMaintenance ? 'border-4 border-orange-400 dark:border-orange-500/50 ring-4 ring-orange-100/30 dark:ring-orange-900/20' : 'border border-gray-100 dark:border-white/10 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.01] hover:translate-x-1')
+                    }
                 `}
-              >
-                {/* Delete Mode Overlay */}
-                {isDeleteMode && (
-                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-50/50 backdrop-blur-[1px]">
-                    <div className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-2 transform scale-110">
-                      <Trash2 className="w-6 h-6" /> ELIMINAR
-                    </div>
-                  </div>
-                )}
-                {/* Photo Area */}
-                <div className="h-48 w-full bg-gray-200 relative">
-                  <img
-                    src={property.imageUrl}
-                    alt={property.address}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  {/* Property Type Badge */}
-                  <div className="absolute top-4 left-4">
-                    {getPropertyType(property) === 'casa' && (
-                      <span className="bg-teal-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏠 Casa</span>
-                    )}
-                    {getPropertyType(property) === 'local' && (
-                      <span className="bg-amber-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏪 Local</span>
-                    )}
-                    {getPropertyType(property) === 'edificio' && (
-                      <span className="bg-violet-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏢 Edificio</span>
-                    )}
-                  </div>
-                  {/* Status Badge & Delete Button */}
-                  <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
-                    {onDeleteProperty && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`¿Estás seguro de que deseas eliminar la propiedad "${property.address}"?`)) {
-                            onDeleteProperty(property.id);
-                          }
-                        }}
-                        className="bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all active:scale-95"
-                        title="Eliminar Propiedad"
-                        aria-label="Eliminar propiedad"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    {property.status === PropertyStatus.CURRENT && (
-                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" /> Al día
-                      </span>
-                    )}
-                    {property.status === PropertyStatus.LATE && (
-                      <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> Moroso
-                      </span>
-                    )}
-                    {property.status === PropertyStatus.WARNING && (
-                      <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Revisar
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Info Content */}
-                <div className="p-5">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{property.address}</h4>
-                  </div>
-
-                  {/* Active Maintenance Alert */}
-                  {isMaintenance && maintenance && (
-                    <div className="my-3 bg-orange-50 border border-orange-200 rounded-xl p-3 flex flex-col gap-2 animate-pulse">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-orange-200 p-1.5 rounded-lg text-orange-700">
-                            <Hammer className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-orange-600 font-bold uppercase">En Obra</p>
-                            <p className="text-sm font-bold text-gray-900">{maintenance.pro?.name}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-orange-600 font-bold uppercase flex items-center justify-end gap-1">
-                            <Timer className="w-3 h-3" /> Tiempo
-                          </p>
-                          <p className="text-lg font-bold text-gray-900 tabular-nums">
-                            <MaintenanceTimerDisplay start={maintenance.startDate} />
-                          </p>
-                        </div>
+                >
+                  {/* Delete Mode Overlay */}
+                  {isDeleteMode && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-50/50 backdrop-blur-[1px]">
+                      <div className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-2 transform scale-110">
+                        <Trash2 className="w-6 h-6" /> ELIMINAR
                       </div>
-                      {maintenance.task && (
-                        <div className="text-xs text-orange-800 bg-white/50 rounded px-2 py-1 italic border-l-2 border-orange-300">
-                          "{maintenance.task}"
-                        </div>
+                    </div>
+                  )}
+                  {/* Photo Area */}
+                  <div className="h-48 w-full bg-gray-200 relative">
+                    <img
+                      src={property.imageUrl}
+                      alt={property.address}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    {/* Property Type Badge */}
+                    <div className="absolute top-4 left-4">
+                      {getPropertyType(property) === 'casa' && (
+                        <span className="bg-teal-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏠 Casa</span>
+                      )}
+                      {getPropertyType(property) === 'local' && (
+                        <span className="bg-amber-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏪 Local</span>
+                      )}
+                      {getPropertyType(property) === 'edificio' && (
+                        <span className="bg-violet-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg">🏢 Edificio</span>
+                      )}
+                    </div>
+                    {/* Status Badge & Delete Button */}
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                      {onDeleteProperty && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent opening modal when clicking phone
+                            if (window.confirm(`¿Estás seguro de que deseas eliminar la propiedad "${property.address}"?`)) {
+                              onDeleteProperty(property.id);
+                            }
+                          }}
+                          className="bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-all active:scale-95"
+                          title="Eliminar Propiedad"
+                          aria-label="Eliminar propiedad"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedMaintenanceProp(property);
-                        }}
-                        className="w-full mt-2 py-2 bg-white/80 border border-orange-200 rounded-lg text-xs font-bold text-orange-700 hover:bg-orange-100 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <DollarSign className="w-3 h-3" /> Ver Gastos Parciales
-                      </button>
+                      {/* Dynamic Payment/Status Badge */}
+                      {(() => {
+                        const currentPayment = payments.find(p => p.propertyId === property.id && p.month === currentMonth && p.year === currentYear);
 
-                      {onFinishMaintenance && (
+                        if (currentPayment) {
+                          if (currentPayment.status === 'REVISION') {
+                            return (
+                              <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg flex items-center gap-1 animate-pulse">
+                                <Clock className="w-3 h-3" /> REVISIÓN
+                              </span>
+                            );
+                          }
+                          if (currentPayment.status === 'APPROVED' || (currentPayment.proofOfPayment && currentPayment.proofOfExpenses)) {
+                            return (
+                              <span className="bg-green-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> PAGADO
+                              </span>
+                            );
+                          }
+                        }
+
+                        // Fallback to static status if no payment current month
+                        if (property.status === PropertyStatus.LATE) {
+                          return (
+                            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Moroso
+                            </span>
+                          );
+                        }
+                        if (property.status === PropertyStatus.WARNING) {
+                          return (
+                            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> Revisar
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3" /> Al día
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Info Content */}
+                  <div className="p-5">
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-indigo-400 transition-colors">{property.address}</h4>
+                    </div>
+
+                    {/* Active Maintenance Alert */}
+                    {isMaintenance && maintenance && (
+                      <div className="my-3 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-xl p-3 flex flex-col gap-2 animate-pulse">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-orange-200 p-1.5 rounded-lg text-orange-700">
+                              <Hammer className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-orange-600 font-bold uppercase">En Obra</p>
+                              <p className="text-sm font-bold text-gray-900 dark:text-white">{maintenance.pro?.name}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-orange-600 font-bold uppercase flex items-center justify-end gap-1">
+                              <Timer className="w-3 h-3" /> Tiempo
+                            </p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">
+                              <MaintenanceTimerDisplay start={maintenance.startDate} />
+                            </p>
+                          </div>
+                        </div>
+                        {maintenance.task && (
+                          <div className="text-xs text-orange-800 bg-white/50 rounded px-2 py-1 italic border-l-2 border-orange-300">
+                            "{maintenance.task}"
+                          </div>
+                        )}
+
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onFinishMaintenance(property);
+                            setSelectedMaintenanceProp(property);
                           }}
-                          className="w-full mt-1.5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1 transition-colors"
+                          className="w-full mt-2 py-2 bg-white/80 border border-orange-200 rounded-lg text-xs font-bold text-orange-700 hover:bg-orange-100 transition-colors flex items-center justify-center gap-1"
                         >
-                          <CheckCircle className="w-4 h-4" /> Finalizar Obra & Calificar
+                          <DollarSign className="w-3 h-3" /> Ver Gastos Parciales
                         </button>
-                      )}
-                    </div>
-                  )}
 
-                  <p className="text-sm text-gray-400 mb-4 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> CABA, Argentina
-                  </p>
-
-                  <div className="space-y-3">
-                    {/* Tenant & Phone */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-500 shadow-sm border border-gray-100">
-                          <User className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase font-bold">Inquilino</p>
-                          <p className="text-sm font-semibold text-gray-900">{property.tenantName}</p>
-                        </div>
+                        {onFinishMaintenance && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onFinishMaintenance(property);
+                            }}
+                            className="w-full mt-1.5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <CheckCircle className="w-4 h-4" /> Finalizar Obra & Calificar
+                          </button>
+                        )}
                       </div>
-                      {property.tenantPhone && property.tenantPhone !== '-' && (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent opening modal when clicking phone
-                            window.location.href = `tel:${property.tenantPhone}`;
-                          }}
-                          className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors cursor-pointer"
-                          aria-label={`Llamar al inquilino: ${property.tenantPhone}`}
-                        >
-                          <Phone className="w-5 h-5" />
-                        </div>
-                      )}
-                    </div>
+                    )}
 
-                    {/* Payment Date & Rent */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-gray-50 p-2 rounded-lg">
-                        <p className="text-xs text-gray-400 uppercase font-bold">Cobro</p>
-                        <p className="text-sm font-medium text-gray-700">Del 1 al 10</p>
+                    <p className="text-sm text-gray-400 mb-4 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> CABA, Argentina
+                    </p>
+
+                    <div className="space-y-2.5">
+                      {/* Tenant & Phone */}
+                      <div className="flex items-center justify-between p-2.5 bg-slate-50/80 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-full flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 dark:border-white/10">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Inquilino</p>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white leading-none" title={property.tenantName}>
+                              {property.tenantName || 'Vacante'}
+                            </p>
+                          </div>
+                        </div>
+                        {property.tenantPhone && property.tenantPhone !== '-' && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `tel:${property.tenantPhone}`;
+                            }}
+                            className="w-8 h-8 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-sm border border-indigo-100 dark:border-indigo-500/20"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </div>
+                        )}
                       </div>
-                      <div className="bg-gray-50 p-2 rounded-lg">
-                        <p className="text-xs text-gray-400 uppercase font-bold">Alquiler</p>
-                        <div className="flex flex-col">
-                          <p className="text-sm font-bold text-green-700">
-                            {formatCurrency(property.monthlyRent, 'ARS')}
+
+                      {/* Payment Date & Rent */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="bg-slate-50/80 dark:bg-white/5 p-2.5 rounded-2xl border border-slate-100 dark:border-white/5">
+                          <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mb-1 leading-none">Cobro</p>
+                          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Del 1 al 10</p>
+                        </div>
+                        <div className="bg-slate-50/80 dark:bg-white/5 p-2.5 rounded-2xl border border-slate-100 dark:border-white/5">
+                          <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mb-1 leading-none">Alquiler</p>
+                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(property.monthlyRent, 'ARS').split(',')[0]}
                           </p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
         )}
       </section>
 
       <div className="border-t border-gray-200 my-8"></div>
 
-      {/* SECTION 2: Budget vs Expenses (KPI) */}
-      <section className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-        <div className="flex justify-between items-end mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Gastos vs. Presupuesto (Mensual)</h3>
-            <p className="text-3xl font-bold text-gray-900 mt-2">
-              {formatCurrency(currentExpenses, 'ARS')} <span className="text-gray-400 text-lg font-normal">/ {formatCurrency(totalBudget, 'ARS')}</span>
-            </p>
-          </div>
-          <div className="text-right">
-            <span className={`px-3 py-1 rounded-full text-sm font-bold ${progress > 90 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-              {Math.round(progress)}% del tope
-            </span>
+      {/* Budget & Maintenance Summary Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-100 dark:border-white/10 shadow-sm relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-50/20 transition-all duration-500">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 dark:bg-indigo-500/10 rounded-bl-[100px] -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+
+          <div className="relative">
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <h3 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Presupuesto Mantenimiento</h3>
+                <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold italic">Calculado sobre el 15% de ingresos brutos</p>
+              </div>
+              <div className="bg-indigo-50 dark:bg-indigo-500/20 p-2 rounded-2xl">
+                <DollarSign className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              </div>
+            </div>
+
+            <div className="flex items-end gap-3 mb-6">
+              <span className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">
+                {formatCurrency(currentExpenses, 'ARS').split(',')[0]}
+              </span>
+              <span className="text-lg font-bold text-slate-300 dark:text-slate-600 mb-1.5 tabular-nums">
+                / {formatCurrency(totalBudget, 'ARS').split(',')[0]}
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between text-[11px] font-black uppercase tracking-wider">
+                <span className="text-slate-500 dark:text-slate-400">Estado de Gasto</span>
+                <span className={progress > 100 ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}>
+                  {progress.toFixed(1)}% utilizado
+                </span>
+              </div>
+              <div className="h-3 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden border border-slate-100 dark:border-white/10 flex p-0.5">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${progress > 90 ? 'bg-gradient-to-r from-rose-400 to-rose-600' :
+                    progress > 60 ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
+                      'bg-gradient-to-r from-indigo-400 to-indigo-600'
+                    }`}
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                ></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
-          <div
-            className={`h-full rounded-full ${progress > 90 ? 'bg-red-500' : 'bg-blue-600'}`}
-            style={{ width: `${Math.min(progress, 100)}%` }}
-          ></div>
+
+        {/* Action Quick Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-emerald-50/50 dark:bg-emerald-500/5 rounded-[2.5rem] p-5 border border-emerald-100/50 dark:border-emerald-500/10 flex flex-col justify-between relative group hover:bg-emerald-100/50 dark:hover:bg-emerald-500/10 transition-all cursor-default">
+            <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3">
+              <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-0.5">Cobrado</p>
+              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{formatCurrency(actualIncome, 'ARS').split(',')[0]}</p>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <div className="flex-1 h-1 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full" style={{ width: `${Math.min((actualIncome / totalIncome) * 100, 100)}%` }}></div>
+                </div>
+                <span className="text-[9px] font-black text-slate-400 dark:text-slate-500">
+                  {Math.round((actualIncome / totalIncome) * 100)}%
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="bg-amber-50/50 dark:bg-amber-500/5 rounded-[2.5rem] p-5 border border-amber-100/50 dark:border-amber-500/10 flex flex-col justify-between group hover:bg-amber-100/50 dark:hover:bg-amber-500/10 transition-all cursor-default">
+            <div className="w-9 h-9 bg-amber-100 dark:bg-amber-500/20 rounded-xl flex items-center justify-center mb-3">
+              <Hammer className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-0.5">Tareas</p>
+              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{maintenanceTasks.filter(t => t.status !== 'COMPLETED').length}</p>
+              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5 items-center flex gap-1"><div className="w-1 h-1 rounded-full bg-amber-400"></div> Activas</span>
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-gray-400 mt-3">
-          El presupuesto de mantenimiento se calcula sobre el 15% del ingreso total de alquileres.
-        </p>
-      </section>
+      </div>
 
 
       {/* Maintenance Details Modal */}
@@ -655,278 +779,432 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-24 relative">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Bitácora Financiera</h2>
-          <p className="text-gray-500 text-sm">Ingresos anuales — Año {selectedYear}.</p>
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-24 relative">
+      {/* Premium Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-2">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-8 h-1 bg-indigo-600 rounded-full"></div>
+            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em]">Gestión de Activos</span>
+          </div>
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Bitácora Financiera</h2>
+          <p className="text-slate-400 dark:text-slate-500 font-medium text-sm flex items-center gap-2">
+            Control de flujo de caja inmobiliario — Período {selectedYear}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md p-2 rounded-[2rem] border border-white/60 dark:border-white/10 shadow-sm">
+          <div className="flex items-center gap-1 bg-slate-900 dark:bg-indigo-600 text-white rounded-[1.5rem] p-1 shadow-lg">
+            <button
+              onClick={() => setSelectedYear(y => y - 1)}
+              className="p-2.5 rounded-full hover:bg-white/10 transition-colors active:scale-90"
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span className="px-4 text-lg font-black tabular-nums min-w-[4rem] text-center">{selectedYear}</span>
+            <button
+              onClick={() => setSelectedYear(y => y + 1)}
+              disabled={selectedYear >= currentYear}
+              className="p-2.5 rounded-full hover:bg-white/10 transition-colors disabled:opacity-20 active:scale-90"
+              aria-label="Siguiente"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
           <button
-            onClick={() => setSelectedYear(y => y - 1)}
-            className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-            aria-label="Año anterior"
+            onClick={() => window.location.reload()}
+            className="p-3.5 bg-white dark:bg-slate-800 rounded-full hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 transition-all shadow-sm dark:shadow-none border border-indigo-100 dark:border-white/10 group active:scale-95"
+            title="Sincronizar Datos"
           >
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <span className="text-lg font-bold text-gray-900 tabular-nums w-16 text-center">{selectedYear}</span>
-          <button
-            onClick={() => setSelectedYear(y => y + 1)}
-            disabled={selectedYear >= currentYear}
-            className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-30"
-            aria-label="Año siguiente"
-          >
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <Loader className="w-5 h-5 group-hover:rotate-180 transition-transform duration-700" />
           </button>
         </div>
       </header>
 
-      {/* === SUMMARY CARDS === */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 col-span-2">
-          <div className="flex items-center gap-2 text-blue-600 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-[10px] sm:text-xs font-bold uppercase">Ingreso Anual</span>
-          </div>
-          <p className="text-xl sm:text-3xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</p>
-          <p className="text-[10px] sm:text-xs text-gray-400 mt-1">{properties.length} propiedad{properties.length !== 1 ? 'es' : ''}</p>
-        </div>
-
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-1.5 text-red-600 mb-1">
-            <Hammer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="text-[10px] sm:text-xs font-bold uppercase">Gastos</span>
-          </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900">{formatCurrency(annualExpensesARS, 'ARS')}</p>
-          <p className="text-[10px] sm:text-xs text-gray-400 mt-1">Mantenimiento</p>
-        </div>
-        <div className="bg-gray-900 p-4 sm:p-5 rounded-2xl shadow-lg text-white">
-          <div className="flex items-center gap-1.5 text-blue-300 mb-1">
-            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="text-[10px] sm:text-xs font-bold uppercase">Neto</span>
-          </div>
-          <p className={`text-lg sm:text-2xl font-bold ${arsYearNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {formatCurrency(arsYearNet, 'ARS')}
-          </p>
-          <p className="text-[10px] sm:text-xs text-gray-500 mt-1">Ingresos − Gastos</p>
-        </div>
-      </section>
-
-      {/* === MONTHLY GRID: ARS (Consolidated) === */}
-      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div
-          onClick={() => setExpandedSection(expandedSection === 'ARS' ? null : 'ARS')}
-          className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors group"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-blue-500 inline-block shrink-0"></span>
-                Ingresos Mensuales
-              </h3>
-              <p className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">Alquileres cobrados en pesos argentinos (ARS) por mes</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <span className="text-base sm:text-xl font-bold text-gray-900">{formatCurrency(arsYearTotal, 'ARS')}</span>
-            {expandedSection === 'ARS'
-              ? <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-              : <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-            }
-          </div>
-        </div>
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
-          {arsMonthly.map((amount, i) => {
-            const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
-            return (
-              <div key={i} className={`p-2 sm:p-3 text-center ${isCurrent ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}>
-                <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
-                <p className={`text-[11px] sm:text-sm font-bold mt-1 ${isCurrent ? 'text-blue-700' : 'text-gray-700'}`}>
-                  {amount > 0 ? formatCurrency(amount, 'ARS') : '—'}
-                </p>
+      {/* Top Stats Overview */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Annual Income - Indigo Glass */}
+        <div className="bg-gradient-to-br from-indigo-600/90 to-indigo-700/90 backdrop-blur-xl p-6 rounded-3xl shadow-xl flex flex-col justify-between relative overflow-hidden group border border-white/20">
+          <div className="absolute -right-4 -top-4 w-28 h-28 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+          <div className="relative">
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
+                <TrendingUp className="w-5 h-5 text-white" />
               </div>
-            );
-          })}
-        </div>
-        {/* Expandable Breakdown */}
-        {expandedSection === 'ARS' && (
-          <IncomeBreakdownPanel properties={arsProperties} buildings={buildings} currency="ARS" />
-        )}
-      </section>
-
-      {/* === MONTHLY GRID: GASTOS === */}
-      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-500 inline-block shrink-0"></span>
-                Gastos Mensuales
-              </h3>
-              <p className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">Mantenimiento y obras por mes — Haga clic en un mes para ver el detalle</p>
+              <div className="px-2.5 py-1 bg-white/20 rounded-full border border-white/20">
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">{properties.length} Propiedades</span>
+              </div>
             </div>
+            <p className="text-[10px] font-black text-indigo-100 uppercase tracking-widest mb-1">Recaudación Anual</p>
+            <p className="text-3xl font-black text-white tracking-tighter">{formatCurrency(arsYearTotal, 'ARS').split(',')[0]}</p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <span className="text-base sm:text-xl font-bold text-gray-900">{formatCurrency(annualExpensesARS, 'ARS')}</span>
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[10px] font-bold text-indigo-100/60 uppercase tracking-widest">
+            <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div> Datos en Tiempo Real</span>
+            <span>ARS</span>
           </div>
         </div>
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 divide-x divide-gray-100">
-          {arsExpensesMonthly.map((amount, i) => {
-            const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
-            const hasExpenses = amount > 0;
-            return (
+
+        {/* Expenses - Rose Glass */}
+        <div className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-white/10 flex flex-col justify-between group hover:shadow-xl hover:shadow-rose-100/50 dark:hover:shadow-none transition-all duration-500">
+          <div className="relative">
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-10 h-10 bg-rose-50 dark:bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-500 border border-rose-100 dark:border-rose-500/20 group-hover:bg-rose-500 group-hover:text-white transition-all duration-500 group-hover:rotate-6">
+                <Hammer className="w-5 h-5" />
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Gastos Totales</p>
+                <div className="flex items-center gap-1 text-rose-500 font-black text-xs justify-end">
+                  <TrendingDown className="w-3 h-3" />
+                  <span>Mantenimiento</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{formatCurrency(annualExpensesARS, 'ARS').split(',')[0]}</p>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="h-1.5 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden border border-slate-100 dark:border-white/10">
               <div
-                key={i}
-                onClick={() => hasExpenses && setSelectedExpenseMonth(i)}
-                className={`p-2 sm:p-3 text-center transition-colors ${
-                  isCurrent ? 'bg-red-50' : hasExpenses ? 'hover:bg-red-50 cursor-pointer' : 'hover:bg-gray-50'
-                } ${hasExpenses ? 'cursor-pointer' : ''}`}
-              >
-                <p className={`text-[10px] uppercase font-bold ${isCurrent ? 'text-red-600' : 'text-gray-400'}`}>{MONTH_NAMES[i]}</p>
-                <p className={`text-[11px] sm:text-sm font-bold mt-1 ${amount > 0 ? (isCurrent ? 'text-red-700' : 'text-red-600') : 'text-gray-700'}`}>
-                  {amount > 0 ? formatCurrency(amount, 'ARS') : '—'}
-                </p>
+                className="h-full bg-gradient-to-r from-rose-400 to-rose-500 rounded-full transition-all duration-1000"
+                style={{ width: `${Math.min((annualExpensesARS / (arsYearTotal || 1)) * 100, 100)}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              <span>Ratio Gastos/Ingresos</span>
+              <span className="text-rose-500">{((annualExpensesARS / (arsYearTotal || 1)) * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Net Flow - Dark Glass */}
+        <div className="bg-slate-900 dark:bg-slate-950 p-6 rounded-3xl shadow-xl flex flex-col justify-between relative overflow-hidden group border border-white/5 dark:border-white/10">
+          <div className="absolute -right-4 -top-4 w-28 h-28 bg-emerald-500/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+          <div className="relative">
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10">
+                <TrendingUp className="w-5 h-5 text-emerald-400" />
               </div>
-            );
-          })}
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Resultado Neto</p>
+                <div className="px-2 py-0.5 bg-emerald-500/10 rounded-md">
+                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Flujo de Caja</span>
+                </div>
+              </div>
+            </div>
+            <p className={`text-3xl font-black tracking-tighter ${arsYearNet >= 0 ? 'text-white' : 'text-rose-400'}`}>
+              {formatCurrency(arsYearNet, 'ARS').split(',')[0]}
+            </p>
+          </div>
+          <div className="relative mt-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-400 rounded-full" style={{ width: '100%' }}></div>
+                </div>
+              </div>
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Optimizado</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* === EXPENSE BREAKDOWN MODAL === */}
-      {selectedExpenseMonth !== null && (
-        <ExpenseBreakdownModal
-          month={selectedExpenseMonth}
-          year={selectedYear}
-          maintenanceTasks={maintenanceTasks}
-          properties={properties}
-          professionals={professionals}
-          onClose={() => setSelectedExpenseMonth(null)}
-        />
-      )}
+      {/* === MONTHLY GRIDS: HARMONIOUS DESIGN === */}
+      <div className="space-y-6">
+        {/* Income Grid */}
+        <section className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-sm border border-white/40 dark:border-white/10 overflow-hidden group hover:shadow-xl hover:shadow-indigo-50/50 dark:hover:shadow-none transition-all duration-500">
+          <div
+            onClick={() => setExpandedSection(expandedSection === 'ARS' ? null : 'ARS')}
+            className="p-6 border-b border-indigo-50/50 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-white/50 dark:hover:bg-white/5 transition-all gap-4"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/10 shadow-sm">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Ingresos Mensuales</h3>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Recaudación por Alquileres (ARS)</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Total Recaudado</p>
+                <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{formatCurrency(arsYearTotal, 'ARS')}</span>
+              </div>
+              <div className={`p-2.5 rounded-xl transition-all ${expandedSection === 'ARS' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-white/5'}`}>
+                {expandedSection === 'ARS' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </div>
+            </div>
+          </div>
 
-      {/* === PROPERTY DETAIL TABLE === */}
-      <section>
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Detalle por Inmueble</h3>
-        <p className="text-xs text-gray-400 mb-4">Haga clic en una fila para ver el desglose detallado.</p>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 divide-x divide-indigo-50/30 dark:divide-white/5">
+            {arsMonthly.map((amount, i) => {
+              const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
+              return (
+                <div key={i} className={`p-3 sm:p-4 text-center transition-all duration-300 ${isCurrent ? 'bg-indigo-50/50 dark:bg-white/5 relative overflow-hidden' : 'hover:bg-white/50 dark:hover:bg-white/5'}`}>
+                  {isCurrent && <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600"></div>}
+                  <p className={`text-[10px] uppercase font-bold tracking-widest ${isCurrent ? 'text-indigo-600' : 'text-slate-500 dark:text-slate-400'}`}>{MONTH_NAMES[i]}</p>
+                  <p className={`text-sm font-black mt-1.5 tabular-nums ${amount > 0 ? (isCurrent ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-900 dark:text-white') : 'text-slate-300 dark:text-slate-700'}`}>
+                    {amount > 0 ? formatCurrency(amount, 'ARS').split(',')[0] : '—'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
 
-        {/* Mobile card layout */}
-        <div className="md:hidden space-y-3">
+          {
+            expandedSection === 'ARS' && (
+              <div className="animate-in slide-in-from-top-4 duration-500">
+                <IncomeBreakdownPanel
+                  properties={arsProperties}
+                  buildings={buildings}
+                  currency="ARS"
+                  payments={payments}
+                  selectedMonth={new Date().getMonth() + 1}
+                  selectedYear={selectedYear}
+                />
+              </div>
+            )
+          }
+        </section >
+
+        {/* Expenses Grid */}
+        < section className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-sm border border-white/40 dark:border-white/10 overflow-hidden group hover:shadow-xl hover:shadow-rose-50/50 dark:hover:shadow-none transition-all duration-500" >
+          <div
+            onClick={() => setExpandedSection(expandedSection === 'maintenance' ? null : 'maintenance')}
+            className="p-6 border-b border-rose-50/50 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-white/50 dark:hover:bg-white/5 transition-all gap-4"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-500/10 shadow-sm transition-transform group-hover:rotate-6">
+                <Hammer className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Egresos por Mantenimiento</h3>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Obras y reparaciones directas</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Total Gastado</p>
+                <span className="text-2xl font-black text-rose-500 tracking-tighter">{formatCurrency(annualExpensesARS, 'ARS')}</span>
+              </div>
+              <div className={`p-2.5 rounded-xl transition-all ${expandedSection === 'maintenance' ? 'bg-rose-500 text-white shadow-lg' : 'bg-rose-50 dark:bg-slate-800 text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-white/5'}`}>
+                {expandedSection === 'maintenance' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 divide-x divide-rose-50/30 dark:divide-white/5">
+            {arsExpensesMonthly.map((amount, i) => {
+              const isCurrent = i === new Date().getMonth() && selectedYear === currentYear;
+              const hasExpenses = amount > 0;
+              return (
+                <div
+                  key={i}
+                  onClick={() => hasExpenses && setSelectedExpenseMonth(i)}
+                  className={`p-3 sm:p-4 text-center transition-all duration-300 group/month ${isCurrent ? 'bg-rose-50/50 dark:bg-transparent relative' : hasExpenses ? 'hover:bg-rose-50 dark:hover:bg-transparent cursor-pointer' : 'hover:bg-white/50 dark:hover:bg-transparent'
+                    }`}
+                >
+                  {isCurrent && <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500"></div>}
+                  <p className={`text-[10px] uppercase font-black tracking-widest ${isCurrent ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>{MONTH_NAMES[i]}</p>
+                  <p className={`text-sm font-black mt-2 tabular-nums transition-transform ${amount > 0 ? (isCurrent ? 'text-rose-700 dark:text-rose-300' : 'text-rose-600 dark:text-rose-400 group-hover/month:scale-110') : 'text-slate-300 dark:text-slate-700'}`}>
+                    {amount > 0 ? formatCurrency(amount, 'ARS').split(',')[0] : '—'}
+                  </p>
+                  {hasExpenses && <div className="mx-auto mt-2 w-1.5 h-1.5 rounded-full bg-rose-400/30"></div>}
+                </div>
+              );
+            })}
+          </div>
+        </section >
+      </div >
+
+      {/* === PROPERTY DETAIL TABLE: PREMIUM FEEL === */}
+      < section className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-[3rem] p-8 border border-white dark:border-white/10 shadow-xl dark:shadow-none transition-colors duration-500" >
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <div>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Detalle por Propiedad</h3>
+            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Desglose individual de rendimiento</p>
+          </div>
+          <div className="flex items-center gap-4 bg-slate-100/50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-200/50 dark:border-white/5">
+            <div className="flex items-center gap-2 px-3">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span className="text-[10px] font-black text-slate-500 uppercase">Al Día</span>
+            </div>
+            <div className="flex items-center gap-2 px-3">
+              <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+              <span className="text-[10px] font-black text-slate-500 uppercase">Moroso</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile: Premium Cards */}
+        <div className="md:hidden space-y-4">
           {propertyFinancials.map(item => {
             const shortAddr = item.address.split(',')[0];
             return (
               <div
                 key={item.id}
                 onClick={() => setSelectedFinancialProperty(item)}
-                className="bg-white rounded-2xl border border-gray-100 p-4 active:bg-gray-50 cursor-pointer shadow-sm"
+                className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-[2rem] border border-white dark:border-white/10 p-6 active:scale-95 transition-all shadow-lg overflow-hidden relative"
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0 mr-3">
-                    <p className="font-bold text-gray-900 text-sm truncate">{shortAddr}</p>
-                    <p className="text-xs text-gray-500">{item.tenantName}</p>
+                <div className="flex items-center gap-4">
+                  {/* Status dot indicator */}
+                  <div className={`w-3 h-3 rounded-full shrink-0 ${item.status === PropertyStatus.CURRENT ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' :
+                    item.status === PropertyStatus.LATE ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-amber-400'
+                    }`} />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-base font-black text-slate-900 dark:text-white tracking-tight" title={item.address}>
+                          {shortAddr}
+                        </p>
+                        {item.status === PropertyStatus.CURRENT && <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-2 py-0.5 rounded-full">Al Día</span>}
+                        {item.status === PropertyStatus.LATE && <span className="text-[8px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-2 py-0.5 rounded-full">Moroso</span>}
+                      </div>
+                      <p className="text-base font-black text-slate-700 dark:text-slate-300 tabular-nums">
+                        {formatCurrency(item.monthlyRent, 'ARS').split(',')[0]}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-slate-400">
+                        <User className="w-3 h-3 opacity-50" />
+                        <p className="text-[10px] font-bold uppercase tracking-[0.15em] truncate">
+                          {item.tenantName}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-300" />
+                    </div>
                   </div>
-                  {item.status === PropertyStatus.CURRENT && <span className="text-green-600 font-bold text-[10px] bg-green-100 px-2 py-0.5 rounded-full shrink-0">Al Día</span>}
-                  {item.status === PropertyStatus.LATE && <span className="text-red-600 font-bold text-[10px] bg-red-100 px-2 py-0.5 rounded-full shrink-0">Moroso</span>}
-                  {item.status === PropertyStatus.WARNING && <span className="text-yellow-700 font-bold text-[10px] bg-yellow-100 px-2 py-0.5 rounded-full shrink-0">Atención</span>}
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-green-700 font-bold">{formatCurrency(item.monthlyRent, 'ARS')}</span>
-                  {item.expenses > 0 && <span className="text-red-500 text-xs">-{formatCurrency(item.expenses, 'ARS')}</span>}
-                  <span className={`font-bold ${item.netResult >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                    {formatCurrency(item.netResult, 'ARS')}
-                  </span>
+
+                {/* Additional info footer (Net result) */}
+                <div className="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center">
+                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Resultado Neto</p>
+                  <p className={`text-sm font-black ${item.netResult >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {formatCurrency(item.netResult, 'ARS').split(',')[0]}
+                  </p>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Desktop table */}
-        <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
-                  <th className="p-5 font-semibold">Propiedad / Inquilino</th>
-                  <th className="p-5 font-semibold">Estado</th>
-                  <th className="p-5 font-semibold text-right text-green-700">Alquiler Mensual</th>
-                  <th className="p-5 font-semibold text-right text-red-700">Gastos</th>
-                  <th className="p-5 font-semibold text-right">Neto (ARS)</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {propertyFinancials.map(item => {
-                  const shortAddr = item.address.split(',')[0];
-                  return (
-                    <tr
-                      key={item.id}
-                      onClick={() => setSelectedFinancialProperty(item)}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
-                    >
-                      <td className="p-5">
-                        <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{shortAddr}</div>
-                        <div className="text-gray-500 text-xs">{item.tenantName}</div>
-                      </td>
-                      <td className="p-5">
-                        {item.status === PropertyStatus.CURRENT && <span className="text-green-600 font-bold text-xs bg-green-100 px-2 py-1 rounded-full">Al Día</span>}
-                        {item.status === PropertyStatus.LATE && <span className="text-red-600 font-bold text-xs bg-red-100 px-2 py-1 rounded-full">Moroso</span>}
-                        {item.status === PropertyStatus.WARNING && <span className="text-yellow-700 font-bold text-xs bg-yellow-100 px-2 py-1 rounded-full">Atención</span>}
-                      </td>
-                      <td className="p-5 text-right font-medium text-gray-700">
-                        <div>{formatCurrency(item.monthlyRent, 'ARS')}</div>
-                      </td>
-                      <td className="p-5 text-right font-medium text-red-600">
-                        {item.expenses > 0 ? `- ${formatCurrency(item.expenses, 'ARS')}` : '—'}
-                      </td>
-                      <td className="p-5 text-right">
-                        <span className={`font-bold ${item.netResult > 0 ? 'text-green-700' : 'text-red-600'}`}>
-                          {formatCurrency(item.netResult, 'ARS')}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-gray-50 p-5 flex justify-end gap-8 border-t border-gray-200">
+        {/* Desktop: Premium Table */}
+        <div className="hidden md:block overflow-hidden rounded-[2rem] border border-slate-100 dark:border-white/10 shadow-sm bg-white/50 dark:bg-slate-900/50">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-white/5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.2em]">
+                <th className="px-8 py-5">Propiedad / Residente</th>
+                <th className="px-8 py-5">Estado Operativo</th>
+                <th className="px-8 py-5 text-right">Contrato</th>
+                <th className="px-8 py-5 text-right">Egresos</th>
+                <th className="px-8 py-5 text-right">Resultado</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {propertyFinancials.map(item => {
+                const shortAddr = item.address.split(',')[0];
+                return (
+                  <tr
+                    key={item.id}
+                    onClick={() => setSelectedFinancialProperty(item)}
+                    className="border-b border-slate-50 dark:border-white/5 hover:bg-white/80 dark:hover:bg-white/5 transition-all cursor-pointer group"
+                  >
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        {/* Status dot indicator */}
+                        <div className={`w-3 h-3 rounded-full shrink-0 ${item.status === PropertyStatus.CURRENT ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' :
+                          item.status === PropertyStatus.LATE ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]' : 'bg-amber-400'
+                          }`} />
+
+                        <div>
+                          <div className="font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors tracking-tight text-base leading-tight" title={item.address}>
+                            {shortAddr}
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] mt-1">
+                            {item.tenantName}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                      {item.status === PropertyStatus.CURRENT && <span className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-widest bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-500/20"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div> Al Día</span>}
+                      {item.status === PropertyStatus.LATE && <span className="inline-flex items-center gap-2 text-rose-500 dark:text-rose-400 font-black text-[10px] uppercase tracking-widest bg-rose-50 dark:bg-rose-500/10 px-3 py-1 rounded-full border border-rose-100 dark:border-rose-500/20"><div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"></div> Moroso</span>}
+                      {item.status === PropertyStatus.WARNING && <span className="inline-flex items-center gap-2 text-amber-600 dark:text-amber-400 font-black text-[10px] uppercase tracking-widest bg-amber-50 dark:bg-amber-500/10 px-3 py-1 rounded-full border border-amber-100 dark:border-amber-500/20"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.4)]"></div> Pendiente</span>}
+                    </td>
+                    <td className="px-8 py-6 text-right font-black text-slate-700 dark:text-slate-300 tabular-nums">
+                      {formatCurrency(item.monthlyRent, 'ARS').split(',')[0]}
+                    </td>
+                    <td className="px-8 py-6 text-right font-black text-rose-500 tabular-nums">
+                      {item.expenses > 0 ? `- ${formatCurrency(item.expenses, 'ARS').split(',')[0]}` : <span className="text-slate-200">—</span>}
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <span className={`font-black tracking-tight text-base tabular-nums ${item.netResult > 0 ? 'text-slate-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {formatCurrency(item.netResult, 'ARS').split(',')[0]}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div className="bg-slate-900 p-8 flex justify-end gap-12 text-white">
             <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase">Total Gastos</p>
-              <p className="font-bold text-red-600">{formatCurrency(annualExpensesARS, 'ARS')}</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Consolidado Egresos</p>
+              <p className="font-black text-rose-400 text-2xl tracking-tighter tabular-nums">{formatCurrency(annualExpensesARS, 'ARS').split(',')[0]}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase">Balance Neto ARS</p>
-              <p className={`font-bold text-lg ${arsYearNet >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                {formatCurrency(arsYearNet, 'ARS')}
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Neto Proyectado Anual</p>
+              <p className={`font-black text-3xl tracking-tighter tabular-nums ${arsYearNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {formatCurrency(arsYearNet, 'ARS').split(',')[0]}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Mobile totals */}
-        <div className="md:hidden mt-3 bg-gray-900 rounded-2xl p-4 flex justify-between items-center">
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase font-bold">Total Gastos</p>
-            <p className="font-bold text-red-400 text-sm">{formatCurrency(annualExpensesARS, 'ARS')}</p>
+        {/* Mobile: Clean Footer Stats */}
+        <div className="md:hidden mt-6 bg-slate-900 rounded-[2rem] p-6 flex flex-col gap-4">
+          <div className="flex justify-between items-center pb-4 border-b border-white/5">
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Egresos Anuales</p>
+            <p className="font-black text-rose-400 text-lg">{formatCurrency(annualExpensesARS, 'ARS').split(',')[0]}</p>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] text-gray-400 uppercase font-bold">Balance Neto</p>
-            <p className={`font-bold text-lg ${arsYearNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatCurrency(arsYearNet, 'ARS')}
+          <div className="flex justify-between items-center">
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Balance SV</p>
+            <p className={`font-black text-2xl tracking-tighter ${arsYearNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {formatCurrency(arsYearNet, 'ARS').split(',')[0]}
             </p>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Financial Detail Modal */}
-      {selectedFinancialProperty && (
-        <FinancialDetailsCard
-          property={selectedFinancialProperty}
-          maintenanceTasks={maintenanceTasks}
-          professionals={professionals}
-          onClose={handleCloseDetail}
-        />
-      )}
-    </div>
+      {
+        selectedFinancialProperty && (
+          <FinancialDetailsCard
+            property={selectedFinancialProperty}
+            maintenanceTasks={maintenanceTasks}
+            professionals={professionals}
+            onClose={handleCloseDetail}
+          />
+        )
+      }
+
+      {/* Detail Expense Modal */}
+      {
+        selectedExpenseMonth !== null && (
+          <ExpenseBreakdownModal
+            month={selectedExpenseMonth}
+            year={selectedYear}
+            maintenanceTasks={maintenanceTasks}
+            properties={properties}
+            professionals={professionals}
+            onClose={() => setSelectedExpenseMonth(null)}
+          />
+        )
+      }
+    </div >
   );
 };
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Property, PropertyStatus, Professional } from '../types';
+import { Property, PropertyStatus, Professional, TenantPayment } from '../types';
 
 import { formatCurrency } from '../utils/currency';
-import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2, ArrowLeft, Users } from 'lucide-react';
+import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2, ArrowLeft, Users, User } from 'lucide-react';
 
 interface PropertyCardProps {
   property: Property;
@@ -15,6 +15,7 @@ interface PropertyCardProps {
   onDelete?: (id: string) => void;
   onBack?: () => void;
   professionals: Professional[];
+  payments?: TenantPayment[];
 }
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
@@ -27,7 +28,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   onFinishMaintenance,
   onDelete,
   onBack,
-  professionals
+  professionals,
+  payments = []
 }) => {
   const [noteText, setNoteText] = useState(property.notes || '');
   const [isDirty, setIsDirty] = useState(false);
@@ -123,12 +125,28 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   };
 
   const getStatusText = (s: PropertyStatus) => {
+    // Check if there is a payment for current month
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    const currentPayment = payments.find(p => p.propertyId === property.id && p.month === currentMonth && p.year === currentYear);
+
+    if (currentPayment) {
+      if (currentPayment.status === 'REVISION') return 'En Revisión';
+      if (currentPayment.status === 'APPROVED' || (currentPayment.proofOfPayment && currentPayment.proofOfExpenses)) return 'Pagado';
+    }
+
     switch (s) {
       case PropertyStatus.CURRENT: return 'Al Día';
       case PropertyStatus.LATE: return 'Moroso';
       case PropertyStatus.WARNING: return 'Atención';
     }
   };
+
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  const currentPayment = payments.find(p => p.propertyId === property.id && p.month === currentMonth && p.year === currentYear);
+  const isRevision = currentPayment?.status === 'REVISION';
+  const isPaid = currentPayment?.status === 'APPROVED' || (currentPayment?.proofOfPayment && currentPayment?.proofOfExpenses);
 
   // Visual Differentiation Logic
   // const lastUser = property.lastModifiedBy ? MOCK_USERS.find(u => u.id === property.lastModifiedBy) : null;
@@ -138,18 +156,15 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   return (
     <div
       className={`
-      absolute bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-[400px] 
-      bg-white/85 backdrop-blur-2xl rounded-[36px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-white/60
-      z-[1000] animate-in slide-in-from-bottom-4 duration-300 
-      ${isUnderMaintenance ? 'ring-4 ring-orange-100/50' : ''}
-      transition-all duration-300 p-3
+      absolute bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-[420px] 
+      bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 dark:border-white/10
+      z-[1000] animate-in slide-in-from-bottom-6 duration-500 
+      ${isUnderMaintenance ? 'ring-4 ring-amber-100/50 dark:ring-amber-900/30' : 'ring-1 ring-black/5 dark:ring-white/5'}
+      transition-all duration-300 p-3.5
     `}
       style={{
-        borderTopWidth: '6px',
-        borderTopColor: isUnderMaintenance ? '#fb923c' : (borderColor !== 'transparent' ? borderColor : '#f3f4f6'), // Orange-400 or User Color or Gray-100
-        borderRightWidth: '1px', borderRightColor: '#f3f4f6',
-        borderBottomWidth: '1px', borderBottomColor: '#f3f4f6',
-        borderLeftWidth: '1px', borderLeftColor: '#f3f4f6',
+        borderTopWidth: '8px',
+        borderTopColor: isUnderMaintenance ? '#f59e0b' : (borderColor !== 'transparent' ? borderColor : '#f3f4f6'),
       }}
     >
       {/* lastUser display removed */}
@@ -197,8 +212,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* Address & Status Badges */}
       <div className="px-4 pt-5 pb-2">
         <div className="flex flex-wrap gap-2 mb-3">
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${getStatusColor(property.status)}`}>
-            {getStatusIcon(property.status)}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${isRevision ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
+            isPaid ? 'bg-green-100 text-green-700 border-green-200' :
+              getStatusColor(property.status)
+            }`}>
+            {isRevision ? <Clock className="w-5 h-5" /> : isPaid ? <CheckCircle className="w-5 h-5" /> : getStatusIcon(property.status)}
             <span>{getStatusText(property.status)}</span>
           </div>
 
@@ -219,17 +237,41 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           )}
         </div>
 
-        <h3 className="text-xl font-extrabold text-[#1f2937] leading-tight tracking-tight">{property.address}</h3>
+        <h3 className="text-xl font-extrabold text-[#1f2937] dark:text-white leading-tight tracking-tight">{property.address}</h3>
 
-        {/* Detail row imitating the address/hours style */}
-        <div className="mt-3 flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-            <Users className="w-4 h-4 text-gray-400" />
-            <span>{property.tenantName || 'Sin alquiler'}</span>
+        {/* Compact Details Grid */}
+        <div className="mt-3.5 grid grid-cols-3 gap-2 px-1">
+          {/* Inquilino */}
+          <div className="flex flex-col items-center justify-center aspect-square p-2 bg-slate-50/80 dark:bg-white/5 rounded-[32px] border border-slate-100/60 dark:border-white/5 transition-all hover:bg-indigo-500/5 dark:hover:bg-indigo-500/10 hover:border-indigo-500/20 dark:hover:border-indigo-500/30 hover:scale-[1.05] group/item text-center cursor-default">
+            <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl text-indigo-500 mb-1.5 group-hover/item:scale-110 group-hover/item:rotate-3 transition-all duration-300">
+              <User className="w-3.5 h-3.5" />
+            </div>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1.5">Inquilino</p>
+            <p className="text-[11px] text-slate-900 dark:text-white font-bold truncate w-full px-1" title={property.tenantName}>
+              {property.tenantName || 'Vacante'}
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-            <DollarSign className="w-4 h-4 text-gray-400" />
-            <span>{formatCurrency(buildingMetrics ? buildingMetrics.totalRent : property.monthlyRent, 'ARS')} • {buildingMetrics ? 'Edificio' : 'Mensual'}</span>
+
+          {/* Pago */}
+          <div className="flex flex-col items-center justify-center aspect-square p-2 bg-slate-50/80 dark:bg-white/5 rounded-[32px] border border-slate-100/60 dark:border-white/5 transition-all hover:bg-amber-500/5 dark:hover:bg-amber-500/10 hover:border-amber-500/20 dark:hover:border-amber-500/30 hover:scale-[1.05] group/item text-center cursor-default">
+            <div className="p-1.5 bg-amber-50 dark:bg-amber-500/10 rounded-2xl text-amber-500 mb-1.5 group-hover/item:scale-110 group-hover/item:-rotate-3 transition-all duration-300">
+              <Clock className="w-3.5 h-3.5" />
+            </div>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1.5">Pago</p>
+            <p className="text-[11px] text-slate-900 dark:text-white font-bold leading-none">1-10</p>
+          </div>
+
+          {/* Renta */}
+          <div className="flex flex-col items-center justify-center aspect-square p-2 bg-slate-50/80 dark:bg-white/5 rounded-[32px] border border-slate-100/60 dark:border-white/5 transition-all hover:bg-emerald-500/5 dark:hover:bg-emerald-500/10 hover:border-emerald-500/20 dark:hover:border-emerald-500/30 hover:scale-[1.05] group/item text-center cursor-default">
+            <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl text-emerald-500 mb-1.5 group-hover/item:scale-110 group-hover/item:rotate-3 transition-all duration-300">
+              <DollarSign className="w-3.5 h-3.5" />
+            </div>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1.5">Renta</p>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold leading-none">
+              {(buildingMetrics ? buildingMetrics.totalRent : property.monthlyRent) >= 1000000
+                ? `${((buildingMetrics ? buildingMetrics.totalRent : property.monthlyRent) / 1000000).toFixed(1)}M`
+                : formatCurrency(buildingMetrics ? buildingMetrics.totalRent : property.monthlyRent, 'ARS').split(',')[0]}
+            </p>
           </div>
         </div>
       </div>
@@ -299,22 +341,22 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
 
 
-        <div className="bg-yellow-50 p-2 rounded-xl border border-yellow-200 mt-4 relative group">
-          <div className="flex justify-between items-center mb-1 px-1">
-            <div className="text-yellow-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-              <StickyNote className="w-3 h-3" /> Notas Rápidas
+        <div className="bg-yellow-50/80 dark:bg-amber-900/20 backdrop-blur-sm p-4 rounded-3xl border border-yellow-200 dark:border-amber-500/10 mt-4 relative group">
+          <div className="flex justify-between items-center mb-2 px-1">
+            <div className="text-yellow-800 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+              <StickyNote className="w-3.5 h-3.5" /> Notas Rápidas
             </div>
             {isDirty && (
               <button
                 onClick={saveNote}
-                className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 text-xs px-2 py-1 rounded-md font-bold shadow-sm flex items-center gap-1 transition-all"
+                className="bg-yellow-400 dark:bg-amber-500 text-yellow-900 dark:text-amber-950 text-[10px] px-2.5 py-1 rounded-full font-black shadow-sm flex items-center gap-1 transform hover:scale-105 active:scale-95 transition-all"
               >
                 <Save className="w-3 h-3" /> Guardar
               </button>
             )}
           </div>
           <textarea
-            className="w-full bg-transparent border-none outline-none text-sm text-gray-800 italic p-1 h-16 resize-none placeholder-yellow-800/50"
+            className="w-full bg-transparent border-none outline-none text-sm text-yellow-900 dark:text-amber-100 italic p-1 h-16 resize-none placeholder-yellow-800/40 dark:placeholder-amber-400/30"
             placeholder="Escribí aquí una nota recordatoria..."
             title="Nota de la propiedad"
             aria-label="Nota de la propiedad"
@@ -324,14 +366,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 px-4 pb-4">
+      <div className="flex items-center justify-between gap-4 px-4 pb-5 pt-2">
         {onViewDetails && (
           <button
             onClick={onViewDetails}
-            className="flex-1 bg-zinc-900 text-white h-[52px] rounded-full font-bold text-sm hover:bg-zinc-800 transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
+            className="flex-[2] bg-indigo-600 text-white h-[56px] rounded-2xl font-bold text-base hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none active:scale-95 flex items-center justify-center gap-3 group"
           >
-            Métricas
-            <svg className="w-4 h-4 ml-1 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            Ver Métricas
+            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
           </button>
@@ -340,10 +382,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         {onEdit && (
           <button
             onClick={() => onEdit(property, !!property.buildingId)}
-            className="w-[52px] h-[52px] rounded-full bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm"
+            className="w-[56px] h-[56px] rounded-2xl bg-slate-50 dark:bg-white/5 text-slate-400 dark:text-slate-500 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all border border-slate-100 dark:border-white/5 shadow-sm active:scale-95 group"
             aria-label="Editar"
           >
-            <Pencil className="w-5 h-5" />
+            <Pencil className="w-5 h-5 group-hover:rotate-12 transition-transform" />
           </button>
         )}
       </div>
