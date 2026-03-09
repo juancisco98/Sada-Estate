@@ -217,6 +217,19 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         setIsUploading(false);
     };
 
+    const handleDeletePayment = async (payment: TenantPayment) => {
+        if (!confirm(`¿Eliminar el pago de ${MONTH_NAMES[payment.month - 1]} ${payment.year}? Esta acción no se puede deshacer.`)) return;
+        const { error } = await supabase.from('tenant_payments').delete().eq('id', payment.id);
+        if (error) {
+            toast.error(`Error al eliminar: ${error.message}`);
+            return;
+        }
+        toast.success('Pago eliminado correctamente');
+        setShowPaymentModal(null);
+        setEditingPayment(null);
+        await refreshData();
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'proofOfPayment' | 'proofOfExpenses') => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -366,6 +379,13 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                 className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold rounded-lg transition-all"
                                             >
                                                 Revisar
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeletePayment(p)}
+                                                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold rounded-lg transition-all"
+                                                title="Eliminar comprobante enviado"
+                                            >
+                                                Rechazar
                                             </button>
                                         </div>
                                     </div>
@@ -875,7 +895,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                             </div>
                         </div>
 
-                        <div className="p-6 pt-4 border-t border-gray-100 dark:border-white/5 bg-white dark:bg-slate-950 shrink-0">
+                        <div className="p-6 pt-4 border-t border-gray-100 dark:border-white/5 bg-white dark:bg-slate-950 shrink-0 space-y-2">
                             <button
                                 onClick={handleSavePayment}
                                 disabled={!newPayment.amount}
@@ -883,6 +903,16 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                             >
                                 {editingPayment ? 'Guardar Cambios' : 'Registrar Pago'}
                             </button>
+                            {editingPayment && (
+                                <button
+                                    onClick={() => handleDeletePayment(editingPayment)}
+                                    className="w-full py-2.5 rounded-xl font-semibold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all active:scale-[0.98] text-sm"
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Trash2 size={14} /> Eliminar este pago
+                                    </span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
