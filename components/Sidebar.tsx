@@ -68,14 +68,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
 
         {/* Bottom Section */}
         <div className="absolute bottom-0 left-0 w-full p-6 space-y-4 bg-white dark:bg-slate-900 border-t dark:border-white/5">
-          <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10">
-            <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold mb-2">Estado del sistema</p>
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 text-sm font-medium">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              Sada Voice Activo
-            </div>
-          </div>
-
           {onLogout && (
             <button
               onClick={onLogout}
