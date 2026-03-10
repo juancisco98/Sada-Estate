@@ -652,6 +652,59 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             </div>
                                         </div>
 
+                                        {/* Archivo de Comprobantes */}
+                                        {(() => {
+                                            const tenantPaymentsWithProofs = payments.filter(
+                                                p => p.tenantId === tenant.id && (p.proofOfPayment || p.proofOfExpenses)
+                                            ).sort((a, b) => b.year !== a.year ? b.year - a.year : b.month - a.month);
+
+                                            if (tenantPaymentsWithProofs.length === 0) return null;
+
+                                            return (
+                                                <div className="mt-4">
+                                                    <p className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                                        <FileText size={14} /> Archivo de Comprobantes
+                                                    </p>
+                                                    <div className="space-y-2">
+                                                        {tenantPaymentsWithProofs.map(p => (
+                                                            <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-white/5">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="text-xs font-bold text-gray-500 dark:text-slate-400 w-16">
+                                                                        {MONTH_NAMES[p.month - 1]} {p.year}
+                                                                    </span>
+                                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                                        p.status === 'APPROVED' ? 'bg-green-100 dark:bg-emerald-500/20 text-green-700 dark:text-emerald-400' :
+                                                                        p.status === 'REVISION' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' :
+                                                                        'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400'
+                                                                    }`}>
+                                                                        {p.status === 'APPROVED' ? 'Aprobado' : p.status === 'REVISION' ? 'Revisión' : 'Pendiente'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    {p.proofOfPayment ? (
+                                                                        <a href={p.proofOfPayment} target="_blank" rel="noopener noreferrer"
+                                                                            className="flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
+                                                                            <FileText size={11} /> Alquiler
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="text-xs text-gray-300 dark:text-slate-600">Sin alquiler</span>
+                                                                    )}
+                                                                    {p.proofOfExpenses ? (
+                                                                        <a href={p.proofOfExpenses} target="_blank" rel="noopener noreferrer"
+                                                                            className="flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline px-2 py-1 rounded-lg bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/20">
+                                                                            <FileText size={11} /> Expensas
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="text-xs text-gray-300 dark:text-slate-600">Sin expensas</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
                                         {/* Actions */}
                                         <div className="flex justify-end gap-3 pt-2">
                                             <button
