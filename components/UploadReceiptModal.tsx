@@ -40,13 +40,17 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     const [expensesFile, setExpensesFile] = useState<File | null>(null);
     const [deletedRent, setDeletedRent] = useState(false);
     const [deletedExpenses, setDeletedExpenses] = useState(false);
-    const [amount, setAmount] = useState(existingPayment?.amount?.toString() || property?.monthlyRent?.toString() || '');
+    const [rentAmount, setRentAmount] = useState(existingPayment?.amount?.toString() || property?.monthlyRent?.toString() || '');
+    const [expenseAmount, setExpenseAmount] = useState(existingPayment?.expenseAmount?.toString() || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
     // Only locked when APPROVED — tenant can re-upload when REVISION
     const isLocked = existingPayment?.status === 'APPROVED';
     const isRevision = existingPayment?.status === 'REVISION';
+
+    const hasRentProof = rentFile || (!deletedRent && existingPayment?.proofOfPayment);
+    const hasExpensesProof = expensesFile || (!deletedExpenses && existingPayment?.proofOfExpenses);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'rent' | 'expenses') => {
         if (e.target.files && e.target.files.length > 0) {
@@ -56,13 +60,6 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     };
 
     const handleConfirmSubmit = async () => {
-        const hasRent = rentFile || (!deletedRent && existingPayment?.proofOfPayment);
-        const hasExpenses = expensesFile || (!deletedExpenses && existingPayment?.proofOfExpenses);
-        if (!hasRent || !hasExpenses) {
-            toast.error('Debes subir ambos comprobantes (alquiler y expensas).');
-            return;
-        }
-
         setIsSubmitting(true);
         try {
             let rentUrl = deletedRent ? '' : (existingPayment?.proofOfPayment || '');
@@ -88,7 +85,8 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 id: existingPayment?.id || generateUUID(),
                 tenantId: tenant.id,
                 propertyId: property?.id || null,
-                amount: parseFloat(amount) || 0,
+                amount: parseFloat(rentAmount) || existingPayment?.amount || 0,
+                expenseAmount: expenseAmount ? (parseFloat(expenseAmount) || undefined) : existingPayment?.expenseAmount,
                 currency: property?.currency || 'ARS',
                 month,
                 year,
@@ -139,16 +137,19 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
 
     const handleInitiateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-            toast.error('Debes ingresar un monto válido.');
+        // At least one proof must be present
+        if (!hasRentProof && !hasExpensesProof) {
+            toast.error('Debés subir al menos un comprobante (alquiler o expensas).');
             return;
         }
-        if (!rentFile && !existingPayment?.proofOfPayment) {
-            toast.error('Falta el comprobante de alquiler.');
+        // If submitting rent, amount is required
+        if (hasRentProof && (!rentAmount || isNaN(parseFloat(rentAmount)) || parseFloat(rentAmount) <= 0)) {
+            toast.error('Ingresá el monto del alquiler.');
             return;
         }
-        if (!expensesFile && !existingPayment?.proofOfExpenses) {
-            toast.error('Falta el comprobante de expensas.');
+        // If submitting expenses, expense amount is required
+        if (hasExpensesProof && (!expenseAmount || isNaN(parseFloat(expenseAmount)) || parseFloat(expenseAmount) <= 0)) {
+            toast.error('Ingresá el monto de las expensas.');
             return;
         }
         setShowConfirm(true);
@@ -258,103 +259,116 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                         </div>
                                     )}
 
-                                    {/* MONTO */}
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Monto Total Abonado</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-3 text-slate-500 dark:text-slate-400 font-bold">$</span>
-                                            <input
-                                                type="number"
-                                                value={amount}
-                                                onChange={(e) => setAmount(e.target.value)}
-                                                placeholder="Ingresa el monto (alquiler + expensas)"
-                                                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
-                                            />
+                                    {/* ALQUILER */}
+                                    <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Alquiler</h3>
+                                            {hasRentProof && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Comprobante cargado</span>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Monto abonado</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-3 text-slate-500 dark:text-slate-400 font-bold">$</span>
+                                                <input
+                                                    type="number"
+                                                    value={rentAmount}
+                                                    onChange={(e) => setRentAmount(e.target.value)}
+                                                    placeholder="Ingresá el monto del alquiler"
+                                                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Comprobante</label>
+                                            {existingPayment?.proofOfPayment && !deletedRent && (
+                                                <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
+                                                    <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                                        <FileText className="w-4 h-4" />
+                                                        {rentFile ? 'Reemplazando archivo...' : 'Alquiler subido'}
+                                                    </span>
+                                                    <div className="flex items-center gap-3">
+                                                        <a href={existingPayment.proofOfPayment} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
+                                                        <button type="button" onClick={() => { setDeletedRent(true); setRentFile(null); }} className="text-red-400 hover:text-red-600 transition-colors" title="Eliminar archivo">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <label className="flex flex-col items-center justify-center w-full h-16 border-2 border-slate-200 dark:border-white/20 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                                                <div className="flex items-center gap-2 py-3">
+                                                    {rentFile ? (
+                                                        <>
+                                                            <FileText className="w-4 h-4 text-indigo-500" />
+                                                            <p className="text-xs font-medium text-slate-800 dark:text-white truncate max-w-[200px]">{rentFile.name}</p>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <UploadCloud className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                                                {existingPayment?.proofOfPayment ? 'Subir nuevo archivo de alquiler' : 'Adjuntar comprobante de alquiler'}
+                                                            </p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <input type="file" className="hidden" accept="*/*" onChange={(e) => handleFileChange(e, 'rent')} />
+                                            </label>
                                         </div>
                                     </div>
 
-                                    {/* ALQUILER */}
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Comprobante de Alquiler</label>
-                                        {existingPayment?.proofOfPayment && !deletedRent && (
-                                            <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
-                                                <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                                                    <FileText className="w-4 h-4" />
-                                                    {rentFile ? 'Reemplazando archivo...' : 'Alquiler subido'}
-                                                </span>
-                                                <div className="flex items-center gap-3">
-                                                    <a href={existingPayment.proofOfPayment} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
-                                                    <button type="button" onClick={() => { setDeletedRent(true); setRentFile(null); }} className="text-red-400 hover:text-red-600 transition-colors" title="Eliminar archivo">
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-slate-200 dark:border-white/20 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
-                                            <div className="flex flex-col items-center justify-center py-3">
-                                                {rentFile ? (
-                                                    <div className="text-center">
-                                                        <FileText className="w-5 h-5 text-indigo-500 mx-auto mb-1" />
-                                                        <p className="text-xs font-medium text-slate-800 dark:text-white px-2 truncate w-48">{rentFile.name}</p>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <UploadCloud className="w-5 h-5 text-slate-400 dark:text-slate-500 mb-1" />
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                                            {existingPayment?.proofOfPayment ? 'Subir nuevo archivo de alquiler' : 'Toca para cargar archivo de alquiler'}
-                                                        </p>
-                                                    </>
-                                                )}
-                                            </div>
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                accept="*/*"
-                                                onChange={(e) => handleFileChange(e, 'rent')}
-                                            />
-                                        </label>
-                                    </div>
-
                                     {/* EXPENSAS */}
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Comprobante de Expensas</label>
-                                        {existingPayment?.proofOfExpenses && !deletedExpenses && (
-                                            <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
-                                                <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                                                    <FileText className="w-4 h-4" />
-                                                    {expensesFile ? 'Reemplazando archivo...' : 'Expensas subidas'}
-                                                </span>
-                                                <div className="flex items-center gap-3">
-                                                    <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
-                                                    <button type="button" onClick={() => { setDeletedExpenses(true); setExpensesFile(null); }} className="text-red-400 hover:text-red-600 transition-colors" title="Eliminar archivo">
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                </div>
+                                    <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Expensas <span className="text-xs font-normal text-slate-400">(opcional)</span></h3>
+                                            {hasExpensesProof && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Comprobante cargado</span>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Monto abonado</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-3 text-slate-500 dark:text-slate-400 font-bold">$</span>
+                                                <input
+                                                    type="number"
+                                                    value={expenseAmount}
+                                                    onChange={(e) => setExpenseAmount(e.target.value)}
+                                                    placeholder="Ingresá el monto de expensas"
+                                                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800"
+                                                />
                                             </div>
-                                        )}
-                                        <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-slate-200 dark:border-white/20 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
-                                            <div className="flex flex-col items-center justify-center py-3">
-                                                {expensesFile ? (
-                                                    <div className="text-center">
-                                                        <FileText className="w-5 h-5 text-indigo-500 mx-auto mb-1" />
-                                                        <p className="text-xs font-medium text-slate-800 dark:text-white px-2 truncate w-48">{expensesFile.name}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Comprobante</label>
+                                            {existingPayment?.proofOfExpenses && !deletedExpenses && (
+                                                <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
+                                                    <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                                        <FileText className="w-4 h-4" />
+                                                        {expensesFile ? 'Reemplazando archivo...' : 'Expensas subidas'}
+                                                    </span>
+                                                    <div className="flex items-center gap-3">
+                                                        <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
+                                                        <button type="button" onClick={() => { setDeletedExpenses(true); setExpensesFile(null); }} className="text-red-400 hover:text-red-600 transition-colors" title="Eliminar archivo">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
                                                     </div>
-                                                ) : (
-                                                    <>
-                                                        <UploadCloud className="w-5 h-5 text-slate-400 dark:text-slate-500 mb-1" />
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                                            {existingPayment?.proofOfExpenses ? 'Subir nuevo archivo de expensas' : 'Toca para cargar archivo de expensas'}
-                                                        </p>
-                                                    </>
-                                                )}
-                                            </div>
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                accept="*/*"
-                                                onChange={(e) => handleFileChange(e, 'expenses')}
-                                            />
-                                        </label>
+                                                </div>
+                                            )}
+                                            <label className="flex flex-col items-center justify-center w-full h-16 border-2 border-slate-200 dark:border-white/20 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                                                <div className="flex items-center gap-2 py-3">
+                                                    {expensesFile ? (
+                                                        <>
+                                                            <FileText className="w-4 h-4 text-violet-500" />
+                                                            <p className="text-xs font-medium text-slate-800 dark:text-white truncate max-w-[200px]">{expensesFile.name}</p>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <UploadCloud className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                                                {existingPayment?.proofOfExpenses ? 'Subir nuevo archivo de expensas' : 'Adjuntar comprobante de expensas'}
+                                                            </p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <input type="file" className="hidden" accept="*/*" onChange={(e) => handleFileChange(e, 'expenses')} />
+                                            </label>
+                                        </div>
                                     </div>
 
                                     <div className="pt-2">

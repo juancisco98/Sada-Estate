@@ -31,7 +31,8 @@ interface TenantsViewProps {
         totalPayments: number;
         onTimePayments: number;
         onTimeRate: number;
-        monthlyBreakdown: { month: number; amount: number; paid: boolean; status?: string }[];
+        monthlyBreakdown: { month: number; amount: number; paid: boolean; status?: string; proofUrl?: string }[];
+        expenseMonthlyBreakdown: { month: number; amount: number; paid: boolean; status?: string; proofUrl?: string }[];
         currency: string;
     };
 }
@@ -60,6 +61,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [newPayment, setNewPayment] = useState({
         amount: '',
+        expenseAmount: '',
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
         paidOnTime: true,
@@ -94,6 +96,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         if (paymentToEdit) {
             setNewPayment({
                 amount: paymentToEdit.amount.toString(),
+                expenseAmount: paymentToEdit.expenseAmount?.toString() || '',
                 month: paymentToEdit.month,
                 year: paymentToEdit.year,
                 paidOnTime: paymentToEdit.paidOnTime,
@@ -119,6 +122,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
 
             setNewPayment({
                 amount: defaultAmount,
+                expenseAmount: '',
                 month: initialData?.month || new Date().getMonth() + 1,
                 year: initialData?.year || new Date().getFullYear(),
                 paidOnTime: true,
@@ -142,6 +146,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             const updatedPayment: TenantPayment = {
                 ...editingPayment,
                 amount: parseFloat(newPayment.amount),
+                expenseAmount: newPayment.expenseAmount ? parseFloat(newPayment.expenseAmount) : undefined,
                 month: newPayment.month,
                 year: newPayment.year,
                 paidOnTime: newPayment.paidOnTime,
@@ -159,6 +164,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 tenantId: showPaymentModal,
                 propertyId: tenant?.propertyId || null,
                 amount: parseFloat(newPayment.amount),
+                expenseAmount: newPayment.expenseAmount ? parseFloat(newPayment.expenseAmount) : undefined,
                 currency: prop?.currency || 'ARS',
                 month: newPayment.month,
                 year: newPayment.year,
@@ -203,6 +209,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
 
         setNewPayment({
             amount: '',
+            expenseAmount: '',
             month: new Date().getMonth() + 1,
             year: new Date().getFullYear(),
             paidOnTime: true,
@@ -518,10 +525,10 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             </div>
                                         </div>
 
-                                        {/* Monthly Grid */}
+                                        {/* Monthly Grid — Alquiler */}
                                         <div>
                                             <p className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-3 flex items-center gap-2">
-                                                Historial de Pagos — {new Date().getFullYear()} <span className="text-xs font-normal text-gray-400 dark:text-slate-500">(Click para editar)</span>
+                                                Historial Alquiler — {new Date().getFullYear()} <span className="text-xs font-normal text-gray-400 dark:text-slate-500">(Click para editar)</span>
                                             </p>
                                             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
                                                 {metrics.monthlyBreakdown.map((m) => {
@@ -563,6 +570,81 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                                                 <p className="text-[10px] text-gray-600 dark:text-slate-300 font-bold mt-1 truncate">
                                                                     {formatCurrency(m.amount, metrics.currency)}
                                                                 </p>
+                                                            )}
+                                                            {m.proofUrl && (
+                                                                <a
+                                                                    href={m.proofUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    onClick={e => e.stopPropagation()}
+                                                                    className="block mt-0.5"
+                                                                    title="Ver comprobante alquiler"
+                                                                >
+                                                                    <FileText size={10} className="text-indigo-400 mx-auto" />
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Monthly Grid — Expensas */}
+                                        <div className="mt-4">
+                                            <p className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                                Historial Expensas — {new Date().getFullYear()} <span className="text-xs font-normal text-gray-400 dark:text-slate-500">(Click para editar)</span>
+                                            </p>
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
+                                                {metrics.expenseMonthlyBreakdown.map((m) => {
+                                                    const paymentForMonth = payments.find(p => p.tenantId === tenant.id && p.month === m.month && p.year === new Date().getFullYear());
+                                                    const isRevision = m.status === 'REVISION' || m.status === 'PENDING';
+                                                    const cellClass = isRevision
+                                                        ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-500/30'
+                                                        : m.paid
+                                                            ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-500/10'
+                                                            : 'bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-white/5 hover:bg-gray-200 dark:hover:bg-slate-700';
+                                                    return (
+                                                        <div
+                                                            key={m.month}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (paymentForMonth) {
+                                                                    handleOpenPaymentModal(tenant.id, paymentForMonth);
+                                                                } else {
+                                                                    handleOpenPaymentModal(tenant.id, undefined, { month: m.month, year: new Date().getFullYear() });
+                                                                }
+                                                            }}
+                                                            title={m.paid ? "Click para editar — expensas registradas" : "Click para registrar expensas"}
+                                                            className={`text-center p-2 rounded-xl border cursor-pointer transition-all hover:scale-105 active:scale-95 relative ${cellClass}`}
+                                                        >
+                                                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase mb-1">
+                                                                {MONTH_NAMES[m.month - 1]}
+                                                            </p>
+                                                            {isRevision ? (
+                                                                <Clock size={16} className="text-amber-500 dark:text-amber-400 mx-auto" />
+                                                            ) : m.paid ? (
+                                                                <CheckCircle size={16} className="text-violet-500 mx-auto" />
+                                                            ) : (
+                                                                <div className="h-4 flex items-center justify-center">
+                                                                    <div className="w-2 h-2 rounded-full bg-gray-300" />
+                                                                </div>
+                                                            )}
+                                                            {m.amount > 0 && (
+                                                                <p className="text-[10px] text-gray-600 dark:text-slate-300 font-bold mt-1 truncate">
+                                                                    {formatCurrency(m.amount, metrics.currency)}
+                                                                </p>
+                                                            )}
+                                                            {m.proofUrl && (
+                                                                <a
+                                                                    href={m.proofUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    onClick={e => e.stopPropagation()}
+                                                                    className="block mt-0.5"
+                                                                    title="Ver comprobante expensas"
+                                                                >
+                                                                    <FileText size={10} className="text-violet-400 mx-auto" />
+                                                                </a>
                                                             )}
                                                         </div>
                                                     )
@@ -715,17 +797,32 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                         </div>
 
                         <div className="p-6 space-y-4 overflow-y-auto">
-                            <div className="space-y-1">
-                                <label className="text-sm font-semibold text-gray-600 dark:text-gray-400">Monto *</label>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-2.5 text-gray-400">$</span>
-                                    <input
-                                        value={newPayment.amount}
-                                        onChange={e => setNewPayment(p => ({ ...p, amount: e.target.value }))}
-                                        placeholder="0"
-                                        type="number"
-                                        className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold"
-                                    />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600 dark:text-gray-400">Monto Alquiler *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-2.5 text-gray-400">$</span>
+                                        <input
+                                            value={newPayment.amount}
+                                            onChange={e => setNewPayment(p => ({ ...p, amount: e.target.value }))}
+                                            placeholder="0"
+                                            type="number"
+                                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-semibold text-gray-600 dark:text-gray-400">Monto Expensas <span className="text-xs font-normal text-gray-400">(opcional)</span></label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-2.5 text-gray-400">$</span>
+                                        <input
+                                            value={newPayment.expenseAmount}
+                                            onChange={e => setNewPayment(p => ({ ...p, expenseAmount: e.target.value }))}
+                                            placeholder="0"
+                                            type="number"
+                                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-violet-500 outline-none transition-all font-bold"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">

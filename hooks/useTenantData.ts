@@ -146,6 +146,19 @@ export const useTenantData = (currentUserId?: string) => {
                 amount: monthPayments.reduce((sum, p) => sum + p.amount, 0),
                 paid: monthPayments.length > 0,
                 status: latestPayment?.status,
+                proofUrl: latestPayment?.proofOfPayment,
+            };
+        });
+
+        const expenseMonthlyBreakdown = Array.from({ length: 12 }, (_, i) => {
+            const monthPayments = tenantPayments.filter(p => p.month === i + 1 && p.year === currentYear);
+            const withExpenses = monthPayments.find(p => p.proofOfExpenses || (p.expenseAmount ?? 0) > 0);
+            return {
+                month: i + 1,
+                amount: monthPayments.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0),
+                paid: monthPayments.some(p => p.proofOfExpenses || (p.expenseAmount ?? 0) > 0),
+                status: withExpenses?.status,
+                proofUrl: withExpenses?.proofOfExpenses,
             };
         });
 
@@ -155,6 +168,7 @@ export const useTenantData = (currentUserId?: string) => {
             onTimePayments,
             onTimeRate: Math.round(onTimeRate),
             monthlyBreakdown,
+            expenseMonthlyBreakdown,
             currency: tenantPayments[0]?.currency || 'ARS',
         };
     };

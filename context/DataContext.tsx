@@ -127,7 +127,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 { event: '*', schema: 'public', table: 'tenant_payments' },
                 (payload) => {
                     if (payload.eventType === 'INSERT') {
-                        setPayments(prev => [...prev, dbToPayment(payload.new as DbTenantPaymentRow)]);
+                        setPayments(prev => {
+                            if (prev.some(p => p.id === payload.new.id)) return prev;
+                            return [...prev, dbToPayment(payload.new as DbTenantPaymentRow)];
+                        });
                     } else if (payload.eventType === 'UPDATE') {
                         setPayments(prev => prev.map(p =>
                             p.id === payload.new.id ? dbToPayment(payload.new as DbTenantPaymentRow) : p

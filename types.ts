@@ -77,6 +77,7 @@ export interface TenantPayment {
   paymentMethod?: 'CASH' | 'TRANSFER';
   proofOfPayment?: string; // Comprobante de alquiler
   proofOfExpenses?: string; // Comprobante de expensas
+  expenseAmount?: number; // Monto de expensas (separado del alquiler)
   status?: 'PENDING' | 'REVISION' | 'APPROVED'; // Estado de la revisión
   notes?: string;
   userId?: string;

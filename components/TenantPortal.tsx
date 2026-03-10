@@ -116,7 +116,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col transition-colors duration-300">
+        <div className="h-screen bg-gray-50 dark:bg-slate-950 flex flex-col overflow-y-auto transition-colors duration-300">
             {/* HEADER */}
             <header className="bg-gradient-to-r from-indigo-600 to-violet-700 dark:from-indigo-900 dark:to-violet-900 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between sticky top-0 z-10 shadow-lg shadow-indigo-900/20">
                 <div className="flex items-center gap-4">

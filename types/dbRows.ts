@@ -94,6 +94,7 @@ export interface DbTenantPaymentRow {
     payment_method?: string | null;
     proof_of_payment?: string | null;
     proof_of_expenses?: string | null;
+    expense_amount?: number | null;
     status?: string | null;
     notes?: string | null;
     user_id?: string | null;
