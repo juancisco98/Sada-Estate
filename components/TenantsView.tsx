@@ -28,6 +28,7 @@ interface TenantsViewProps {
     refreshData: () => Promise<void>;
     getTenantMetrics: (tenantId: string) => {
         totalPaid: number;
+        totalExpenses: number;
         totalPayments: number;
         onTimePayments: number;
         onTimeRate: number;
@@ -492,37 +493,40 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             <p className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase mb-2 sm:mb-3">
                                                 Balance de la Propiedad
                                             </p>
-                                            <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                                                <div>
-                                                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 font-semibold mb-1">INGRESOS</p>
-                                                    <p className="text-sm sm:text-lg font-bold text-green-600 dark:text-green-400">
-                                                        {formatCurrency(metrics.totalPaid, metrics.currency)}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 font-semibold mb-1">GASTOS</p>
-                                                    <p className="text-sm sm:text-lg font-bold text-red-500 dark:text-rose-400">
-                                                        {(() => {
-                                                            const propExpenses = maintenanceTasks
-                                                                .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
-                                                                .reduce((acc, t) => acc + (t.cost || 0), 0);
-                                                            return formatCurrency(propExpenses, 'ARS');
-                                                        })()}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 font-semibold mb-1">NETO</p>
-                                                    <p className="text-sm sm:text-lg font-bold text-gray-800 dark:text-white">
-                                                        {(() => {
-                                                            const propExpenses = maintenanceTasks
-                                                                .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
-                                                                .reduce((acc, t) => acc + (t.cost || 0), 0);
-                                                            const net = metrics.totalPaid - propExpenses;
-                                                            return formatCurrency(net, 'ARS');
-                                                        })()}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            {(() => {
+                                                const propExpenses = maintenanceTasks
+                                                    .filter(t => t.propertyId === tenant.propertyId && t.status === 'COMPLETED')
+                                                    .reduce((acc, t) => acc + (t.cost || 0), 0);
+                                                const net = metrics.totalPaid + metrics.totalExpenses - propExpenses;
+                                                return (
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                                                        <div>
+                                                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 font-semibold mb-1">ALQUILER</p>
+                                                            <p className="text-sm sm:text-lg font-bold text-green-600 dark:text-green-400">
+                                                                {formatCurrency(metrics.totalPaid, metrics.currency)}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 font-semibold mb-1">EXPENSAS</p>
+                                                            <p className="text-sm sm:text-lg font-bold text-violet-600 dark:text-violet-400">
+                                                                {metrics.totalExpenses > 0 ? formatCurrency(metrics.totalExpenses, metrics.currency) : '—'}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 font-semibold mb-1">GASTOS</p>
+                                                            <p className="text-sm sm:text-lg font-bold text-red-500 dark:text-rose-400">
+                                                                {formatCurrency(propExpenses, 'ARS')}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-slate-400 font-semibold mb-1">NETO</p>
+                                                            <p className="text-sm sm:text-lg font-bold text-gray-800 dark:text-white">
+                                                                {formatCurrency(net, 'ARS')}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
 
                                         {/* Monthly Grid — Alquiler */}

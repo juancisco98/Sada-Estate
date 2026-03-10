@@ -132,10 +132,19 @@ export const useTenantData = (currentUserId?: string) => {
 
     const getTenantMetrics = (tenantId: string) => {
         const tenantPayments = payments.filter(p => p.tenantId === tenantId);
-        const totalPaid = tenantPayments.reduce((sum, p) => sum + p.amount, 0);
         const totalPayments = tenantPayments.length;
         const onTimePayments = tenantPayments.filter(p => p.paidOnTime).length;
         const onTimeRate = totalPayments > 0 ? (onTimePayments / totalPayments) * 100 : 0;
+
+        // Deduplicate by month/year: one record per month (the first found)
+        const uniqueByMonth = new Map<string, TenantPayment>();
+        tenantPayments.forEach(p => {
+            const key = `${p.year}-${p.month}`;
+            if (!uniqueByMonth.has(key)) uniqueByMonth.set(key, p);
+        });
+        const uniquePayments = Array.from(uniqueByMonth.values());
+        const totalPaid = uniquePayments.reduce((sum, p) => sum + p.amount, 0);
+        const totalExpenses = uniquePayments.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
 
         const currentYear = new Date().getFullYear();
         const monthlyBreakdown = Array.from({ length: 12 }, (_, i) => {
@@ -143,7 +152,7 @@ export const useTenantData = (currentUserId?: string) => {
             const latestPayment = monthPayments[0];
             return {
                 month: i + 1,
-                amount: monthPayments.reduce((sum, p) => sum + p.amount, 0),
+                amount: latestPayment?.amount || 0,
                 paid: monthPayments.length > 0,
                 status: latestPayment?.status,
                 proofUrl: latestPayment?.proofOfPayment,
@@ -155,7 +164,7 @@ export const useTenantData = (currentUserId?: string) => {
             const withExpenses = monthPayments.find(p => p.proofOfExpenses || (p.expenseAmount ?? 0) > 0);
             return {
                 month: i + 1,
-                amount: monthPayments.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0),
+                amount: withExpenses?.expenseAmount || 0,
                 paid: monthPayments.some(p => p.proofOfExpenses || (p.expenseAmount ?? 0) > 0),
                 status: withExpenses?.status,
                 proofUrl: withExpenses?.proofOfExpenses,
@@ -164,6 +173,7 @@ export const useTenantData = (currentUserId?: string) => {
 
         return {
             totalPaid,
+            totalExpenses,
             totalPayments,
             onTimePayments,
             onTimeRate: Math.round(onTimeRate),
