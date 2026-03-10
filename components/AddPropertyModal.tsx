@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, User, Phone, DollarSign } from 'lucide-react';
+import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, User, Phone, DollarSign, Calendar, RefreshCw, Calculator, Clock } from 'lucide-react';
 import { Property, PropertyStatus, Professional, PropertyType } from '../types';
 import { DEFAULT_PROPERTY_IMAGE } from '../constants';
 
@@ -70,6 +70,10 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
     // Property type
     propertyType: 'casa' as PropertyType,
+
+    // Contract
+    contractStart: '',
+    adjustmentMonths: '3',
   });
 
   // Mock state for document uploads
@@ -77,6 +81,15 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
   // Get tax config for current country
   const taxConfig = getTaxConfig(formData.country);
+
+  const calcNextAdjustment = (startDate: string, months: number): string => {
+    if (!startDate || !months || months <= 0) return '';
+    const start = new Date(startDate + 'T00:00:00');
+    const now = new Date();
+    let next = new Date(start);
+    while (next <= now) next.setMonth(next.getMonth() + months);
+    return next.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
 
   // Initialize Data
   useEffect(() => {
@@ -95,6 +108,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         country: existingProperty.country || 'Argentina',
         currency: existingProperty.currency || 'ARS',
         propertyType: existingProperty.propertyType || (existingProperty.buildingId ? 'edificio' : 'casa'),
+        contractStart: existingProperty.contractStart || '',
+        adjustmentMonths: existingProperty.adjustmentMonths?.toString() || '3',
       });
     } else if (address) {
       const initialCountry = detectedCountry || 'Argentina';
@@ -291,6 +306,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       country: formData.country,
       currency: formData.currency,
       propertyType: formData.propertyType || 'casa',
+      contractStart: formData.contractStart || undefined,
+      adjustmentMonths: formData.adjustmentMonths ? Number(formData.adjustmentMonths) : undefined,
     };
     onSave(propertyToSave);
     toast.success(isEditing ? 'Propiedad actualizada' : 'Propiedad creada');
@@ -394,6 +411,57 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     <option value="USA">US Estados Unidos</option>
                     <option value="Uruguay">UY Uruguay</option>
                   </select>
+                </div>
+
+                {/* Contrato: Fecha inicio + Ajuste */}
+                <div className="space-y-1 pt-2 border-t border-gray-100">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" /> Contrato
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-600">Fecha Inicio</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                        <input
+                          type="date"
+                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                          value={formData.contractStart}
+                          onChange={e => setFormData({ ...formData, contractStart: e.target.value })}
+                          aria-label="Fecha de inicio del contrato"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-600">Ajuste cada (meses)</label>
+                      <div className="relative">
+                        <RefreshCw className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                        <input
+                          type="number" min="1" max="24" placeholder="Ej: 3"
+                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-semibold"
+                          value={formData.adjustmentMonths}
+                          onChange={e => setFormData({ ...formData, adjustmentMonths: e.target.value })}
+                          aria-label="Cada cuántos meses se ajusta el alquiler"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 pt-1 flex-wrap">
+                    <a
+                      href="https://cia.org.ar/calculadora/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+                    >
+                      <Calculator className="w-3.5 h-3.5" /> Calcular
+                    </a>
+                    {formData.contractStart && formData.adjustmentMonths && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Próx. actualización: <strong className="text-gray-700 ml-1">{calcNextAdjustment(formData.contractStart, Number(formData.adjustmentMonths))}</strong>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

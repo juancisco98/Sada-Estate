@@ -59,6 +59,8 @@ export const dbToProperty = (row: DbPropertyRow): Property => ({
     unitLabel: row.unit_label || undefined,
     propertyType: (row.property_type as PropertyType) || (row.building_id ? 'edificio' : 'casa'),
     userId: row.user_id,
+    contractStart: row.contract_start || undefined,
+    adjustmentMonths: row.adjustment_months || undefined,
 });
 
 export const propertyToDb = (p: Property): Record<string, unknown> => ({
@@ -86,6 +88,8 @@ export const propertyToDb = (p: Property): Record<string, unknown> => ({
     unit_label: p.unitLabel || '',
     property_type: p.propertyType || 'casa',
     user_id: p.userId || undefined,
+    contract_start: p.contractStart || null,
+    adjustment_months: p.adjustmentMonths || null,
 });
 
 export const dbToProfessional = (row: DbProfessionalRow): Professional => ({

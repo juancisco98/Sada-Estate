@@ -53,6 +53,8 @@ export interface Property {
   unitLabel?: string;
   propertyType: PropertyType;
   userId?: string;
+  contractStart?: string;
+  adjustmentMonths?: number;
 }
 
 export interface Tenant {

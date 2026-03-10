@@ -41,6 +41,8 @@ export interface DbPropertyRow {
     property_type?: string | null;
     user_id?: string | null;
     created_at?: string;
+    contract_start?: string | null;
+    adjustment_months?: number | null;
 }
 
 export interface DbProfessionalRow {
