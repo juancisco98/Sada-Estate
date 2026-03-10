@@ -318,7 +318,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                     {/* EXPENSAS */}
                                     <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Expensas <span className="text-xs font-normal text-slate-400">(opcional)</span></h3>
+                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Expensas <span className="text-xs font-normal text-slate-400">— podés subir después</span></h3>
                                             {hasExpensesProof && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Comprobante cargado</span>}
                                         </div>
                                         <div>
