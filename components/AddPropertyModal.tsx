@@ -418,26 +418,28 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" /> Contrato
                   </label>
-                  <div className="grid grid-cols-[3fr_1fr] gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-600">Fecha de inicio</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                        <input
-                          type="date"
-                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                          value={formData.contractStart}
-                          onChange={e => setFormData({ ...formData, contractStart: e.target.value })}
-                          aria-label="Fecha de inicio del contrato"
-                        />
-                      </div>
+                  {/* Fila 1: Fecha de inicio (full width) */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">Fecha de inicio</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="date"
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={formData.contractStart}
+                        onChange={e => setFormData({ ...formData, contractStart: e.target.value })}
+                        aria-label="Fecha de inicio del contrato"
+                      />
                     </div>
+                  </div>
+                  {/* Fila 2: Ajuste + Calcular (50/50) */}
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-600">Ajuste c/</label>
+                      <label className="text-xs font-medium text-gray-600">Ajuste cada (meses)</label>
                       <div className="relative">
                         <RefreshCw className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                         <input
-                          type="number" min="1" max="24" placeholder="3"
+                          type="number" min="1" max="24" placeholder="Ej: 3"
                           className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-semibold"
                           value={formData.adjustmentMonths}
                           onChange={e => setFormData({ ...formData, adjustmentMonths: e.target.value })}
@@ -445,23 +447,27 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                         />
                       </div>
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-600 invisible select-none">.</label>
+                      <a
+                        href="https://cia.org.ar/calculadora/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-1.5 w-full text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+                      >
+                        <Calculator className="w-4 h-4" /> Calcular
+                      </a>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <a
-                      href="https://cia.org.ar/calculadora/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
-                    >
-                      <Calculator className="w-3.5 h-3.5" /> Calcular
-                    </a>
-                    {formData.contractStart && formData.adjustmentMonths && (
-                      <span className="text-xs text-gray-500 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-500" />
-                        Próx. actualización: <strong className="text-gray-700">{calcNextAdjustment(formData.contractStart, Number(formData.adjustmentMonths))}</strong>
+                  {/* Fila 3: Próxima actualización */}
+                  {formData.contractStart && formData.adjustmentMonths && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span className="text-xs text-amber-700">
+                        Próx. actualización: <strong>{calcNextAdjustment(formData.contractStart, Number(formData.adjustmentMonths))}</strong>
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
