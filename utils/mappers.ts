@@ -1,11 +1,12 @@
-import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment, PropertyType } from '../types';
+import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment, PropertyType, ExpenseSheet } from '../types';
 import {
     DbBuildingRow,
     DbPropertyRow,
     DbProfessionalRow,
     DbMaintenanceTaskRow,
     DbTenantRow,
-    DbTenantPaymentRow
+    DbTenantPaymentRow,
+    DbExpenseSheetRow
 } from '../types/dbRows';
 
 // ========== BUILDING MAPPERS ==========
@@ -200,4 +201,27 @@ export const paymentToDb = (p: TenantPayment): Record<string, unknown> => ({
     status: p.status,
     notes: p.notes,
     user_id: p.userId || undefined,
+});
+
+// ========== EXPENSE SHEET MAPPERS ==========
+
+export const dbToExpenseSheet = (row: DbExpenseSheetRow): ExpenseSheet => ({
+    id: row.id,
+    tenantId: row.tenant_id,
+    month: row.month,
+    year: row.year,
+    sheetData: row.sheet_data,
+    sheetName: row.sheet_name || '',
+    uploadedAt: row.uploaded_at || '',
+    uploadedBy: row.uploaded_by || '',
+});
+
+export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }): Omit<DbExpenseSheetRow, 'id'> & { id?: string } => ({
+    ...(s.id ? { id: s.id } : {}),
+    tenant_id: s.tenantId,
+    month: s.month,
+    year: s.year,
+    sheet_data: s.sheetData,
+    sheet_name: s.sheetName,
+    uploaded_by: s.uploadedBy,
 });

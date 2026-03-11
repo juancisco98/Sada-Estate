@@ -155,7 +155,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   };
 
   const applyIPCRent = (amount: number) => {
-    setFormData(prev => ({ ...prev, monthlyRent: formatNumberWithDots(amount) }));
+    setFormData(prev => ({ ...prev, monthlyRent: String(amount) }));
     setIpcCalc(prev => ({ ...prev, show: false }));
   };
 

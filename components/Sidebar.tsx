@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck, ArrowLeftRight } from 'lucide-react';
 
 export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS';
 
@@ -9,9 +9,10 @@ interface SidebarProps {
   currentView: ViewState;
   onNavigate: (view: ViewState) => void;
   onLogout?: () => void;
+  onSwitchMode?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavigate, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavigate, onLogout, onSwitchMode }) => {
   const menuItems = [
     { id: 'MAP', label: 'Mapa Interactivo', icon: MapIcon },
     { id: 'OVERVIEW', label: 'Visión General', icon: LayoutDashboard },
@@ -67,7 +68,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
         </nav>
 
         {/* Bottom Section */}
-        <div className="absolute bottom-0 left-0 w-full p-6 space-y-4 bg-white dark:bg-slate-900 border-t dark:border-white/5">
+        <div className="absolute bottom-0 left-0 w-full p-6 space-y-2 bg-white dark:bg-slate-900 border-t dark:border-white/5">
+          {onSwitchMode && (
+            <button
+              onClick={() => { onSwitchMode(); onClose(); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition-colors"
+            >
+              <ArrowLeftRight className="w-5 h-5" />
+              <span className="font-medium">Cambiar modo</span>
+            </button>
+          )}
           {onLogout && (
             <button
               onClick={onLogout}

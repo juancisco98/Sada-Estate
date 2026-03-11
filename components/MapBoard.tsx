@@ -348,7 +348,7 @@ const MapBoard: React.FC<MapBoardProps> = ({
               click: () => { }, // Handled by popup button usually, but here we can open modal directly or show popup
             }}
           >
-            <Popup offset={[0, -10]} closeButton={false} className="custom-popup">
+            <Popup offset={[0, -10]} closeButton={false} className="custom-popup" autoPan={true} autoPanPadding={[10, 90]}>
               <div className="p-1 text-center">
                 <p className="font-semibold text-gray-800 text-sm mb-2">{searchResult.address.split(',')[0]}</p>
                 <button

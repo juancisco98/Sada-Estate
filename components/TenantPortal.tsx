@@ -23,7 +23,7 @@ interface TenantPortalProps {
 }
 
 const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) => {
-    const { tenants, payments, properties, setPayments } = useDataContext();
+    const { tenants, payments, properties, setPayments, expenseSheets } = useDataContext();
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -43,6 +43,12 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
         if (!tenantRecord) return [];
         return payments.filter(p => p.tenantId === tenantRecord.id && p.year === currentYear);
     }, [payments, tenantRecord, currentYear]);
+
+    // Expense sheets for this tenant (current year)
+    const tenantExpenseSheetsThisYear = useMemo(() => {
+        if (!tenantRecord) return [];
+        return expenseSheets.filter(s => s.tenantId === tenantRecord.id && s.year === currentYear);
+    }, [expenseSheets, tenantRecord, currentYear]);
 
     // Load unread notifications for this tenant
     useEffect(() => {
@@ -337,6 +343,53 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         );
                     })}
                 </div>
+
+                {/* Detalle de Expensas — tabla cargada por Nora */}
+                {tenantExpenseSheetsThisYear.length > 0 && (
+                    <div className="mt-8 space-y-4">
+                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                            Detalle de Expensas {currentYear}
+                        </h3>
+                        {tenantExpenseSheetsThisYear
+                            .sort((a, b) => a.month - b.month)
+                            .map(sheet => (
+                                <div key={sheet.id} className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-white/10 overflow-hidden shadow-sm">
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 flex items-center justify-between">
+                                        <span className="text-sm font-bold text-slate-800 dark:text-white">
+                                            {MONTH_NAMES[sheet.month - 1]} {sheet.year}
+                                        </span>
+                                        <span className="text-xs text-slate-400">Actualizado: {sheet.uploadedAt ? new Date(sheet.uploadedAt).toLocaleDateString('es-AR') : '—'}</span>
+                                    </div>
+                                    {sheet.sheetData.length === 0 ? (
+                                        <p className="text-sm text-slate-400 text-center py-6">Sin datos</p>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-xs">
+                                                <tbody>
+                                                    {sheet.sheetData.map((row, ri) => (
+                                                        <tr
+                                                            key={ri}
+                                                            className={`${ri === 0 ? 'bg-violet-50 dark:bg-violet-500/10 font-semibold text-violet-800 dark:text-violet-300' : ri % 2 === 0 ? 'bg-slate-50/50 dark:bg-white/[0.02]' : ''}`}
+                                                        >
+                                                            {(row as any[]).map((cell, ci) => (
+                                                                <td
+                                                                    key={ci}
+                                                                    className="border border-slate-100 dark:border-white/10 px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap"
+                                                                >
+                                                                    {cell !== null && cell !== undefined ? String(cell) : ''}
+                                                                </td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        }
+                    </div>
+                )}
             </main>
 
             {/* MODAL Carga de comprobantes */}

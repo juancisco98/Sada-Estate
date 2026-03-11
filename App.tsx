@@ -3,6 +3,7 @@ import { Toaster, toast } from 'sonner';
 import { handleError } from './utils/errorHandler';
 import { logger } from './utils/logger';
 
+import { LayoutDashboard, FileSpreadsheet } from 'lucide-react';
 import MapBoard from './components/MapBoard';
 import PropertyCard from './components/PropertyCard';
 import Sidebar, { ViewState } from './components/Sidebar';
@@ -34,6 +35,7 @@ const FinanceView = lazy(() => import('./components/DashboardViews').then(module
 const ProfessionalsView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.ProfessionalsView })));
 const TenantsView = lazy(() => import('./components/TenantsView'));
 const TenantPortal = lazy(() => import('./components/TenantPortal'));
+const ExpensesAdminPortal = lazy(() => import('./components/ExpensesAdminPortal'));
 
 const Dashboard: React.FC = () => {
   // Auth State
@@ -42,6 +44,7 @@ const Dashboard: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<ViewState>('MAP');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [adminMode, setAdminMode] = useState<'choosing' | 'admin' | 'expenses'>('choosing');
 
   // Data Hooks
   const { isLoading, refreshData } = useDataContext();
@@ -216,6 +219,25 @@ const Dashboard: React.FC = () => {
             setIsAuthenticated(true);
             logger.log('[Auth] User authenticated as ADMIN (database).');
           } else {
+            // Check if email exists in expenses_admins table
+            const { data: expensesAdminData } = await supabase
+              .from('expenses_admins')
+              .select('email')
+              .eq('email', userEmail)
+              .maybeSingle();
+
+            if (expensesAdminData) {
+              setCurrentUser({
+                id: session.user.id,
+                name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
+                email: userEmail,
+                photoURL: session.user.user_metadata?.avatar_url,
+                color: '#8b5cf6',
+                role: 'EXPENSES_ADMIN'
+              });
+              setIsAuthenticated(true);
+              logger.log('[Auth] User authenticated as EXPENSES_ADMIN.');
+            } else {
             // Check if email exists in tenants table
             const { data: tenantData, error } = await supabase
               .from('tenants')
@@ -251,6 +273,7 @@ const Dashboard: React.FC = () => {
               setIsAuthenticated(false);
               setCurrentUser(null);
             }
+            } // closes expenses_admins else block
           }
         }
       } else {
@@ -299,35 +322,18 @@ const Dashboard: React.FC = () => {
       CapacitorApp.addListener('appUrlOpen', handleAppUrlOpen);
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          logger.error('[Auth] PKCE code exchange failed:', error);
-          handleError(error, 'Error al intercambiar código de autenticación.');
-        } else {
-          const cleanUrl = window.location.origin + window.location.pathname;
-          window.history.replaceState(null, '', cleanUrl);
-        }
-      });
-    } else {
-      const hashParams = window.location.hash;
-      const isHashRedirect = hashParams && (hashParams.includes('access_token') || hashParams.includes('error'));
-
-      if (!isHashRedirect) {
-        supabase.auth.getSession().then(({ data: { session }, error }) => {
-          if (error) {
-            logger.error('[Auth] Error getting session:', error);
-            return;
-          }
-          if (session) {
-            handleAuthChange('INITIAL_SESSION', session);
-          }
-        });
+    // detectSessionInUrl: true (in supabaseClient) handles the PKCE code exchange automatically.
+    // Manually calling exchangeCodeForSession would fail because the code is already consumed.
+    // Just restore any existing session on load.
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        logger.error('[Auth] Error getting session:', error);
+        return;
       }
-    }
+      if (session) {
+        handleAuthChange('INITIAL_SESSION', session);
+      }
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -341,6 +347,7 @@ const Dashboard: React.FC = () => {
     await signOut();
     setIsAuthenticated(false);
     setCurrentUser(null);
+    setAdminMode('choosing');
   }, []);
 
   // --- Handlers ---
@@ -605,6 +612,70 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  if (currentUser?.role === 'ADMIN' && adminMode === 'choosing') {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
+        <div className="max-w-md w-full space-y-4">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-2xl">SV</span>
+            </div>
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+              Bienvenido, {currentUser.name.split(' ')[0]}
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">¿Qué panel querés usar hoy?</p>
+          </div>
+          <button
+            onClick={() => setAdminMode('admin')}
+            className="w-full p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all text-left group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition-colors">
+                <LayoutDashboard className="w-6 h-6 text-indigo-600 group-hover:text-white transition-colors" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-800 dark:text-white">Panel de Administración</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Propiedades, inquilinos, finanzas y mapa</p>
+              </div>
+            </div>
+          </button>
+          <button
+            onClick={() => setAdminMode('expenses')}
+            className="w-full p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md hover:border-violet-300 dark:hover:border-violet-500/50 transition-all text-left group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-violet-100 dark:bg-violet-500/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-violet-600 transition-colors">
+                <FileSpreadsheet className="w-6 h-6 text-violet-600 group-hover:text-white transition-colors" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-800 dark:text-white">Panel de Expensas</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Subir liquidaciones y gestionar expensas</p>
+              </div>
+            </div>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full text-center text-sm text-slate-400 hover:text-red-500 py-2 transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentUser?.role === 'ADMIN' && adminMode === 'expenses') {
+    return (
+      <Suspense fallback={
+        <div className="w-full h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-500 border-t-transparent"></div>
+        </div>
+      }>
+        <ExpensesAdminPortal currentUser={currentUser} onLogout={handleLogout} onSwitchMode={() => setAdminMode('choosing')} />
+      </Suspense>
+    );
+  }
+
   if (currentUser?.role === 'TENANT') {
     return (
       <Suspense fallback={
@@ -617,6 +688,18 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  if (currentUser?.role === 'EXPENSES_ADMIN') {
+    return (
+      <Suspense fallback={
+        <div className="w-full h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-500 border-t-transparent"></div>
+        </div>
+      }>
+        <ExpensesAdminPortal currentUser={currentUser} onLogout={handleLogout} />
+      </Suspense>
+    );
+  }
+
   return (
     <div className="relative w-full h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden flex flex-col transition-colors duration-500">
       <Sidebar
@@ -625,6 +708,7 @@ const Dashboard: React.FC = () => {
         currentView={currentView}
         onNavigate={setCurrentView}
         onLogout={handleLogout}
+        onSwitchMode={() => setAdminMode('choosing')}
       />
 
       <Header

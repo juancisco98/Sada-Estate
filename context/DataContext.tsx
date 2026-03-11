@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment, AppNotification } from '../types';
-import { DbTenantPaymentRow } from '../types/dbRows';
+import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment, AppNotification, ExpenseSheet } from '../types';
+import { DbTenantPaymentRow, DbExpenseSheetRow } from '../types/dbRows';
 import { supabase } from '../services/supabaseClient';
 import {
     dbToBuilding, dbToProperty,
     dbToProfessional,
     dbToTask,
     dbToTenant,
-    dbToPayment
+    dbToPayment,
+    dbToExpenseSheet
 } from '../utils/mappers';
 import { handleError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
@@ -27,6 +28,8 @@ interface DataContextType {
     setTenants: React.Dispatch<React.SetStateAction<Tenant[]>>;
     payments: TenantPayment[];
     setPayments: React.Dispatch<React.SetStateAction<TenantPayment[]>>;
+    expenseSheets: ExpenseSheet[];
+    setExpenseSheets: React.Dispatch<React.SetStateAction<ExpenseSheet[]>>;
     notifications: AppNotification[];
     unreadCount: number;
     markNotificationRead: (id: string) => Promise<void>;
@@ -55,6 +58,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [buildings, setBuildings] = useState<Building[]>([]);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [payments, setPayments] = useState<TenantPayment[]>([]);
+    const [expenseSheets, setExpenseSheets] = useState<ExpenseSheet[]>([]);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -82,7 +86,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 buildingsResult,
                 tenantsResult,
                 paymentsResult,
-                notificationsResult
+                notificationsResult,
+                expenseSheetsResult
             ] = await Promise.all([
                 supabase.from('professionals').select('*').order('created_at', { ascending: true }),
                 supabase.from('properties').select('*').order('created_at', { ascending: true }),
@@ -90,7 +95,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 supabase.from('buildings').select('*').order('created_at', { ascending: true }),
                 supabase.from('tenants').select('*').order('created_at', { ascending: true }),
                 supabase.from('tenant_payments').select('*').order('created_at', { ascending: true }),
-                supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50)
+                supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
+                supabase.from('expense_sheets').select('*').order('uploaded_at', { ascending: false })
             ]);
 
             if (prosResult.error) throw prosResult.error;
@@ -107,6 +113,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (tenantsResult.data) setTenants(tenantsResult.data.map(dbToTenant));
             if (paymentsResult.data) setPayments(paymentsResult.data.map(dbToPayment));
             if (notificationsResult.data) setNotifications(notificationsResult.data.map(dbToNotification));
+            if (expenseSheetsResult.data) setExpenseSheets(expenseSheetsResult.data.map(dbToExpenseSheet));
 
             logger.log('[Supabase] All data loaded.');
 
@@ -182,9 +189,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             )
             .subscribe();
 
+        const expenseSheetsChannel = supabase
+            .channel('expense_sheets_realtime')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'expense_sheets' },
+                (payload) => {
+                    setExpenseSheets(prev => {
+                        if (prev.some(s => s.id === payload.new.id)) return prev;
+                        return [dbToExpenseSheet(payload.new as DbExpenseSheetRow), ...prev];
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'expense_sheets' },
+                (payload) => {
+                    setExpenseSheets(prev => prev.map(s =>
+                        s.id === payload.new.id ? dbToExpenseSheet(payload.new as DbExpenseSheetRow) : s
+                    ));
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(paymentsChannel);
             supabase.removeChannel(notificationsChannel);
+            supabase.removeChannel(expenseSheetsChannel);
         };
     }, []);
 
@@ -196,6 +227,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             buildings, setBuildings,
             tenants, setTenants,
             payments, setPayments,
+            expenseSheets, setExpenseSheets,
             notifications,
             unreadCount,
             markNotificationRead,

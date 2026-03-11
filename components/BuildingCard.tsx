@@ -45,6 +45,7 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
   return (
     <div
       className="absolute bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-[400px]
+        max-h-[calc(100vh-200px)] overflow-y-auto
         bg-white/85 backdrop-blur-2xl rounded-[36px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-white/60
         z-[1000] animate-in slide-in-from-bottom-4 duration-300 p-3 transition-all duration-300"
     >

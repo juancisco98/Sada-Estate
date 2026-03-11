@@ -762,10 +762,10 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                 >
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"></div>
                     <div
-                        className="bg-white dark:bg-slate-950 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in scale-95 duration-200 relative border border-white dark:border-white/10"
+                        className="bg-white dark:bg-slate-950 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in scale-95 duration-200 relative border border-white dark:border-white/10"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-slate-900/50">
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-slate-900/50 shrink-0">
                             <h2 className="text-xl font-bold text-gray-800 dark:text-white">
                                 {editingTenantId ? 'Editar Inquilino' : 'Nuevo Inquilino'}
                             </h2>
@@ -774,7 +774,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 overflow-y-auto">
                             <div className="space-y-1">
                                 <label className="text-sm font-semibold text-gray-600 dark:text-gray-400">Nombre *</label>
                                 <input
@@ -820,7 +820,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                             </div>
                         </div>
 
-                        <div className="p-6 pt-0">
+                        <div className="p-6 pt-0 shrink-0">
                             <button
                                 onClick={handleAddTenant}
                                 disabled={!newTenant.name.trim()}

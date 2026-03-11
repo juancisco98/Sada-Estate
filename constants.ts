@@ -3,6 +3,7 @@ export const ALLOWED_EMAILS = [
   'juan.sada98@gmail.com',
   'svsistemas@yahoo.com',
   'antovent64@gmail.com',
+  'rosana@ventrescayasociados.com.ar',
 ];
 
 // Buenos Aires Center (Palermo/Recoleta area)

@@ -137,14 +137,9 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
 
     const handleInitiateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // At least one proof must be present
-        if (!hasRentProof && !hasExpensesProof) {
-            toast.error('Debés subir al menos un comprobante (alquiler o expensas).');
-            return;
-        }
-        // If submitting rent, amount is required
-        if (hasRentProof && (!rentAmount || isNaN(parseFloat(rentAmount)) || parseFloat(rentAmount) <= 0)) {
-            toast.error('Ingresá el monto del alquiler.');
+        // At least expenses proof must be present
+        if (!hasExpensesProof) {
+            toast.error('Debés subir el comprobante de expensas.');
             return;
         }
         // If submitting expenses, expense amount is required
@@ -259,7 +254,8 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                         </div>
                                     )}
 
-                                    {/* ALQUILER */}
+                                    {/* ALQUILER — OCULTO TEMPORALMENTE (descomentar si se reactiva) */}
+                                    {false && (
                                     <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Alquiler</h3>
@@ -314,6 +310,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                             </label>
                                         </div>
                                     </div>
+                                    )}
 
                                     {/* EXPENSAS */}
                                     <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">

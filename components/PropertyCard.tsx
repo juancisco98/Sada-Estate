@@ -156,9 +156,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   return (
     <div
       className={`
-      absolute bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-[420px] 
+      absolute bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-[420px]
+      max-h-[calc(100vh-200px)] overflow-y-auto
       bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 dark:border-white/10
-      z-[1000] animate-in slide-in-from-bottom-6 duration-500 
+      z-[1000] animate-in slide-in-from-bottom-6 duration-500
       ${isUnderMaintenance ? 'ring-4 ring-amber-100/50 dark:ring-amber-900/30' : 'ring-1 ring-black/5 dark:ring-white/5'}
       transition-all duration-300 p-3.5
     `}

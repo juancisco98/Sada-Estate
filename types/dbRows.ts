@@ -83,6 +83,17 @@ export interface DbTenantRow {
     created_at?: string;
 }
 
+export interface DbExpenseSheetRow {
+    id: string;
+    tenant_id: string;
+    month: number;
+    year: number;
+    sheet_data: any[][];
+    sheet_name?: string | null;
+    uploaded_at?: string;
+    uploaded_by?: string | null;
+}
+
 export interface DbTenantPaymentRow {
     id: string;
     tenant_id: string;

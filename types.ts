@@ -13,7 +13,7 @@ export interface User {
   email: string;
   color?: string; // Hex color for visual differentiation
   photoURL?: string;
-  role?: 'ADMIN' | 'TENANT'; // Identificar si es admin (familia) o inquilino
+  role?: 'ADMIN' | 'TENANT' | 'EXPENSES_ADMIN'; // Identificar si es admin (familia), inquilino, o admin de expensas
 }
 
 export interface Building {
@@ -139,6 +139,17 @@ export interface ExpenseLog {
   description: string;
   date: string;
   confirmed: boolean;
+}
+
+export interface ExpenseSheet {
+  id: string;
+  tenantId: string;
+  month: number;
+  year: number;
+  sheetData: any[][];   // filas × columnas del Excel
+  sheetName: string;
+  uploadedAt: string;
+  uploadedBy: string;
 }
 
 export interface AppNotification {
