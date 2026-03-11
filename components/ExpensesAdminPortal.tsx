@@ -9,7 +9,7 @@ import { MONTH_NAMES } from '../constants';
 import {
     LogOut, Bell, Upload, FileSpreadsheet, CheckCircle,
     AlertCircle, X, Eye, Users, Clock, ArrowLeftRight,
-    RotateCcw, ChevronDown, ChevronUp, ExternalLink
+    RotateCcw, ChevronDown, ChevronUp, ExternalLink, Home
 } from 'lucide-react';
 
 interface ExpensesAdminPortalProps {
@@ -50,7 +50,7 @@ const matchSheetToTenant = (identifier: string, tenants: Tenant[]): Tenant | und
 // ── Component ──────────────────────────────────────────────────────────────
 
 const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, onLogout, onSwitchMode }) => {
-    const { tenants, payments, setPayments, expenseSheets, setExpenseSheets, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
+    const { tenants, payments, setPayments, properties, expenseSheets, setExpenseSheets, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
 
     // Tabs
     const [activeTab, setActiveTab] = useState<'upload' | 'review'>('upload');
@@ -291,7 +291,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
     // ──────────────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
+        <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
             {/* ── Header ─────────────────────────────────────────────────── */}
             <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
@@ -373,7 +373,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             </header>
 
             {/* ── Main content ─────────────────────────────────────────── */}
-            <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
+            <main className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
 
                 {/* ── Tabs ──────────────────────────────────────────────── */}
                 <div className="flex gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl w-fit">
@@ -672,8 +672,8 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                         </section>
 
                         {/* Sección B: Lista de inquilinos con historial mensual */}
-                        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
-                            <h2 className="text-base font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
+                        <section>
+                            <h2 className="text-base font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 px-1">
                                 <Users className="w-5 h-5 text-violet-500" />
                                 Historial por Inquilino — {currentYear}
                             </h2>
@@ -681,64 +681,117 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                             {tenants.length === 0 ? (
                                 <p className="text-sm text-slate-400 text-center py-8">Sin inquilinos registrados.</p>
                             ) : (
-                                <div className="space-y-2">
+                                <div>
                                     {tenantMonthlyStatus.map(({ tenant, months, pendingCount }) => {
                                         const isExpanded = expandedTenants.has(tenant.id);
+                                        const property = properties.find(p => p.id === tenant.propertyId);
+                                        const address = property?.address || '';
+                                        const tenantYearPayments = payments.filter(p => p.tenantId === tenant.id && p.year === currentYear);
+                                        const approvedExpenses = tenantYearPayments.filter(p => p.status === 'APPROVED' && (p.expenseAmount ?? 0) > 0);
+                                        const totalExpenses = approvedExpenses.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
+                                        const approvedCount = months.filter(s => s === 'APPROVED').length;
                                         return (
-                                            <div key={tenant.id} className="rounded-xl border border-slate-100 dark:border-white/10 overflow-hidden">
-                                                <button
+                                            <div key={tenant.id} className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-[2.2rem] border border-white dark:border-white/10 shadow-lg dark:shadow-none overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-violet-500/10 dark:hover:border-violet-500/40 hover:scale-[1.01] hover:translate-x-1 group mb-3">
+                                                {/* Main Row */}
+                                                <div
+                                                    className="flex items-center p-6 gap-5 cursor-pointer"
                                                     onClick={() => setExpandedTenants(prev => {
                                                         const next = new Set(prev);
                                                         isExpanded ? next.delete(tenant.id) : next.add(tenant.id);
                                                         return next;
                                                     })}
-                                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                                                 >
-                                                    <div className="flex items-center gap-3 min-w-0">
-                                                        <div className={`w-2 h-2 rounded-full shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                                                        <div className="min-w-0 text-left">
-                                                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{tenant.name}</p>
-                                                            {tenant.propertyId && <p className="text-xs text-slate-400 truncate">{tenant.propertyId}</p>}
+                                                    {/* Status dot */}
+                                                    <div className={`w-3 h-3 rounded-full shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : approvedCount > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-slate-200 dark:bg-slate-700'}`} />
+
+                                                    {/* Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <h3 className="font-black text-slate-900 dark:text-white text-lg tracking-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors uppercase">
+                                                                {tenant.name}
+                                                            </h3>
+                                                            {pendingCount > 0 && (
+                                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/30">
+                                                                    {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {address && (
+                                                            <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
+                                                                <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-md">
+                                                                    <Home size={14} className="text-slate-400" />
+                                                                </div>
+                                                                <p className="text-sm font-bold uppercase tracking-tight truncate">{address}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Total expensas + chevron */}
+                                                    <div className="flex items-center gap-6 shrink-0">
+                                                        {totalExpenses > 0 && (
+                                                            <div className="text-right hidden sm:block">
+                                                                <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-0.5">Expensas</p>
+                                                                <p className="text-base font-black text-slate-700 dark:text-white tabular-nums">
+                                                                    ${totalExpenses.toLocaleString('es-AR')}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                        <div className={`p-2 rounded-2xl transition-all ${isExpanded ? 'bg-violet-600 dark:bg-violet-500 text-white shadow-lg shadow-violet-200 dark:shadow-none' : 'bg-slate-50 dark:bg-white/5 text-slate-300 dark:text-violet-400/50'}`}>
+                                                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2 shrink-0">
-                                                        {pendingCount > 0 && (
-                                                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full">
-                                                                {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
-                                                            </span>
-                                                        )}
-                                                        {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                                                    </div>
-                                                </button>
+                                                </div>
+
+                                                {/* Expanded */}
                                                 {isExpanded && (
-                                                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-white/5">
-                                                        <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                                                    <div className="border-t border-gray-100 dark:border-white/5 p-5 bg-gray-50/50 dark:bg-slate-800/50 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                                        <p className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-3">
+                                                            Historial Expensas — {currentYear}
+                                                        </p>
+                                                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
                                                             {MONTH_NAMES.map((m, i) => {
                                                                 const s = months[i];
+                                                                const payment = tenantYearPayments.find(p => p.month === i + 1);
                                                                 return (
                                                                     <div
                                                                         key={m}
-                                                                        title={m}
-                                                                        className={`flex flex-col items-center justify-center p-1.5 rounded-lg border text-center
-                                                                            ${s === 'APPROVED' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30' : ''}
-                                                                            ${s === 'REVISION' ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30' : ''}
-                                                                            ${s === 'RETURNED' ? 'bg-amber-100 dark:bg-amber-500/15 border-amber-300 dark:border-amber-400/40' : ''}
-                                                                            ${s === 'PENDING' ? 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5' : ''}
-                                                                        `}
+                                                                        className={`text-center p-2 rounded-xl border transition-all hover:scale-105 ${
+                                                                            s === 'APPROVED' ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-500/10' :
+                                                                            s === 'REVISION' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-500/30' :
+                                                                            s === 'RETURNED' ? 'bg-amber-100 dark:bg-amber-500/15 border-amber-300 dark:border-amber-400/40' :
+                                                                            'bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-white/5'
+                                                                        }`}
                                                                     >
-                                                                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">{m.slice(0, 3)}</span>
-                                                                        <span className="mt-0.5">
-                                                                            {s === 'APPROVED' && <CheckCircle className="w-3 h-3 text-emerald-500" />}
-                                                                            {s === 'REVISION' && <Clock className="w-3 h-3 text-amber-500" />}
-                                                                            {s === 'RETURNED' && <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
-                                                                            {s === 'PENDING' && <span className="w-3 h-3 block rounded-full bg-slate-200 dark:bg-slate-700" />}
-                                                                        </span>
+                                                                        <p className="text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase mb-1">
+                                                                            {m.slice(0, 3)}
+                                                                        </p>
+                                                                        {s === 'APPROVED' && <CheckCircle size={16} className="text-violet-500 mx-auto" />}
+                                                                        {s === 'REVISION' && <Clock size={16} className="text-amber-500 dark:text-amber-400 mx-auto" />}
+                                                                        {s === 'RETURNED' && <RotateCcw size={16} className="text-amber-600 dark:text-amber-400 mx-auto" />}
+                                                                        {s === 'PENDING' && <div className="h-4 flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-slate-600" /></div>}
+                                                                        {payment?.expenseAmount && s === 'APPROVED' && (
+                                                                            <p className="text-[10px] text-violet-600 dark:text-violet-400 font-bold mt-1 truncate">
+                                                                                ${payment.expenseAmount.toLocaleString('es-AR')}
+                                                                            </p>
+                                                                        )}
+                                                                        {payment?.proofOfExpenses && (
+                                                                            <a
+                                                                                href={payment.proofOfExpenses}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                onClick={e => e.stopPropagation()}
+                                                                                className="block mt-0.5"
+                                                                                title="Ver comprobante"
+                                                                            >
+                                                                                <ExternalLink size={10} className="text-indigo-400 mx-auto" />
+                                                                            </a>
+                                                                        )}
                                                                     </div>
                                                                 );
                                                             })}
                                                         </div>
-                                                        <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-400">
-                                                            <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> Aprobado</span>
+                                                        <div className="flex items-center gap-4 mt-2 text-[10px] text-slate-400">
+                                                            <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-violet-500" /> Aprobado</span>
                                                             <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-amber-500" /> En revisión</span>
                                                             <span className="flex items-center gap-1"><RotateCcw className="w-3 h-3 text-amber-600" /> Devuelto</span>
                                                         </div>
