@@ -137,14 +137,13 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
 
     const handleInitiateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // At least expenses proof must be present
-        if (!hasExpensesProof) {
-            toast.error('Debés subir el comprobante de expensas.');
+        // Both expense amount and proof are required
+        if (!expenseAmount || isNaN(parseFloat(expenseAmount)) || parseFloat(expenseAmount) <= 0) {
+            toast.error('Ingresá el monto de las expensas.');
             return;
         }
-        // If submitting expenses, expense amount is required
-        if (hasExpensesProof && (!expenseAmount || isNaN(parseFloat(expenseAmount)) || parseFloat(expenseAmount) <= 0)) {
-            toast.error('Ingresá el monto de las expensas.');
+        if (!hasExpensesProof) {
+            toast.error('Debés subir el comprobante de expensas.');
             return;
         }
         setShowConfirm(true);
@@ -315,7 +314,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                     {/* EXPENSAS */}
                                     <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Expensas <span className="text-xs font-normal text-slate-400">— podés subir después</span></h3>
+                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Expensas <span className="text-xs font-normal text-red-400">*obligatorio</span></h3>
                                             {hasExpensesProof && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Comprobante cargado</span>}
                                         </div>
                                         <div>
