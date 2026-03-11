@@ -79,16 +79,92 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   // Mock state for document uploads
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
 
+  // IPC calculator state
+  const [ipcCalc, setIpcCalc] = useState<{
+    show: boolean;
+    loading: boolean;
+    variation: number | null;
+    suggestedRent: number | null;
+    isEstimated: boolean;
+    periodLabel: string;
+    manualPct: string;
+    error: string | null;
+  }>({ show: false, loading: false, variation: null, suggestedRent: null, isEstimated: false, periodLabel: '', manualPct: '', error: null });
+
   // Get tax config for current country
   const taxConfig = getTaxConfig(formData.country);
 
   const calcNextAdjustment = (startDate: string, months: number): string => {
     if (!startDate || !months || months <= 0) return '';
-    const start = new Date(startDate + 'T00:00:00');
-    const now = new Date();
-    let next = new Date(start);
-    while (next <= now) next.setMonth(next.getMonth() + months);
+    const next = new Date(startDate + 'T00:00:00');
+    next.setMonth(next.getMonth() + months);
     return next.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const fetchIPCData = async () => {
+    const months = Number(formData.adjustmentMonths) || 3;
+    const currentRent = Number(String(formData.monthlyRent).replace(/\./g, '')) || 0;
+    const contractStart = formData.contractStart;
+    setIpcCalc(prev => ({ ...prev, loading: true, error: null, variation: null, suggestedRent: null, isEstimated: false, periodLabel: '' }));
+    try {
+      // Build date range: need the month BEFORE contractStart as base, up to (contractStart + months - 1)
+      const toYYYYMM = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+      const baseDate = contractStart ? new Date(contractStart + 'T00:00:00') : new Date();
+      if (contractStart) baseDate.setMonth(baseDate.getMonth() - 1); // month before contract start
+      const endDate = contractStart ? new Date(contractStart + 'T00:00:00') : new Date();
+      if (contractStart) endDate.setMonth(endDate.getMonth() + months - 1);
+      else endDate.setMonth(endDate.getMonth() - 1); // fallback: last N months
+
+      const startStr = toYYYYMM(baseDate);
+      const endStr = toYYYYMM(endDate);
+
+      // Period label for display (e.g. "ene 2026 → mar 2026")
+      const fmtMonth = (d: Date) => d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+      const periodStart = contractStart ? new Date(contractStart + 'T00:00:00') : baseDate;
+      const periodEnd = new Date(endDate);
+      const periodLabel = `${fmtMonth(periodStart)} → ${fmtMonth(periodEnd)}`;
+
+      const res = await fetch(
+        `https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&start_date=${startStr}&end_date=${endStr}&format=json`
+      );
+      if (!res.ok) throw new Error('Error de red al consultar INDEC');
+      const json = await res.json();
+      let points: number[] = (json.data || []).map(([, v]: [string, number]) => v).filter((v: number) => v !== null);
+      if (points.length < 2) throw new Error('Datos insuficientes en INDEC para este período');
+
+      // How many total points we expect: months + 1 (base + N months)
+      const expected = months + 1;
+      let isEstimated = false;
+      // If missing points at the end, extrapolate using the last known monthly ratio
+      if (points.length < expected) {
+        isEstimated = true;
+        const lastRatio = points[points.length - 1] / points[points.length - 2];
+        while (points.length < expected) {
+          points.push(points[points.length - 1] * lastRatio);
+        }
+      }
+
+      // factor = lastIndex / firstIndex (the base month)
+      const factor = points[points.length - 1] / points[0];
+      const variation = parseFloat(((factor - 1) * 100).toFixed(2));
+      const suggestedRent = Math.round(currentRent * factor);
+      setIpcCalc(prev => ({ ...prev, loading: false, variation, suggestedRent, isEstimated, periodLabel }));
+    } catch (e: any) {
+      setIpcCalc(prev => ({ ...prev, loading: false, error: e.message || 'No se pudo conectar con INDEC' }));
+    }
+  };
+
+  const applyIPCRent = (amount: number) => {
+    setFormData(prev => ({ ...prev, monthlyRent: formatNumberWithDots(amount) }));
+    setIpcCalc(prev => ({ ...prev, show: false }));
+  };
+
+  const applyManualPct = () => {
+    const pct = parseFloat(ipcCalc.manualPct);
+    if (isNaN(pct) || pct <= 0) return;
+    const currentRent = Number(String(formData.monthlyRent).replace(/\./g, '')) || 0;
+    const newRent = Math.round(currentRent * (1 + pct / 100));
+    applyIPCRent(newRent);
   };
 
   // Initialize Data
@@ -452,23 +528,105 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-600 invisible select-none">.</label>
-                  <a
-                    href="https://cia.org.ar/calculadora/"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setIpcCalc(prev => ({ ...prev, show: !prev.show }))}
                     className="flex items-center justify-center gap-1.5 w-full text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
                   >
-                    <Calculator className="w-4 h-4" /> Calcular
-                  </a>
+                    <Calculator className="w-4 h-4" /> IPC
+                  </button>
                 </div>
               </div>
-              {/* Próxima actualización */}
+              {/* 1er ajuste */}
               {formData.contractStart && formData.adjustmentMonths && (
                 <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   <Clock className="w-4 h-4 text-amber-500 shrink-0" />
                   <span className="text-xs text-amber-700">
-                    Próx. actualización: <strong>{calcNextAdjustment(formData.contractStart, Number(formData.adjustmentMonths))}</strong>
+                    1er ajuste: <strong>{calcNextAdjustment(formData.contractStart, Number(formData.adjustmentMonths))}</strong>
                   </span>
+                </div>
+              )}
+              {/* Calculadora IPC */}
+              {ipcCalc.show && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calculator className="w-3.5 h-3.5" /> Calculadora IPC (INDEC)
+                    </span>
+                    {ipcCalc.periodLabel && (
+                      <span className="text-xs text-slate-400">{ipcCalc.periodLabel}</span>
+                    )}
+                  </div>
+                  {ipcCalc.loading && (
+                    <p className="text-xs text-slate-500 animate-pulse">Consultando INDEC...</p>
+                  )}
+                  {!ipcCalc.loading && ipcCalc.variation === null && !ipcCalc.error && (
+                    <button
+                      type="button"
+                      onClick={fetchIPCData}
+                      className="w-full text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Calcular con IPC
+                    </button>
+                  )}
+                  {!ipcCalc.loading && ipcCalc.variation !== null && ipcCalc.suggestedRent !== null && (
+                    <div className="space-y-2">
+                      {ipcCalc.isEstimated && (
+                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                          <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span className="text-xs text-amber-700">Valor aproximado — INDEC aún no publicó todos los datos del período</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-xs text-slate-600">
+                        <span>Variación acumulada IPC:</span>
+                        <span className="font-bold text-emerald-600">+{ipcCalc.variation}%</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-600">
+                        <span>Alquiler actual:</span>
+                        <span className="font-semibold">${Number(String(formData.monthlyRent).replace(/\./g, '')).toLocaleString('es-AR')}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-slate-800 font-bold border-t border-slate-200 pt-2">
+                        <span>Alquiler sugerido:</span>
+                        <span className="text-indigo-600">${ipcCalc.suggestedRent.toLocaleString('es-AR')}</span>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => applyIPCRent(ipcCalc.suggestedRent!)}
+                          className="flex-1 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-2 rounded-lg transition-colors"
+                        >
+                          Aplicar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={fetchIPCData}
+                          className="text-xs text-slate-500 hover:text-slate-700 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
+                        >
+                          Recalcular
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!ipcCalc.loading && ipcCalc.error && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-red-600">{ipcCalc.error}. Ingresá el % manualmente:</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="number" min="0" step="0.1" placeholder="Ej: 4.5"
+                          className="flex-1 text-sm px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                          value={ipcCalc.manualPct}
+                          onChange={e => setIpcCalc(prev => ({ ...prev, manualPct: e.target.value }))}
+                        />
+                        <button
+                          type="button"
+                          onClick={applyManualPct}
+                          className="text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Aplicar %
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

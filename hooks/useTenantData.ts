@@ -143,8 +143,12 @@ export const useTenantData = (currentUserId?: string) => {
             if (!uniqueByMonth.has(key)) uniqueByMonth.set(key, p);
         });
         const uniquePayments = Array.from(uniqueByMonth.values());
-        const totalPaid = uniquePayments.reduce((sum, p) => sum + p.amount, 0);
-        const totalExpenses = uniquePayments.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
+        const totalPaid = uniquePayments
+            .filter(p => p.status === 'APPROVED')
+            .reduce((sum, p) => sum + p.amount, 0);
+        const totalExpenses = uniquePayments
+            .filter(p => p.status === 'APPROVED')
+            .reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
 
         const currentYear = new Date().getFullYear();
         const monthlyBreakdown = Array.from({ length: 12 }, (_, i) => {

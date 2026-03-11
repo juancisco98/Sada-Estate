@@ -26,6 +26,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
     const { tenants, payments, properties, setPayments } = useDataContext();
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [showNotifDropdown, setShowNotifDropdown] = useState(false);
     const currentYear = new Date().getFullYear();
 
     // Find the tenant record corresponding to the current user
@@ -75,6 +76,27 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
         const ids = toMark.map(n => n.id);
         await supabase.from('notifications').update({ read: true }).in('id', ids);
         setNotifications(prev => prev.filter(n => !ids.includes(n.id)));
+    };
+
+    const markAllNotificationsRead = async () => {
+        if (notifications.length === 0) return;
+        const ids = notifications.map(n => n.id);
+        await supabase.from('notifications').update({ read: true }).in('id', ids);
+        setNotifications([]);
+        setShowNotifDropdown(false);
+    };
+
+    const getNotifIcon = (type: string) => {
+        if (type === 'PAYMENT_APPROVED') return <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />;
+        if (type === 'PAYMENT_REVISION') return <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />;
+        return <Bell className="w-4 h-4 text-indigo-500 shrink-0" />;
+    };
+
+    const handleNotifClick = (n: Notification) => {
+        const payment = tenantPaymentsThisYear.find(p => p.id === n.payment_id);
+        if (payment) setSelectedMonth(payment.month);
+        markNotificationsRead(n.payment_id);
+        setShowNotifDropdown(false);
     };
 
     // If no tenant record is found (shouldn't happen due to login check, but fallback)
@@ -134,13 +156,62 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         </p>
                     </div>
                 </div>
-                <button
-                    onClick={onLogout}
-                    className="p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-all group flex items-center justify-center"
-                    title="Cerrar sesión"
-                >
-                    <LogOut className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* NOTIFICATION BELL */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowNotifDropdown(v => !v)}
+                            className="p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-all flex items-center justify-center relative"
+                            title="Notificaciones"
+                        >
+                            <Bell className="w-6 h-6" />
+                            {notifications.length > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center px-1 shadow">
+                                    {notifications.length > 9 ? '9+' : notifications.length}
+                                </span>
+                            )}
+                        </button>
+                        {/* Dropdown */}
+                        {showNotifDropdown && (
+                            <div className="absolute right-0 top-14 w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/10">
+                                    <span className="font-bold text-slate-800 dark:text-white text-sm">Notificaciones</span>
+                                    {notifications.length > 0 && (
+                                        <button onClick={markAllNotificationsRead} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                                            Marcar todas leídas
+                                        </button>
+                                    )}
+                                </div>
+                                {notifications.length === 0 ? (
+                                    <p className="text-center text-slate-400 text-sm py-6">Sin notificaciones</p>
+                                ) : (
+                                    <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
+                                        {notifications.map(n => (
+                                            <button
+                                                key={n.id}
+                                                onClick={() => handleNotifClick(n)}
+                                                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left"
+                                            >
+                                                {getNotifIcon(n.type)}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{n.title}</p>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={onLogout}
+                        className="p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-all group flex items-center justify-center"
+                        title="Cerrar sesión"
+                    >
+                        <LogOut className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    </button>
+                </div>
             </header>
 
             {/* BODY */}
