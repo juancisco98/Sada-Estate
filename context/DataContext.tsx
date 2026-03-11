@@ -170,7 +170,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             description: notif.message,
                             duration: 6000,
                         });
-                    } else if (notif.type === 'PAYMENT_REVISION') {
+                    } else if (notif.type === 'PAYMENT_REVISION' || notif.type === 'PAYMENT_RETURNED') {
                         toast.warning(notif.title, {
                             description: notif.message,
                             duration: 8000,

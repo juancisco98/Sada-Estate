@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { User, Tenant, ExpenseSheet } from '../types';
+import { User, Tenant, ExpenseSheet, TenantPayment } from '../types';
 import { useDataContext } from '../context/DataContext';
 import { supabase } from '../services/supabaseClient';
 import { dbToExpenseSheet } from '../utils/mappers';
 import { MONTH_NAMES } from '../constants';
 import {
     LogOut, Bell, Upload, FileSpreadsheet, CheckCircle,
-    AlertCircle, X, Eye, Users, Clock, ArrowLeftRight
+    AlertCircle, X, Eye, Users, Clock, ArrowLeftRight,
+    RotateCcw, ChevronDown, ChevronUp, ExternalLink
 } from 'lucide-react';
 
 interface ExpensesAdminPortalProps {
@@ -49,7 +50,16 @@ const matchSheetToTenant = (identifier: string, tenants: Tenant[]): Tenant | und
 // ── Component ──────────────────────────────────────────────────────────────
 
 const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, onLogout, onSwitchMode }) => {
-    const { tenants, expenseSheets, setExpenseSheets, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
+    const { tenants, payments, setPayments, expenseSheets, setExpenseSheets, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
+
+    // Tabs
+    const [activeTab, setActiveTab] = useState<'upload' | 'review'>('upload');
+
+    // Review state
+    const [returningId, setReturningId] = useState<string | null>(null);
+    const [returnReason, setReturnReason] = useState('');
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
     // Bell / notifications dropdown
     const [showNotif, setShowNotif] = useState(false);
@@ -88,6 +98,31 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         [...expenseSheets].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
         [expenseSheets]
     );
+
+    // Payments in REVISION (pending Nora's review)
+    const pendingReviews = useMemo(() =>
+        payments.filter(p => p.status === 'REVISION' && (p.proofOfExpenses || (p.expenseAmount ?? 0) > 0))
+            .sort((a, b) => b.year - a.year || b.month - a.month),
+        [payments]
+    );
+
+    // Current year payments grouped by tenant for the tenant list
+    const currentYear = new Date().getFullYear();
+    const tenantMonthlyStatus = useMemo(() => {
+        return tenants.map(tenant => {
+            const tenantPayments = payments.filter(p => p.tenantId === tenant.id && p.year === currentYear);
+            const pendingCount = tenantPayments.filter(p => p.status === 'REVISION').length;
+            const months = MONTH_NAMES.map((_, i) => {
+                const payment = tenantPayments.find(p => p.month === i + 1);
+                if (!payment) return 'PENDING';
+                if (payment.status === 'APPROVED') return 'APPROVED';
+                if (payment.status === 'RETURNED') return 'RETURNED';
+                if (payment.status === 'REVISION') return 'REVISION';
+                return 'PENDING';
+            });
+            return { tenant, months, pendingCount };
+        });
+    }, [tenants, payments, currentYear]);
 
     // ── Excel parse ─────────────────────────────────────────────────────────
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,6 +233,58 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         }
     };
 
+    // ── Review handlers ─────────────────────────────────────────────────────
+    const handleApprove = async (payment: TenantPayment) => {
+        setActionLoading(payment.id);
+        const { error } = await supabase
+            .from('tenant_payments')
+            .update({ status: 'APPROVED' })
+            .eq('id', payment.id);
+        setActionLoading(null);
+        if (error) { toast.error('Error al aprobar.'); return; }
+        setPayments(prev => prev.map(p => p.id === payment.id ? { ...p, status: 'APPROVED' } : p));
+        const tenant = tenants.find(t => t.id === payment.tenantId);
+        if (tenant?.email) {
+            await supabase.from('notifications').insert({
+                recipient_email: tenant.email,
+                title: 'Pago aprobado ✓',
+                message: `Tu pago de expensas de ${MONTH_NAMES[payment.month - 1]} ${payment.year} fue aprobado.`,
+                type: 'PAYMENT_APPROVED',
+                payment_id: payment.id,
+                read: false,
+            });
+        }
+        toast.success(`Pago de ${MONTH_NAMES[payment.month - 1]} aprobado.`);
+    };
+
+    const handleReturn = async (payment: TenantPayment) => {
+        if (!returnReason.trim()) { toast.error('Ingresá el motivo de devolución.'); return; }
+        setActionLoading(payment.id);
+        const { error } = await supabase
+            .from('tenant_payments')
+            .update({ status: 'RETURNED', notes: returnReason.trim() })
+            .eq('id', payment.id);
+        setActionLoading(null);
+        if (error) { toast.error('Error al devolver.'); return; }
+        setPayments(prev => prev.map(p =>
+            p.id === payment.id ? { ...p, status: 'RETURNED', notes: returnReason.trim() } : p
+        ));
+        const tenant = tenants.find(t => t.id === payment.tenantId);
+        if (tenant?.email) {
+            await supabase.from('notifications').insert({
+                recipient_email: tenant.email,
+                title: 'Pago devuelto para corrección',
+                message: `Tu pago de ${MONTH_NAMES[payment.month - 1]} ${payment.year} requiere correcciones: ${returnReason.trim()}`,
+                type: 'PAYMENT_RETURNED',
+                payment_id: payment.id,
+                read: false,
+            });
+        }
+        toast.warning(`Pago de ${MONTH_NAMES[payment.month - 1]} devuelto.`);
+        setReturningId(null);
+        setReturnReason('');
+    };
+
     // ── Get tenant name for a sheet ─────────────────────────────────────────
     const getTenantName = (tenantId: string) =>
         tenants.find(t => t.id === tenantId)?.name || 'Inquilino desconocido';
@@ -286,9 +373,33 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             </header>
 
             {/* ── Main content ─────────────────────────────────────────── */}
-            <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 space-y-8">
+            <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
+
+                {/* ── Tabs ──────────────────────────────────────────────── */}
+                <div className="flex gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl w-fit">
+                    <button
+                        onClick={() => setActiveTab('upload')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'upload' ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                    >
+                        <Upload className="w-4 h-4" />
+                        Cargar Excel
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('review')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'review' ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                    >
+                        <Eye className="w-4 h-4" />
+                        Revisiones
+                        {pendingReviews.length > 0 && (
+                            <span className="min-w-[20px] h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                                {pendingReviews.length}
+                            </span>
+                        )}
+                    </button>
+                </div>
 
                 {/* ── Upload section ────────────────────────────────────── */}
+                {activeTab === 'upload' && (<>
                 <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
                     <h2 className="text-base font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
                         <Upload className="w-5 h-5 text-violet-500" />
@@ -456,6 +567,191 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                         </div>
                     )}
                 </section>
+                </>)}
+
+                {/* ── Review tab ───────────────────────────────────────── */}
+                {activeTab === 'review' && (
+                    <div className="space-y-6">
+                        {/* Sección A: Pagos pendientes de revisión */}
+                        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
+                            <h2 className="text-base font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-amber-500" />
+                                Pagos Pendientes de Revisión
+                                {pendingReviews.length > 0 && (
+                                    <span className="ml-auto min-w-[24px] h-6 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-full flex items-center justify-center px-2">
+                                        {pendingReviews.length}
+                                    </span>
+                                )}
+                            </h2>
+
+                            {pendingReviews.length === 0 ? (
+                                <div className="text-center py-10">
+                                    <CheckCircle className="w-12 h-12 text-emerald-200 dark:text-emerald-700 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-400">Sin pagos pendientes de revisión.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {pendingReviews.map(payment => {
+                                        const tenant = tenants.find(t => t.id === payment.tenantId);
+                                        const isReturning = returningId === payment.id;
+                                        const isLoading = actionLoading === payment.id;
+                                        return (
+                                            <div key={payment.id} className="rounded-xl border border-slate-100 dark:border-white/10 p-4 bg-slate-50 dark:bg-slate-800/40">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-slate-800 dark:text-white truncate">{tenant?.name || 'Desconocido'}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                            {MONTH_NAMES[payment.month - 1]} {payment.year}
+                                                            {payment.expenseAmount ? ` · $${payment.expenseAmount.toLocaleString('es-AR')}` : ''}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        {payment.proofOfExpenses && (
+                                                            <a
+                                                                href={payment.proofOfExpenses}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10"
+                                                            >
+                                                                <ExternalLink className="w-3 h-3" /> Ver comprobante
+                                                            </a>
+                                                        )}
+                                                        {!isReturning && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleApprove(payment)}
+                                                                    disabled={isLoading}
+                                                                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+                                                                >
+                                                                    {isLoading ? <div className="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                                                    Aprobar
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setReturningId(payment.id); setReturnReason(''); }}
+                                                                    disabled={isLoading}
+                                                                    className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+                                                                >
+                                                                    <RotateCcw className="w-3.5 h-3.5" /> Devolver
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {isReturning && (
+                                                    <div className="mt-3 space-y-2">
+                                                        <textarea
+                                                            value={returnReason}
+                                                            onChange={e => setReturnReason(e.target.value)}
+                                                            placeholder="Motivo de devolución (ej: El comprobante está borroso, subí uno más claro)"
+                                                            rows={2}
+                                                            className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-amber-400 outline-none resize-none"
+                                                        />
+                                                        <div className="flex gap-2 justify-end">
+                                                            <button
+                                                                onClick={() => { setReturningId(null); setReturnReason(''); }}
+                                                                className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl transition-colors"
+                                                            >
+                                                                Cancelar
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleReturn(payment)}
+                                                                disabled={isLoading || !returnReason.trim()}
+                                                                className="flex items-center gap-1.5 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 px-3 py-1.5 rounded-xl transition-colors"
+                                                            >
+                                                                {isLoading ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                                                                Confirmar devolución
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Sección B: Lista de inquilinos con historial mensual */}
+                        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
+                            <h2 className="text-base font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
+                                <Users className="w-5 h-5 text-violet-500" />
+                                Historial por Inquilino — {currentYear}
+                            </h2>
+
+                            {tenants.length === 0 ? (
+                                <p className="text-sm text-slate-400 text-center py-8">Sin inquilinos registrados.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {tenantMonthlyStatus.map(({ tenant, months, pendingCount }) => {
+                                        const isExpanded = expandedTenants.has(tenant.id);
+                                        return (
+                                            <div key={tenant.id} className="rounded-xl border border-slate-100 dark:border-white/10 overflow-hidden">
+                                                <button
+                                                    onClick={() => setExpandedTenants(prev => {
+                                                        const next = new Set(prev);
+                                                        isExpanded ? next.delete(tenant.id) : next.add(tenant.id);
+                                                        return next;
+                                                    })}
+                                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className={`w-2 h-2 rounded-full shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                                                        <div className="min-w-0 text-left">
+                                                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{tenant.name}</p>
+                                                            {tenant.propertyId && <p className="text-xs text-slate-400 truncate">{tenant.propertyId}</p>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        {pendingCount > 0 && (
+                                                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full">
+                                                                {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+                                                            </span>
+                                                        )}
+                                                        {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                                                    </div>
+                                                </button>
+                                                {isExpanded && (
+                                                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-white/5">
+                                                        <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                                                            {MONTH_NAMES.map((m, i) => {
+                                                                const s = months[i];
+                                                                return (
+                                                                    <div
+                                                                        key={m}
+                                                                        title={m}
+                                                                        className={`flex flex-col items-center justify-center p-1.5 rounded-lg border text-center
+                                                                            ${s === 'APPROVED' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30' : ''}
+                                                                            ${s === 'REVISION' ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30' : ''}
+                                                                            ${s === 'RETURNED' ? 'bg-amber-100 dark:bg-amber-500/15 border-amber-300 dark:border-amber-400/40' : ''}
+                                                                            ${s === 'PENDING' ? 'bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5' : ''}
+                                                                        `}
+                                                                    >
+                                                                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">{m.slice(0, 3)}</span>
+                                                                        <span className="mt-0.5">
+                                                                            {s === 'APPROVED' && <CheckCircle className="w-3 h-3 text-emerald-500" />}
+                                                                            {s === 'REVISION' && <Clock className="w-3 h-3 text-amber-500" />}
+                                                                            {s === 'RETURNED' && <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
+                                                                            {s === 'PENDING' && <span className="w-3 h-3 block rounded-full bg-slate-200 dark:bg-slate-700" />}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-400">
+                                                            <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> Aprobado</span>
+                                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-amber-500" /> En revisión</span>
+                                                            <span className="flex items-center gap-1"><RotateCcw className="w-3 h-3 text-amber-600" /> Devuelto</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </section>
+                    </div>
+                )}
             </main>
 
             {/* ── Sheet data modal ─────────────────────────────────────── */}

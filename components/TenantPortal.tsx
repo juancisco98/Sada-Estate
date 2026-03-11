@@ -5,7 +5,7 @@ import { MONTH_NAMES } from '../constants';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import UploadReceiptModal from './UploadReceiptModal';
-import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell } from 'lucide-react';
+import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell, RotateCcw } from 'lucide-react';
 
 interface Notification {
     id: string;
@@ -138,6 +138,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
         const payment = tenantPaymentsThisYear.find(p => p.month === monthIndex + 1);
         if (!payment) return 'PENDING';
         if (payment.status === 'APPROVED') return 'PAID';
+        if (payment.status === 'RETURNED') return 'RETURNED';
         if (payment.status === 'REVISION') return 'REVISION';
         if (payment.proofOfPayment || payment.proofOfExpenses) return 'REVISION';
         return 'PENDING';
@@ -267,6 +268,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                 className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl cursor-pointer shadow-sm
                   ${status === 'PAID' ? 'border-emerald-200 dark:border-emerald-500/30 bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-500/10 dark:to-emerald-500/5 shadow-emerald-100 dark:shadow-none' : ''}
                   ${status === 'REVISION' ? 'border-amber-200 dark:border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-500/10 dark:to-amber-500/5 shadow-amber-100 dark:shadow-none' : ''}
+                  ${status === 'RETURNED' ? 'border-amber-300 dark:border-amber-400/40 bg-gradient-to-br from-amber-50 to-amber-100/60 dark:from-amber-500/15 dark:to-amber-500/5 shadow-amber-100 dark:shadow-none' : ''}
                   ${status === 'INCOMPLETE' ? 'border-orange-200 dark:border-orange-500/30 bg-gradient-to-br from-orange-50 to-orange-100/40 dark:from-orange-500/10 dark:to-orange-500/5 shadow-orange-100 dark:shadow-none' : ''}
                   ${status === 'PENDING' ? 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-indigo-100 dark:hover:shadow-none' : ''}
                 `}
@@ -274,6 +276,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                 <span className={`text-base sm:text-lg font-bold mb-1.5 transition-colors
                   ${status === 'PAID' ? 'text-emerald-800 dark:text-emerald-400' : ''}
                   ${status === 'REVISION' ? 'text-amber-800 dark:text-amber-400' : ''}
+                  ${status === 'RETURNED' ? 'text-amber-900 dark:text-amber-300' : ''}
                   ${status === 'INCOMPLETE' ? 'text-orange-800 dark:text-orange-400' : ''}
                   ${status === 'PENDING' ? 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white' : ''}
                 `}>
@@ -291,6 +294,12 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                         <>
                                             <Clock className="text-amber-600 dark:text-amber-400 w-6 h-6" />
                                             <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mt-0.5">En Revisión</span>
+                                        </>
+                                    )}
+                                    {status === 'RETURNED' && (
+                                        <>
+                                            <RotateCcw className="text-amber-600 dark:text-amber-300 w-6 h-6" />
+                                            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider mt-0.5">Corregir</span>
                                         </>
                                     )}
                                     {status === 'INCOMPLETE' && (
@@ -311,7 +320,12 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                         <span className="text-[13px] font-extrabold text-slate-700 dark:text-slate-200 tabular-nums">${payment.amount.toLocaleString('es-AR')}</span>
                                     </div>
                                 )}
-                                {(status === 'PAID' || status === 'REVISION') && (
+                                {status === 'RETURNED' && payment?.notes && (
+                                    <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-400/20 w-full text-center">
+                                        <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-tight line-clamp-2">{payment.notes}</p>
+                                    </div>
+                                )}
+                                {(status === 'PAID' || status === 'REVISION' || status === 'RETURNED') && (
                                     <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t border-black/5 dark:border-white/10 w-full">
                                         {payment?.proofOfPayment && (
                                             <a

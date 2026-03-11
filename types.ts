@@ -80,7 +80,7 @@ export interface TenantPayment {
   proofOfPayment?: string; // Comprobante de alquiler
   proofOfExpenses?: string; // Comprobante de expensas
   expenseAmount?: number; // Monto de expensas (separado del alquiler)
-  status?: 'PENDING' | 'REVISION' | 'APPROVED'; // Estado de la revisión
+  status?: 'PENDING' | 'REVISION' | 'APPROVED' | 'RETURNED'; // Estado de la revisión
   notes?: string;
   userId?: string;
 }
@@ -157,7 +157,7 @@ export interface AppNotification {
   recipientEmail: string;
   title: string;
   message: string;
-  type: 'PAYMENT_SUBMITTED' | 'PAYMENT_APPROVED' | 'PAYMENT_REVISION';
+  type: 'PAYMENT_SUBMITTED' | 'PAYMENT_APPROVED' | 'PAYMENT_REVISION' | 'PAYMENT_RETURNED';
   paymentId?: string;
   read: boolean;
   createdAt: string;
