@@ -52,8 +52,27 @@ const matchSheetToTenant = (identifier: string, tenants: Tenant[]): Tenant | und
 const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, onLogout, onSwitchMode }) => {
     const { tenants, payments, setPayments, properties, buildings, expenseSheets, setExpenseSheets, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
 
-    // Nora solo ve inquilinos del edificio Vélez Sársfield 134
-    const velezBuilding = useMemo(() => buildings.find(b => b.address.toLowerCase().includes('velez') || b.address.toLowerCase().includes('vélez')), [buildings]);
+    // Filtro: solo inquilinos del edificio Vélez Sársfield 134
+    const velezBuilding = useMemo(() =>
+        buildings.find(b => normalizeStr(b.address).includes('velez sarsfield')),
+        [buildings]
+    );
+
+    // Debug: si no encuentra el building, loguear las direcciones disponibles
+    useEffect(() => {
+        if (!velezBuilding && buildings.length > 0) {
+            console.warn('[ExpensesPortal] No se encontró edificio Vélez Sársfield. Buildings disponibles:', buildings.map(b => ({ id: b.id, address: b.address })));
+        }
+        if (velezBuilding) {
+            const propCount = properties.filter(p => p.buildingId === velezBuilding.id).length;
+            const tenCount = tenants.filter(t => {
+                const prop = properties.find(p => p.id === t.propertyId);
+                return prop?.buildingId === velezBuilding.id;
+            }).length;
+            console.log(`[ExpensesPortal] Vélez encontrado (${velezBuilding.id}). Properties: ${propCount}, Tenants: ${tenCount}`);
+        }
+    }, [velezBuilding, buildings, properties, tenants]);
+
     const velezPropertyIds = useMemo(() => {
         if (!velezBuilding) return new Set<string>();
         return new Set(properties.filter(p => p.buildingId === velezBuilding.id).map(p => p.id));

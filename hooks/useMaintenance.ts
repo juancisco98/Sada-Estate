@@ -5,6 +5,12 @@ import { taskToDb, professionalToDb } from '../utils/mappers';
 import { supabaseUpdate, supabaseInsert } from '../utils/supabaseHelpers';
 import { logger } from '../utils/logger';
 
+const generateUUID = (): string =>
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+
 export const useMaintenance = (currentUserId?: string) => {
     const {
         setProperties,
@@ -28,7 +34,7 @@ export const useMaintenance = (currentUserId?: string) => {
         }));
 
         const newTask: MaintenanceTask = {
-            id: `t-${Date.now()}`,
+            id: generateUUID(),
             propertyId,
             professionalId: professional.id,
             description: taskDescription,
@@ -50,7 +56,7 @@ export const useMaintenance = (currentUserId?: string) => {
     };
 
     const addPartialExpense = async (taskId: string, expense: { description: string, amount: number, date: string, by: string, proofUrl?: string }) => {
-        const newExpense = { ...expense, id: `pe-${Date.now()}` };
+        const newExpense = { ...expense, id: generateUUID() };
 
         setMaintenanceTasks(prev => prev.map(task => {
             if (task.id === taskId) {

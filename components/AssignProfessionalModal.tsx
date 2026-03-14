@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Home, Hammer, CheckCircle } from 'lucide-react';
 import { Property, Professional } from '../types';
+import { toast } from 'sonner';
 
 interface AssignProfessionalModalProps {
   professional: Professional;
@@ -18,47 +19,48 @@ const AssignProfessionalModal: React.FC<AssignProfessionalModalProps> = ({
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
 
-  // Filter properties that are currently NOT under maintenance
   const availableProperties = properties.filter(p => !p.assignedProfessionalId);
 
   const handleSubmit = () => {
     if (!selectedPropertyId) {
-      alert("Debes seleccionar una propiedad.");
+      toast.error("Debes seleccionar una propiedad.");
       return;
     }
     if (!taskDescription.trim()) {
-      alert("Debes indicar qué tarea realizará el profesional.");
+      toast.error("Debes indicar qué tarea realizará el profesional.");
       return;
     }
     onConfirm(selectedPropertyId, taskDescription);
   };
 
   return (
-    <div className="fixed inset-0 z-[1300] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
-        <div className="bg-orange-50 p-6 border-b border-orange-100 flex justify-between items-center">
+    <div className="fixed inset-0 z-[1300] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col border dark:border-white/10 max-h-[90vh]">
+        {/* Header */}
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-orange-900">Asignar Profesional</h2>
-            <p className="text-sm text-orange-700 mt-1">Vinculando a: <b>{professional.name}</b></p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Asignar Profesional</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Vinculando a: <b className="text-indigo-600 dark:text-indigo-400">{professional.name}</b></p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-orange-100 rounded-full text-orange-700 transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        {/* Body */}
+        <div className="p-6 space-y-6 overflow-y-auto">
           {availableProperties.length === 0 ? (
-            <div className="text-center p-4 bg-gray-50 rounded-xl text-gray-500">
+            <div className="text-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/10">
               <p>No tienes propiedades libres para asignar actualmente.</p>
             </div>
           ) : (
             <>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <Home className="w-4 h-4" /> Seleccionar Propiedad
                 </label>
                 <select
-                  className="w-full p-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-orange-400 outline-none appearance-none"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
                   value={selectedPropertyId}
                   onChange={(e) => setSelectedPropertyId(e.target.value)}
                 >
@@ -70,11 +72,11 @@ const AssignProfessionalModal: React.FC<AssignProfessionalModalProps> = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <Hammer className="w-4 h-4" /> Descripción de la Tarea
                 </label>
                 <textarea
-                  className="w-full p-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-orange-400 outline-none resize-none h-24 placeholder-gray-400"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-24 placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="Ej: Revisión de estufa y calefón por pérdida..."
                   value={taskDescription}
                   onChange={(e) => setTaskDescription(e.target.value)}
@@ -83,7 +85,7 @@ const AssignProfessionalModal: React.FC<AssignProfessionalModalProps> = ({
 
               <button
                 onClick={handleSubmit}
-                className="w-full py-3 rounded-xl bg-gray-900 text-white font-bold hover:bg-gray-800 shadow-lg flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 transition-all"
               >
                 <CheckCircle className="w-5 h-5" /> Confirmar Asignación
               </button>

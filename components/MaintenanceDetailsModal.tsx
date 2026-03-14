@@ -61,43 +61,43 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[1400] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border dark:border-white/10">
 
                 {/* Header */}
-                <div className="bg-orange-50 p-6 border-b border-orange-100 flex justify-between items-center shrink-0">
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-orange-800 flex items-center gap-2">
-                            🚧 Detalle de Obra
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span className="text-amber-500">🚧</span> Detalle de Obra
                         </h2>
-                        <p className="text-sm text-orange-700 mt-1 font-medium">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
                             {property.address}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-orange-100 rounded-full text-orange-700 transition-colors">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 transition-colors">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Task Info */}
-                <div className="p-6 bg-white shrink-0">
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 mb-4">
-                        <p className="text-xs text-gray-400 uppercase font-bold mb-1">Profesional</p>
-                        <p className="font-bold text-gray-900">{professionalName}</p>
+                <div className="p-6 bg-white dark:bg-slate-900 shrink-0">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-white/10 mb-4">
+                        <p className="text-xs text-slate-400 dark:text-slate-500 uppercase font-bold mb-1">Profesional</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{professionalName}</p>
 
-                        <div className="border-t border-gray-200 my-2"></div>
+                        <div className="border-t border-slate-200 dark:border-white/10 my-2"></div>
 
-                        <p className="text-xs text-gray-400 uppercase font-bold mb-1">Tarea</p>
-                        <p className="text-sm text-gray-700 italic">"{task.description}"</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 uppercase font-bold mb-1">Tarea</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 italic">"{task.description}"</p>
                     </div>
 
                     <div className="flex justify-between items-end">
                         <div>
-                            <h3 className="font-bold text-gray-900">Gastos Parciales</h3>
-                            <p className="text-xs text-gray-500">Materiales y adelantos</p>
+                            <h3 className="font-bold text-slate-900 dark:text-white">Gastos Parciales</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Materiales y adelantos</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs text-gray-400 uppercase font-bold">Total Acumulado</p>
-                            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalPartialCost, property.currency)}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 uppercase font-bold">Total Acumulado</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalPartialCost, property.currency)}</p>
                         </div>
                     </div>
                 </div>
@@ -105,16 +105,16 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
                 {/* List of Expenses */}
                 <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-3 custom-scrollbar">
                     {partialExpenses.length === 0 ? (
-                        <div className="text-center py-8 text-gray-400 border border-dashed border-gray-200 rounded-xl">
+                        <div className="text-center py-8 text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
                             <p>No hay gastos registrados.</p>
                         </div>
                     ) : (
                         partialExpenses.map((expense) => (
-                            <div key={expense.id} className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+                            <div key={expense.id} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-white/10 rounded-xl">
                                 <div>
-                                    <p className="font-semibold text-gray-800">{expense.description}</p>
+                                    <p className="font-semibold text-slate-800 dark:text-white">{expense.description}</p>
                                     <div className="flex items-center gap-2">
-                                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                                        <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
                                             <Calendar className="w-3 h-3" /> {new Date(expense.date).toLocaleDateString()}
                                         </p>
                                         {expense.proofUrl && (
@@ -122,14 +122,14 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
                                                 href={expense.proofUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium"
+                                                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1 font-medium"
                                             >
                                                 <ExternalLink className="w-3 h-3" /> Comprobante
                                             </a>
                                         )}
                                     </div>
                                 </div>
-                                <p className="font-bold text-gray-900">
+                                <p className="font-bold text-slate-900 dark:text-white">
                                     {formatCurrency(expense.amount, property.currency)}
                                 </p>
                             </div>
@@ -138,31 +138,31 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
                 </div>
 
                 {/* Add New Expense Form */}
-                <div className="p-6 bg-gray-50 border-t border-gray-100 shrink-0">
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-white/10 shrink-0">
                     {isAdding ? (
                         <div className="space-y-3 animate-in slide-in-from-bottom-2">
                             <input
                                 type="text"
                                 placeholder="Descripción (ej. Materiales, Adelanto)"
-                                className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                                className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 autoFocus
                             />
                             <div className="flex gap-3">
                                 <div className="relative flex-1">
-                                    <DollarSign className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                                    <DollarSign className="absolute left-3 top-3 w-5 h-5 text-slate-400 dark:text-slate-500" />
                                     <input
                                         type="number"
                                         placeholder="Monto"
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none font-bold"
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold placeholder-slate-400 dark:placeholder-slate-500"
                                         value={amount}
                                         onChange={e => setAmount(e.target.value)}
                                     />
                                 </div>
                                 <button
                                     onClick={handleAdd}
-                                    className="bg-gray-900 text-white px-6 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition-transform active:scale-95"
+                                    className="bg-indigo-600 text-white px-6 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-transform active:scale-95"
                                 >
                                     Guardar
                                 </button>
@@ -171,17 +171,17 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
                             {/* File upload for proof */}
                             <div>
                                 {isUploading ? (
-                                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                                         <Loader className="w-4 h-4 animate-spin" /> Subiendo...
                                     </div>
                                 ) : proofUrl ? (
-                                    <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                                        <CheckCircle className="w-4 h-4 text-green-600" />
-                                        <span className="text-xs text-green-700 font-medium flex-1">Comprobante adjunto</span>
+                                    <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl px-3 py-2">
+                                        <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                        <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium flex-1">Comprobante adjunto</span>
                                         <button onClick={() => setProofUrl(null)} className="text-xs text-red-500 hover:text-red-700 font-bold">Quitar</button>
                                     </div>
                                 ) : (
-                                    <label htmlFor="expense-proof-upload" className="flex items-center gap-2 cursor-pointer text-sm text-gray-500 hover:text-orange-600 transition-colors">
+                                    <label htmlFor="expense-proof-upload" className="flex items-center gap-2 cursor-pointer text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                                         <Upload className="w-4 h-4" /> Adjuntar comprobante (opcional)
                                         <input
                                             id="expense-proof-upload"
@@ -196,7 +196,7 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
 
                             <button
                                 onClick={() => { setIsAdding(false); setProofUrl(null); }}
-                                className="w-full text-center text-xs text-gray-500 hover:text-gray-800 mt-2"
+                                className="w-full text-center text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white mt-2 transition-colors"
                             >
                                 Cancelar
                             </button>
@@ -204,7 +204,7 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
                     ) : (
                         <button
                             onClick={() => setIsAdding(true)}
-                            className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 font-bold hover:border-orange-300 hover:text-orange-600 hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-white/20 text-slate-500 dark:text-slate-400 font-bold hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2"
                         >
                             <Plus className="w-5 h-5" /> Agregar Gasto Parcial
                         </button>
