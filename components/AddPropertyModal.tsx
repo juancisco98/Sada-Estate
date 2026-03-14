@@ -89,7 +89,9 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     periodLabel: string;
     manualPct: string;
     error: string | null;
-  }>({ show: false, loading: false, variation: null, suggestedRent: null, isEstimated: false, periodLabel: '', manualPct: '', error: null });
+    lastPublishedMonth: string; // "ene 2026" — último mes con datos reales de INDEC
+    missingMonths: number; // cuántos meses se extrapolaron
+  }>({ show: false, loading: false, variation: null, suggestedRent: null, isEstimated: false, periodLabel: '', manualPct: '', error: null, lastPublishedMonth: '', missingMonths: 0 });
 
   // Get tax config for current country
   const taxConfig = getTaxConfig(formData.country);
@@ -105,7 +107,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     const months = Number(formData.adjustmentMonths) || 3;
     const currentRent = Number(String(formData.monthlyRent).replace(/\./g, '')) || 0;
     const contractStart = formData.contractStart;
-    setIpcCalc(prev => ({ ...prev, loading: true, error: null, variation: null, suggestedRent: null, isEstimated: false, periodLabel: '' }));
+    setIpcCalc(prev => ({ ...prev, loading: true, error: null, variation: null, suggestedRent: null, isEstimated: false, periodLabel: '', lastPublishedMonth: '', missingMonths: 0 }));
     try {
       const toYYYYMM = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
       const fmtMonth = (d: Date) => d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
@@ -153,9 +155,17 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       // How many total points we need: months + 1 (base + N months)
       const expected = months + 1;
       let isEstimated = false;
+      let missingMonths = 0;
+      // Track last published month from real INDEC data
+      const lastRealDate = allData.length > 0 ? allData[allData.length - 1][0] : '';
+      const lastPublishedMonth = lastRealDate
+        ? new Date(lastRealDate + 'T12:00:00').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+        : '';
+
       // Extrapolate missing months using the last known monthly ratio
       if (points.length < expected) {
         isEstimated = true;
+        missingMonths = expected - points.length;
         const lastRatio = points[points.length - 1] / points[points.length - 2];
         while (points.length < expected) {
           points.push(points[points.length - 1] * lastRatio);
@@ -165,7 +175,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       const factor = points[points.length - 1] / points[0];
       const variation = parseFloat(((factor - 1) * 100).toFixed(2));
       const suggestedRent = Math.round(currentRent * factor);
-      setIpcCalc(prev => ({ ...prev, loading: false, variation, suggestedRent, isEstimated, periodLabel }));
+      setIpcCalc(prev => ({ ...prev, loading: false, variation, suggestedRent, isEstimated, periodLabel, lastPublishedMonth, missingMonths }));
     } catch (e: any) {
       setIpcCalc(prev => ({ ...prev, loading: false, error: e.message || 'No se pudo conectar con INDEC' }));
     }
@@ -608,9 +618,15 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                   {!ipcCalc.loading && ipcCalc.variation !== null && ipcCalc.suggestedRent !== null && (
                     <div className="space-y-2">
                       {ipcCalc.isEstimated && (
-                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                          <span className="text-xs text-amber-700">Valor aproximado — INDEC aún no publicó todos los datos del período</span>
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span className="text-xs font-semibold text-amber-800">Valor aproximado — faltan {ipcCalc.missingMonths} mes{ipcCalc.missingMonths > 1 ? 'es' : ''} de datos</span>
+                          </div>
+                          <p className="text-[11px] text-amber-700 leading-snug">
+                            Último dato publicado por INDEC: <b>{ipcCalc.lastPublishedMonth || 'no disponible'}</b>.
+                            {' '}INDEC actualiza ~15 de cada mes. Volvé a calcular cuando se publiquen los datos faltantes para obtener el valor exacto.
+                          </p>
                         </div>
                       )}
                       <div className="flex justify-between text-xs text-slate-600">
