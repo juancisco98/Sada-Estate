@@ -50,7 +50,22 @@ const matchSheetToTenant = (identifier: string, tenants: Tenant[]): Tenant | und
 // ── Component ──────────────────────────────────────────────────────────────
 
 const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, onLogout, onSwitchMode }) => {
-    const { tenants, payments, setPayments, properties, expenseSheets, setExpenseSheets, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
+    const { tenants, payments, setPayments, properties, buildings, expenseSheets, setExpenseSheets, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
+
+    // Nora solo ve inquilinos del edificio Vélez Sársfield 134
+    const velezBuilding = useMemo(() => buildings.find(b => b.address.toLowerCase().includes('velez') || b.address.toLowerCase().includes('vélez')), [buildings]);
+    const velezPropertyIds = useMemo(() => {
+        if (!velezBuilding) return new Set<string>();
+        return new Set(properties.filter(p => p.buildingId === velezBuilding.id).map(p => p.id));
+    }, [properties, velezBuilding]);
+    const filteredTenants = useMemo(() =>
+        tenants.filter(t => t.propertyId && velezPropertyIds.has(t.propertyId)),
+        [tenants, velezPropertyIds]
+    );
+    const filteredPayments = useMemo(() =>
+        payments.filter(p => p.propertyId && velezPropertyIds.has(p.propertyId)),
+        [payments, velezPropertyIds]
+    );
 
     // Tabs
     const [activeTab, setActiveTab] = useState<'upload' | 'review'>('upload');
@@ -99,18 +114,18 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         [expenseSheets]
     );
 
-    // Payments in REVISION (pending Nora's review)
+    // Payments in REVISION (pending Nora's review) — solo del edificio Vélez
     const pendingReviews = useMemo(() =>
-        payments.filter(p => p.status === 'REVISION' && (p.proofOfExpenses || (p.expenseAmount ?? 0) > 0))
+        filteredPayments.filter(p => p.status === 'REVISION' && (p.proofOfExpenses || (p.expenseAmount ?? 0) > 0))
             .sort((a, b) => b.year - a.year || b.month - a.month),
-        [payments]
+        [filteredPayments]
     );
 
-    // Current year payments grouped by tenant for the tenant list
+    // Current year payments grouped by tenant for the tenant list — solo Vélez
     const currentYear = new Date().getFullYear();
     const tenantMonthlyStatus = useMemo(() => {
-        return tenants.map(tenant => {
-            const tenantPayments = payments.filter(p => p.tenantId === tenant.id && p.year === currentYear);
+        return filteredTenants.map(tenant => {
+            const tenantPayments = filteredPayments.filter(p => p.tenantId === tenant.id && p.year === currentYear);
             const pendingCount = tenantPayments.filter(p => p.status === 'REVISION' && ((p.expenseAmount ?? 0) > 0 || !!p.proofOfExpenses)).length;
             const months = MONTH_NAMES.map((_, i) => {
                 const payment = tenantPayments.find(p => p.month === i + 1);
@@ -125,7 +140,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             });
             return { tenant, months, pendingCount };
         });
-    }, [tenants, payments, currentYear]);
+    }, [filteredTenants, filteredPayments, currentYear]);
 
     // ── Excel parse ─────────────────────────────────────────────────────────
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,7 +172,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                             .map((c: any) => String(c ?? '').trim())
                             .filter(Boolean)
                             .join(' ');
-                        const tenant = matchSheetToTenant(tenantIdentifier || name, tenants);
+                        const tenant = matchSheetToTenant(tenantIdentifier || name, filteredTenants);
 
                         // Row 8: extraer monto total de expensas (primer número > 0)
                         const row8 = rows[8] || [];
@@ -719,7 +734,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                 Historial por Inquilino — {currentYear}
                             </h2>
 
-                            {tenants.length === 0 ? (
+                            {filteredTenants.length === 0 ? (
                                 <p className="text-sm text-slate-400 text-center py-8">Sin inquilinos registrados.</p>
                             ) : (
                                 <div>
