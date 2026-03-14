@@ -107,35 +107,53 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     const contractStart = formData.contractStart;
     setIpcCalc(prev => ({ ...prev, loading: true, error: null, variation: null, suggestedRent: null, isEstimated: false, periodLabel: '' }));
     try {
-      // Build date range: need the month BEFORE contractStart as base, up to (contractStart + months - 1)
       const toYYYYMM = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-      const baseDate = contractStart ? new Date(contractStart + 'T00:00:00') : new Date();
-      if (contractStart) baseDate.setMonth(baseDate.getMonth() - 1); // month before contract start
-      const endDate = contractStart ? new Date(contractStart + 'T00:00:00') : new Date();
-      if (contractStart) endDate.setMonth(endDate.getMonth() + months - 1);
-      else endDate.setMonth(endDate.getMonth() - 1); // fallback: last N months
-
-      const startStr = toYYYYMM(baseDate);
-      const endStr = toYYYYMM(endDate);
-
-      // Period label for display (e.g. "ene 2026 → mar 2026")
       const fmtMonth = (d: Date) => d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
-      const periodStart = contractStart ? new Date(contractStart + 'T00:00:00') : baseDate;
-      const periodEnd = new Date(endDate);
-      const periodLabel = `${fmtMonth(periodStart)} → ${fmtMonth(periodEnd)}`;
+
+      // Base month: month BEFORE contractStart (reference IPC index)
+      const baseDate = contractStart ? new Date(contractStart + 'T00:00:00') : new Date();
+      if (contractStart) baseDate.setMonth(baseDate.getMonth() - 1);
+
+      // End month ideal: contractStart + months - 1
+      const idealEnd = contractStart ? new Date(contractStart + 'T00:00:00') : new Date();
+      if (contractStart) idealEnd.setMonth(idealEnd.getMonth() + months - 1);
+      else idealEnd.setMonth(idealEnd.getMonth() - 1);
+
+      // Cap end date to current month (INDEC publishes with ~1-2 months of lag)
+      const now = new Date();
+      const queryEnd = idealEnd > now ? now : idealEnd;
+
+      const periodLabel = `${fmtMonth(contractStart ? new Date(contractStart + 'T00:00:00') : baseDate)} → ${fmtMonth(idealEnd)}`;
+
+      // Query a wider range to ensure we get enough data points
+      // Go back 2 extra months as buffer for INDEC publication delay
+      const queryStart = new Date(baseDate);
+      queryStart.setMonth(queryStart.getMonth() - 2);
 
       const res = await fetch(
-        `https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&start_date=${startStr}&end_date=${endStr}&format=json`
+        `https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&start_date=${toYYYYMM(queryStart)}&end_date=${toYYYYMM(queryEnd)}&format=json`
       );
       if (!res.ok) throw new Error('Error de red al consultar INDEC');
       const json = await res.json();
-      let points: number[] = (json.data || []).map(([, v]: [string, number]) => v).filter((v: number) => v !== null);
+      const allData: [string, number][] = (json.data || []).filter(([, v]: [string, number]) => v !== null);
+      if (allData.length < 2) throw new Error('Datos insuficientes en INDEC para este período');
+
+      // Find the data point closest to our base month
+      const baseStr = toYYYYMM(baseDate);
+      let baseIdx = allData.findIndex(([d]) => d >= baseStr);
+      if (baseIdx < 0) baseIdx = allData.length - 2; // fallback: use the earliest available
+
+      let points: number[] = allData.slice(baseIdx).map(([, v]) => v);
+      if (points.length < 2) {
+        // If we can't find enough from the base, use the last available points
+        points = allData.slice(-Math.min(allData.length, months + 1)).map(([, v]) => v);
+      }
       if (points.length < 2) throw new Error('Datos insuficientes en INDEC para este período');
 
-      // How many total points we expect: months + 1 (base + N months)
+      // How many total points we need: months + 1 (base + N months)
       const expected = months + 1;
       let isEstimated = false;
-      // If missing points at the end, extrapolate using the last known monthly ratio
+      // Extrapolate missing months using the last known monthly ratio
       if (points.length < expected) {
         isEstimated = true;
         const lastRatio = points[points.length - 1] / points[points.length - 2];
@@ -144,7 +162,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         }
       }
 
-      // factor = lastIndex / firstIndex (the base month)
       const factor = points[points.length - 1] / points[0];
       const variation = parseFloat(((factor - 1) * 100).toFixed(2));
       const suggestedRent = Math.round(currentRent * factor);
@@ -155,7 +172,17 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   };
 
   const applyIPCRent = (amount: number) => {
-    setFormData(prev => ({ ...prev, monthlyRent: String(amount) }));
+    // Avanzar contractStart al próximo ajuste (contractStart + adjustmentMonths)
+    const months = Number(formData.adjustmentMonths) || 3;
+    const currentStart = formData.contractStart ? new Date(formData.contractStart + 'T00:00:00') : new Date();
+    currentStart.setMonth(currentStart.getMonth() + months);
+    const newStart = currentStart.toISOString().split('T')[0];
+
+    setFormData(prev => ({
+      ...prev,
+      monthlyRent: String(amount),
+      contractStart: newStart,
+    }));
     setIpcCalc(prev => ({ ...prev, show: false }));
   };
 

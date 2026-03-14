@@ -126,7 +126,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
   const actualIncome = useMemo(() => {
     return payments
-      .filter(p => p.month === currentMonth && p.year === currentYear)
+      .filter(p => p.month === currentMonth && p.year === currentYear && p.status === 'APPROVED')
       .reduce((sum, p) => sum + p.amount, 0);
   }, [payments, currentMonth, currentYear]);
 
@@ -714,7 +714,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   // --- Monthly income grids (12 months) based on ACTUAL payments ---
   const arsMonthly = Array.from({ length: 12 }, (_, i) => {
     const monthPayments = payments.filter(
-      p => p.month === i + 1 && p.year === selectedYear
+      p => p.month === i + 1 && p.year === selectedYear && p.status === 'APPROVED'
     );
     return monthPayments.reduce((sum, p) => sum + p.amount, 0);
   });

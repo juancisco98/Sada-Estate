@@ -65,7 +65,7 @@ const IncomeBreakdownPanel: React.FC<IncomeBreakdownPanelProps> = ({
     const currencyProperties = properties.filter(p => (p.currency || 'ARS') === currency);
 
     const getPropertyPayment = (propertyId: string) =>
-        payments.find(p => p.propertyId === propertyId && p.month === selectedMonth && p.year === selectedYear);
+        payments.find(p => p.propertyId === propertyId && p.month === selectedMonth && p.year === selectedYear && p.status === 'APPROVED');
 
     // Group by building
     const buildingGroups = buildings.map(b => {

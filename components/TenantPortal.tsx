@@ -366,41 +366,88 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         </h3>
                         {tenantExpenseSheetsThisYear
                             .sort((a, b) => a.month - b.month)
-                            .map(sheet => (
-                                <div key={sheet.id} className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-white/10 overflow-hidden shadow-sm">
-                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 flex items-center justify-between">
-                                        <span className="text-sm font-bold text-slate-800 dark:text-white">
-                                            {MONTH_NAMES[sheet.month - 1]} {sheet.year}
-                                        </span>
-                                        <span className="text-xs text-slate-400">Actualizado: {sheet.uploadedAt ? new Date(sheet.uploadedAt).toLocaleDateString('es-AR') : '—'}</span>
-                                    </div>
-                                    {sheet.sheetData.length === 0 ? (
-                                        <p className="text-sm text-slate-400 text-center py-6">Sin datos</p>
-                                    ) : (
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-xs">
-                                                <tbody>
-                                                    {sheet.sheetData.map((row, ri) => (
-                                                        <tr
-                                                            key={ri}
-                                                            className={`${ri === 0 ? 'bg-violet-50 dark:bg-violet-500/10 font-semibold text-violet-800 dark:text-violet-300' : ri % 2 === 0 ? 'bg-slate-50/50 dark:bg-white/[0.02]' : ''}`}
-                                                        >
-                                                            {(row as any[]).map((cell, ci) => (
-                                                                <td
-                                                                    key={ci}
-                                                                    className="border border-slate-100 dark:border-white/10 px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap"
-                                                                >
-                                                                    {cell !== null && cell !== undefined ? String(cell) : ''}
-                                                                </td>
-                                                            ))}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                            .map(sheet => {
+                                const rows = sheet.sheetData || [];
+                                // Extraer info clave del Excel
+                                const row7 = (rows[7] || []).map((c: any) => String(c ?? '').trim()).filter(Boolean).join(' ');
+                                const row8 = rows[8] || [];
+                                const totalAmount = row8
+                                    .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
+                                    .find((n: number) => !isNaN(n) && n > 0) || 0;
+
+                                // Filas de conceptos: desde fila 8 en adelante, filtrar filas vacías
+                                const conceptRows = rows.slice(8).filter((row: any[]) =>
+                                    row.some((cell: any) => cell !== '' && cell !== null && cell !== undefined)
+                                );
+
+                                return (
+                                    <div key={sheet.id} className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-white/10 overflow-hidden shadow-sm">
+                                        {/* Header */}
+                                        <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 flex items-center justify-between">
+                                            <span className="text-sm font-bold text-slate-800 dark:text-white">
+                                                {MONTH_NAMES[sheet.month - 1]} {sheet.year}
+                                            </span>
+                                            <span className="text-xs text-slate-400">Actualizado: {sheet.uploadedAt ? new Date(sheet.uploadedAt).toLocaleDateString('es-AR') : '—'}</span>
                                         </div>
-                                    )}
-                                </div>
-                            ))
+
+                                        {rows.length === 0 ? (
+                                            <p className="text-sm text-slate-400 text-center py-6">Sin datos</p>
+                                        ) : (
+                                            <div className="p-4 space-y-3">
+                                                {/* Inquilino + unidad */}
+                                                {row7 && (
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">{row7}</p>
+                                                )}
+
+                                                {/* Monto total prominente */}
+                                                {totalAmount > 0 && (
+                                                    <div className="bg-violet-50 dark:bg-violet-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                                        <span className="text-sm font-semibold text-violet-800 dark:text-violet-300">Total a pagar</span>
+                                                        <span className="text-lg font-black text-violet-900 dark:text-violet-200">
+                                                            ${totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* Conceptos */}
+                                                {conceptRows.length > 0 && (
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-xs">
+                                                            <tbody>
+                                                                {conceptRows.map((row: any[], ri: number) => {
+                                                                    const cells = (row as any[]).filter((c: any) => c !== '' && c !== null && c !== undefined);
+                                                                    if (cells.length === 0) return null;
+                                                                    const isTotal = cells.some((c: any) => String(c).toUpperCase().includes('TOTAL'));
+                                                                    return (
+                                                                        <tr
+                                                                            key={ri}
+                                                                            className={isTotal
+                                                                                ? 'bg-slate-100 dark:bg-white/5 font-bold'
+                                                                                : ri % 2 === 0
+                                                                                    ? 'bg-slate-50/50 dark:bg-white/[0.02]'
+                                                                                    : ''
+                                                                            }
+                                                                        >
+                                                                            {(row as any[]).map((cell, ci) => (
+                                                                                <td
+                                                                                    key={ci}
+                                                                                    className="border border-slate-100 dark:border-white/10 px-3 py-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap"
+                                                                                >
+                                                                                    {cell !== null && cell !== undefined ? String(cell) : ''}
+                                                                                </td>
+                                                                            ))}
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
                         }
                     </div>
                 )}

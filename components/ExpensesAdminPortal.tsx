@@ -67,7 +67,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
     // Excel upload state
     const [fileName, setFileName] = useState<string | null>(null);
-    const [parsedSheets, setParsedSheets] = useState<{ name: string; data: any[][]; tenant: Tenant | undefined; tenantIdentifier: string }[]>([]);
+    const [parsedSheets, setParsedSheets] = useState<{ name: string; data: any[][]; tenant: Tenant | undefined; tenantIdentifier: string; expenseTotal: number }[]>([]);
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [isUploading, setIsUploading] = useState(false);
@@ -111,10 +111,13 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     const tenantMonthlyStatus = useMemo(() => {
         return tenants.map(tenant => {
             const tenantPayments = payments.filter(p => p.tenantId === tenant.id && p.year === currentYear);
-            const pendingCount = tenantPayments.filter(p => p.status === 'REVISION').length;
+            const pendingCount = tenantPayments.filter(p => p.status === 'REVISION' && ((p.expenseAmount ?? 0) > 0 || !!p.proofOfExpenses)).length;
             const months = MONTH_NAMES.map((_, i) => {
                 const payment = tenantPayments.find(p => p.month === i + 1);
                 if (!payment) return 'PENDING';
+                // Solo considerar como pagado si tiene datos de expensas
+                const hasExpenseData = (payment.expenseAmount ?? 0) > 0 || !!payment.proofOfExpenses;
+                if (!hasExpenseData) return 'PENDING';
                 if (payment.status === 'APPROVED') return 'APPROVED';
                 if (payment.status === 'RETURNED') return 'RETURNED';
                 if (payment.status === 'REVISION') return 'REVISION';
@@ -147,13 +150,37 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                         while (rows.length > 0 && rows[rows.length - 1].every((c: any) => c === '' || c === null || c === undefined)) {
                             rows.pop();
                         }
-                        // Row 7 (índice 7) contiene el identificador completo: "MOYANO ETELVINA PB F"
-                        const tenantIdentifier = rows[7]?.[0] ? String(rows[7][0]).trim() : '';
+                        // Row 7 contiene el identificador: "MOYANO ETELVINA PB F"
+                        // La columna varía entre hojas (col 0, 2, 3 o 4), así que concatenamos todas las celdas no vacías
+                        const row7 = rows[7] || [];
+                        const tenantIdentifier = row7
+                            .map((c: any) => String(c ?? '').trim())
+                            .filter(Boolean)
+                            .join(' ');
                         const tenant = matchSheetToTenant(tenantIdentifier || name, tenants);
-                        return { name, data: rows, tenant, tenantIdentifier };
+
+                        // Row 8: extraer monto total de expensas (primer número > 0)
+                        const row8 = rows[8] || [];
+                        const expenseTotal = row8
+                            .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
+                            .find((n: number) => !isNaN(n) && n > 0) || 0;
+
+                        return { name, data: rows, tenant, tenantIdentifier, expenseTotal };
                     });
 
                 setParsedSheets(sheets);
+
+                // Auto-detectar mes/año del encabezado del Excel (Row 0: "EXPENSAS MARZO 2026")
+                if (sheets.length > 0) {
+                    const row0Text = (sheets[0].data[0] || [])
+                        .map((c: any) => String(c ?? '')).join(' ').toUpperCase();
+                    const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+                        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+                    const detectedMonth = monthNames.findIndex(m => row0Text.includes(m));
+                    const yearMatch = row0Text.match(/20\d{2}/);
+                    if (detectedMonth >= 0) setSelectedMonth(detectedMonth + 1);
+                    if (yearMatch) setSelectedYear(parseInt(yearMatch[0]));
+                }
             } catch {
                 toast.error('No se pudo leer el archivo Excel. Asegurate que sea .xlsx o .xls.');
             }
@@ -216,6 +243,20 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                     }
                 }
                 successCount++;
+
+                // Notificar al inquilino que su liquidación está disponible
+                if (sheet.tenant?.email) {
+                    const monthName = MONTH_NAMES[selectedMonth - 1];
+                    await supabase.from('notifications').insert([{
+                        recipient_email: sheet.tenant.email,
+                        title: 'Expensas disponibles',
+                        message: `Tu liquidación de expensas de ${monthName} ${selectedYear} está disponible.`,
+                        type: 'PAYMENT_SUBMITTED',
+                        read: false,
+                    }]).then(({ error }) => {
+                        if (error) console.error('Error sending notification:', error);
+                    });
+                }
             } catch (err: any) {
                 console.error('Error uploading sheet for', sheet.tenant?.name, err);
                 errorCount++;
