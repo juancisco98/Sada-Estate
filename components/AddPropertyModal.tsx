@@ -174,9 +174,18 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const applyIPCRent = (amount: number) => {
     // Avanzar contractStart al próximo ajuste (contractStart + adjustmentMonths)
     const months = Number(formData.adjustmentMonths) || 3;
-    const currentStart = formData.contractStart ? new Date(formData.contractStart + 'T00:00:00') : new Date();
-    currentStart.setMonth(currentStart.getMonth() + months);
-    const newStart = currentStart.toISOString().split('T')[0];
+    const currentStart = formData.contractStart ? new Date(formData.contractStart + 'T12:00:00') : new Date();
+    const targetMonth = currentStart.getMonth() + months;
+    const day = currentStart.getDate();
+    currentStart.setMonth(targetMonth);
+    // Si el día cambió (ej: 31 enero + 1 mes = 3 marzo), corregir al último día del mes objetivo
+    if (currentStart.getDate() !== day) {
+      currentStart.setDate(0); // último día del mes anterior
+    }
+    const y = currentStart.getFullYear();
+    const m = String(currentStart.getMonth() + 1).padStart(2, '0');
+    const d = String(currentStart.getDate()).padStart(2, '0');
+    const newStart = `${y}-${m}-${d}`;
 
     setFormData(prev => ({
       ...prev,
