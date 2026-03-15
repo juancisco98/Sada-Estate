@@ -62,11 +62,19 @@ export async function generateAIReminders(data: AIReminderRequest): Promise<AIRe
     });
 
     if (error) {
-        // Check if it's a "function not found" error
-        if (error.message?.includes('not found') || error.message?.includes('404')) {
+        // Try to extract actual error from Edge Function response body
+        let detailedMessage = error.message;
+        try {
+            if (error.context && typeof error.context.json === 'function') {
+                const body = await error.context.json();
+                detailedMessage = body?.error || body?.message || detailedMessage;
+            }
+        } catch { /* ignore parse errors */ }
+
+        if (detailedMessage?.includes('not found') || detailedMessage?.includes('404')) {
             throw new Error('EDGE_FUNCTION_NOT_CONFIGURED');
         }
-        throw error;
+        throw new Error(detailedMessage);
     }
 
     return result?.reminders || [];
