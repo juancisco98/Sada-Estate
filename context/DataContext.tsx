@@ -11,7 +11,8 @@ import {
     dbToExpenseSheet,
     dbToReminder,
     dbToAutomationRule,
-    dbToAutomationHistory
+    dbToAutomationHistory,
+    buildingToDb
 } from '../utils/mappers';
 import { handleError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
@@ -135,6 +136,40 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (remindersResult.data) setReminders(remindersResult.data.map(dbToReminder));
             if (automationRulesResult.data) setAutomationRules(automationRulesResult.data.map(dbToAutomationRule));
             if (automationHistoryResult.data) setAutomationHistory(automationHistoryResult.data.map(dbToAutomationHistory));
+
+            // Auto-repair: create missing building records for orphaned buildingIds
+            const propertiesData = propsResult.data ? propsResult.data.map(dbToProperty) : [];
+            const buildingsData = buildingsResult.data ? buildingsResult.data.map(dbToBuilding) : [];
+            const loadedBuildingIds = new Set(buildingsData.map(b => b.id));
+            const orphanedBuildingIds = new Map<string, typeof propertiesData[0]>();
+            for (const prop of propertiesData) {
+                if (prop.buildingId && !loadedBuildingIds.has(prop.buildingId) && !orphanedBuildingIds.has(prop.buildingId)) {
+                    orphanedBuildingIds.set(prop.buildingId, prop);
+                }
+            }
+
+            if (orphanedBuildingIds.size > 0) {
+                const newBuildings: Building[] = [];
+                for (const [bid, firstProp] of orphanedBuildingIds) {
+                    newBuildings.push({
+                        id: bid,
+                        address: firstProp.address,
+                        coordinates: firstProp.coordinates,
+                        country: firstProp.country,
+                        currency: firstProp.currency,
+                        imageUrl: firstProp.imageUrl,
+                    });
+                }
+                const { error: repairError } = await supabase.from('buildings').upsert(
+                    newBuildings.map(buildingToDb)
+                );
+                if (repairError) {
+                    logger.error('[DataContext] Error auto-creating missing buildings:', repairError);
+                } else {
+                    logger.log(`[DataContext] Auto-created ${newBuildings.length} missing building records`);
+                    setBuildings(prev => [...prev, ...newBuildings]);
+                }
+            }
 
             logger.log('[Supabase] All data loaded.');
 
