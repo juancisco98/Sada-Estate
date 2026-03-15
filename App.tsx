@@ -413,7 +413,21 @@ const Dashboard: React.FC = () => {
         setSearchResult(null);
       }
     } else {
-      const building = buildings.find(b => b.id === buildingId);
+      let building = buildings.find(b => b.id === buildingId);
+      // Fallback: building record may not exist yet (pre-Lesson 7 buildings)
+      if (!building) {
+        const buildingUnits = properties.filter(p => p.buildingId === buildingId);
+        if (buildingUnits.length > 0) {
+          building = {
+            id: buildingId,
+            address: buildingUnits[0].address,
+            coordinates: buildingUnits[0].coordinates,
+            country: buildingUnits[0].country,
+            currency: buildingUnits[0].currency,
+            imageUrl: buildingUnits[0].imageUrl,
+          };
+        }
+      }
       if (building) {
         setSelectedProperty(null);
         setSelectedBuilding(building);
