@@ -3,6 +3,7 @@ import { supabase } from '../services/supabaseClient';
 import { Property } from '../types';
 import { propertyToDb } from '../utils/mappers';
 import { supabaseUpsert, supabaseDelete, supabaseUpdate } from '../utils/supabaseHelpers';
+import { logAdminAction } from '../services/actionLogger';
 import { logger } from '../utils/logger';
 
 export const useProperties = (currentUserId?: string) => {
@@ -34,6 +35,26 @@ export const useProperties = (currentUserId?: string) => {
 
         const dbRows = propsWithUser.map(propertyToDb);
         await supabaseUpsert('properties', dbRows, `${propsWithUser.length} properties`);
+
+        // Log property actions
+        for (const prop of propsWithUser) {
+            const existing = properties.find(p => p.id === prop.id);
+            if (!existing) {
+                logAdminAction({
+                    actionType: 'PROPERTY_CREATED',
+                    entityTable: 'properties',
+                    entityId: prop.id,
+                    actionPayload: { address: prop.address, tenantName: prop.tenantName, monthlyRent: prop.monthlyRent, unitLabel: prop.unitLabel },
+                });
+            } else if (existing.monthlyRent !== prop.monthlyRent) {
+                logAdminAction({
+                    actionType: 'RENT_UPDATED',
+                    entityTable: 'properties',
+                    entityId: prop.id,
+                    actionPayload: { address: prop.address, oldRent: existing.monthlyRent, newRent: prop.monthlyRent, currency: prop.currency },
+                });
+            }
+        }
     };
 
     const updateNote = async (propertyId: string, newNote: string) => {
@@ -45,7 +66,15 @@ export const useProperties = (currentUserId?: string) => {
     };
 
     const deleteProperty = async (propertyId: string) => {
+        const prop = properties.find(p => p.id === propertyId);
         setProperties(prev => prev.filter(p => p.id !== propertyId));
+
+        logAdminAction({
+            actionType: 'PROPERTY_DELETED',
+            entityTable: 'properties',
+            entityId: propertyId,
+            actionPayload: { address: prop?.address, tenantName: prop?.tenantName, unitLabel: prop?.unitLabel },
+        });
 
         try {
             await supabase.from('maintenance_tasks').delete().eq('property_id', propertyId);

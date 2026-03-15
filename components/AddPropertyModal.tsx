@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, MapPin, Image as ImageIcon, Briefcase, StickyNote, Upload, Hammer, FileText, Check, Globe, LayoutGrid, Ruler, Trash2, User, Phone, DollarSign, Calendar, RefreshCw, Calculator, Clock } from 'lucide-react';
-import { Property, PropertyStatus, Professional, PropertyType } from '../types';
+import { Property, PropertyStatus, Professional, PropertyType, Building } from '../types';
 import { DEFAULT_PROPERTY_IMAGE } from '../constants';
 
 import { getTaxConfig } from '../utils/taxConfig';
@@ -8,8 +8,11 @@ import { toast } from 'sonner';
 import { logger } from '../utils/logger';
 import { BuildingUnitManager, BuildingUnit } from './properties/BuildingUnitManager';
 
-// BuildingUnit interface moved to BuildingUnitManager
-
+const generateUUID = (): string =>
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
 
 interface AddPropertyModalProps {
   address?: string;
@@ -21,6 +24,7 @@ interface AddPropertyModalProps {
   onDelete?: (id: string) => void;
   professionals?: Professional[];
   isRestrictedMode?: boolean; // Added for restricted building edits
+  targetBuilding?: Building; // When adding a unit to an existing building
 }
 
 const formatNumberWithDots = (value: string | number) => {
@@ -41,13 +45,16 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   onSave,
   onDelete,
   professionals = [],
-  isRestrictedMode = false
+  isRestrictedMode = false,
+  targetBuilding
 }) => {
   const isEditing = !!existingProperty;
+  const isAddingUnit = !!targetBuilding;
 
   // Building mode state
   const [isBuilding, setIsBuilding] = useState(false);
   const [buildingUnits, setBuildingUnits] = useState<BuildingUnit[]>([{ label: '', tenantName: '', tenantPhone: '', rooms: '', squareMeters: '', monthlyRent: '' }]);
+  const [unitLabel, setUnitLabel] = useState('');
 
 
   const [formData, setFormData] = useState({
@@ -233,6 +240,15 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         contractStart: existingProperty.contractStart || '',
         adjustmentMonths: existingProperty.adjustmentMonths?.toString() || '3',
       });
+    } else if (targetBuilding) {
+      setFormData(prev => ({
+        ...prev,
+        address: targetBuilding.address,
+        country: targetBuilding.country || 'Argentina',
+        currency: targetBuilding.currency || 'ARS',
+        propertyType: 'edificio',
+        imageUrl: targetBuilding.imageUrl || DEFAULT_PROPERTY_IMAGE,
+      }));
     } else if (address) {
       const initialCountry = detectedCountry || 'Argentina';
       const config = getTaxConfig(initialCountry);
@@ -246,7 +262,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         currency: 'ARS', // Always ARS
       }));
     }
-  }, [address, isEditing, existingProperty, detectedCountry]);
+  }, [address, isEditing, existingProperty, detectedCountry, targetBuilding]);
 
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCountry = e.target.value;
@@ -317,7 +333,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
     const finalAddress = formData.address || (address?.split(',')[0] || 'Nueva Propiedad');
     let finalCoords = isEditing && existingProperty ? existingProperty.coordinates : coordinates || [0, 0];
-    const finalId = isEditing && existingProperty ? existingProperty.id : Date.now().toString();
+    const finalId = isEditing && existingProperty ? existingProperty.id : generateUUID();
 
     // Geocode if coordinates are missing or [0,0]
     if ((finalCoords[0] === 0 && finalCoords[1] === 0) && finalAddress) {
@@ -348,6 +364,48 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       dateToSave = undefined;
     }
 
+    // === ADD UNIT TO EXISTING BUILDING ===
+    if (isAddingUnit && targetBuilding) {
+      if (!unitLabel.trim()) {
+        toast.error('Ingresa un nombre para la unidad (ej: Piso 3B).');
+        return;
+      }
+      if (!formData.rooms || !formData.squareMeters) {
+        toast.error('Ingresa ambientes y metros cuadrados de la unidad.');
+        return;
+      }
+      if (!formData.monthlyRent || Number(String(formData.monthlyRent).replace(/\./g, '')) <= 0) {
+        toast.error('Ingresa un valor de alquiler para la unidad.');
+        return;
+      }
+      const status = formData.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
+      const unitProp: Property = {
+        id: generateUUID(),
+        address: targetBuilding.address,
+        tenantName: formData.tenantName || 'Vacante',
+        tenantPhone: formData.tenantPhone || '-',
+        status,
+        monthlyRent: Number(String(formData.monthlyRent).replace(/\./g, '')) || 0,
+        coordinates: targetBuilding.coordinates,
+        contractEnd: new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString().split('T')[0],
+        lastPaymentDate: '-',
+        imageUrl: formData.imageUrl,
+        notes: formData.notes,
+        rooms: Number(formData.rooms) || undefined,
+        squareMeters: Number(formData.squareMeters) || undefined,
+        country: targetBuilding.country || 'Argentina',
+        currency: targetBuilding.currency || 'ARS',
+        buildingId: targetBuilding.id,
+        unitLabel: unitLabel.trim(),
+        propertyType: 'edificio',
+        contractStart: formData.contractStart || undefined,
+        adjustmentMonths: formData.adjustmentMonths ? Number(formData.adjustmentMonths) : undefined,
+      };
+      onSave(unitProp);
+      toast.success(`Unidad "${unitLabel.trim()}" agregada al edificio`);
+      return;
+    }
+
     // === BUILDING MODE: create one property per unit ===
     if (isBuilding && !isEditing) {
       const validUnits = buildingUnits.filter(u => u.label.trim());
@@ -366,14 +424,14 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         }
       }
 
-      const buildingId = `bld-${Date.now()}`;
+      const buildingId = generateUUID();
 
       const buildingProperties: Property[] = [];
 
       for (const [idx, unit] of validUnits.entries()) {
         const unitStatus = unit.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
         const unitProp: Property = {
-          id: `${Date.now()}-u${idx}`,
+          id: generateUUID(),
           address: finalAddress,
           tenantName: unit.tenantName || 'Vacante',
           tenantPhone: unit.tenantPhone || '-',
@@ -452,10 +510,10 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              {isEditing ? 'Editar Propiedad' : 'Nueva Propiedad'}
+              {isAddingUnit ? 'Agregar Unidad' : isEditing ? 'Editar Propiedad' : 'Nueva Propiedad'}
             </h2>
             <p className="text-sm text-gray-400 flex items-center gap-1.5 mt-1">
-              <MapPin className="w-3.5 h-3.5" /> {isEditing ? existingProperty?.address : address || 'Dirección manual'}
+              <MapPin className="w-3.5 h-3.5" /> {isAddingUnit ? targetBuilding?.address : isEditing ? existingProperty?.address : address || 'Dirección manual'}
             </p>
           </div>
           <button onClick={onClose} className="p-2.5 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors" aria-label="Cerrar modal">
@@ -466,9 +524,29 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         {/* Body */}
         <form onSubmit={handleSubmit} className="px-8 py-6 overflow-y-auto space-y-7">
 
+          {/* Unit Label — only when adding unit to existing building */}
+          {isAddingUnit && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-violet-600 uppercase tracking-wider flex items-center gap-1.5">
+                🏢 Nombre de la Unidad
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: Piso 3B, Dpto. 4, PB A"
+                required
+                className="w-full px-4 py-3 rounded-xl border-2 border-violet-200 bg-violet-50/50 text-gray-900 text-sm font-bold focus:ring-2 focus:ring-violet-500 focus:border-violet-400 outline-none transition-all"
+                value={unitLabel}
+                onChange={e => setUnitLabel(e.target.value)}
+                aria-label="Nombre de la unidad"
+                autoFocus
+              />
+            </div>
+          )}
+
           {/* ROW 1: Photo + Property Details side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Photo Upload */}
+            {!isAddingUnit && (
             <div className="space-y-2">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Foto de Portada</label>
               <div className="flex gap-3 items-stretch h-28">
@@ -491,9 +569,10 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 </label>
               </div>
             </div>
+            )}
 
             {/* Property Details: Rooms & m2 */}
-            {!isBuilding && !isRestrictedMode && (
+            {(isAddingUnit || (!isBuilding && !isRestrictedMode)) && (
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                   <LayoutGrid className="w-3.5 h-3.5" /> Datos del Inmueble
@@ -539,7 +618,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           </div>
 
           {/* Contrato: full width, entre foto/datos y dirección */}
-          {!isBuilding && !isRestrictedMode && (
+          {(isAddingUnit || (!isBuilding && !isRestrictedMode)) && (
             <div className="space-y-3">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5" /> Contrato
@@ -684,8 +763,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           )}
 
-          {/* ROW 2: Address full width */}
-          <div className="space-y-1">
+          {/* ROW 2: Address full width — hidden when adding unit to existing building */}
+          {!isAddingUnit && <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5" /> Dirección
             </label>
@@ -697,10 +776,10 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} aria-label="Dirección de la propiedad"
               />
             </div>
-          </div>
+          </div>}
 
           {/* ROW 3: Tenant data — 3 columns */}
-          {!isBuilding && !isRestrictedMode && (
+          {(isAddingUnit || (!isBuilding && !isRestrictedMode)) && (
             <div className="space-y-2 pt-2 border-t border-gray-100">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Datos del Alquiler</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -741,8 +820,8 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           )}
 
-          {/* Property Type Selector */}
-          {!isRestrictedMode && !isEditing && (
+          {/* Property Type Selector — hidden when adding unit to existing building */}
+          {!isRestrictedMode && !isEditing && !isAddingUnit && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -791,7 +870,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           )}
 
           {/* ROW 4: Professional + Documents side by side */}
-          {!isRestrictedMode && (
+          {!isRestrictedMode && !isAddingUnit && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-gray-100">
               {/* Professional Assignment */}
               <div className="space-y-2">
@@ -879,7 +958,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             onClick={handleSubmit}
             className="flex-[2] py-2.5 rounded-xl bg-gray-900 text-white font-semibold text-sm hover:bg-gray-800 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 min-h-[44px]"
           >
-            <Save className="w-4 h-4" /> {isEditing ? 'Guardar Cambios' : 'Crear Propiedad'}
+            <Save className="w-4 h-4" /> {isAddingUnit ? 'Agregar Unidad' : isEditing ? 'Guardar Cambios' : 'Crear Propiedad'}
           </button>
         </div>
       </div>

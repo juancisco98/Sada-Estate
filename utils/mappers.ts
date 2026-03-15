@@ -1,4 +1,4 @@
-import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment, PropertyType, ExpenseSheet, ManualReminder, ReminderEntityType } from '../types';
+import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment, PropertyType, ExpenseSheet, ManualReminder, ReminderEntityType, AdminActionLog, AutomationRule, AutomationHistoryEntry, AutomationActionType, AutomationRuleType, AutomationStatus } from '../types';
 import {
     DbBuildingRow,
     DbPropertyRow,
@@ -7,7 +7,10 @@ import {
     DbTenantRow,
     DbTenantPaymentRow,
     DbExpenseSheetRow,
-    DbReminderRow
+    DbReminderRow,
+    DbAdminActionLogRow,
+    DbAutomationRuleRow,
+    DbAutomationHistoryRow
 } from '../types/dbRows';
 
 // ========== BUILDING MAPPERS ==========
@@ -250,4 +253,61 @@ export const reminderToDb = (r: ManualReminder): Record<string, unknown> => ({
     entity_type: r.entityType || null,
     entity_id: r.entityId || null,
     completed: r.completed,
+});
+
+// ========== AUTOMATION MAPPERS ==========
+
+export const dbToActionLog = (row: DbAdminActionLogRow): AdminActionLog => ({
+    id: row.id,
+    userEmail: row.user_email,
+    actionType: row.action_type as AutomationActionType,
+    entityTable: row.entity_table,
+    entityId: row.entity_id ?? undefined,
+    actionPayload: row.action_payload,
+    context: row.context ?? undefined,
+    createdAt: row.created_at || '',
+});
+
+export const dbToAutomationRule = (row: DbAutomationRuleRow): AutomationRule => ({
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    ruleType: row.rule_type as AutomationRuleType,
+    conditions: row.conditions,
+    enabled: row.enabled,
+    requiresApproval: row.requires_approval,
+    confidenceThreshold: Number(row.confidence_threshold),
+    createdBy: row.created_by ?? undefined,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || '',
+});
+
+export const automationRuleToDb = (r: AutomationRule): Record<string, unknown> => ({
+    id: r.id,
+    name: r.name,
+    description: r.description || null,
+    rule_type: r.ruleType,
+    conditions: r.conditions,
+    enabled: r.enabled,
+    requires_approval: r.requiresApproval,
+    confidence_threshold: r.confidenceThreshold,
+    created_by: r.createdBy || null,
+});
+
+export const dbToAutomationHistory = (row: DbAutomationHistoryRow): AutomationHistoryEntry => ({
+    id: row.id,
+    ruleId: row.rule_id ?? undefined,
+    actionType: row.action_type,
+    entityTable: row.entity_table,
+    entityId: row.entity_id ?? undefined,
+    status: row.status as AutomationStatus,
+    actionPayload: row.action_payload,
+    undoPayload: row.undo_payload ?? undefined,
+    confidence: row.confidence != null ? Number(row.confidence) : undefined,
+    description: row.description ?? undefined,
+    proposedAt: row.proposed_at || '',
+    executedAt: row.executed_at ?? undefined,
+    executedBy: row.executed_by ?? undefined,
+    undoneAt: row.undone_at ?? undefined,
+    undoneBy: row.undone_by ?? undefined,
 });

@@ -200,7 +200,9 @@ Esta sección se actualiza automáticamente cuando Claude comete un error que el
 
 **Causa raíz:** La lógica de `paid` solo verificaba si existía algún pago, sin considerar el `status` del mismo.
 
-**Regla derivada:** El campo `paid` en monthlyBreakdown indica "existe un registro", no "está aprobado". Para la UI siempre verificar el `status` del pago antes de decidir el color/ícono. REVISION → ámbar + Clock. APPROVED → verde + CheckCircle.
+**Regla derivada:** El campo `paid` en monthlyBreakdown debe usar `monthPayments.some(p => p.status === 'APPROVED')`, no `monthPayments.length > 0`. Para la UI siempre verificar el `status` del pago antes de decidir el color/ícono. REVISION → ámbar + Clock. APPROVED → verde + CheckCircle.
+
+**Estado:** Corregido en auditoría del 2026-03-15.
 
 **Archivos afectados:** `hooks/useTenantData.ts`, `components/TenantsView.tsx`
 
@@ -214,6 +216,39 @@ Esta sección se actualiza automáticamente cuando Claude comete un error que el
 **Regla derivada:** En todo catch block de operaciones Supabase, el `toast.error()` debe ser la primera instrucción, antes de cualquier cambio de estado UI. Nunca cerrar un modal en el catch si el error no fue resuelto — dejar al usuario reintentar.
 
 **Archivos afectados:** `components/UploadReceiptModal.tsx`
+
+---
+
+### Lección 6 — IDs de edificio y propiedad usan Date.now() en vez de generateUUID()
+**Qué pasó:** `AddPropertyModal.tsx` generaba IDs inválidos: `bld-${Date.now()}` para edificios, `${Date.now()}-u${idx}` para unidades, y `Date.now().toString()` para propiedades standalone. Ninguno es un UUID válido, causando fallos silenciosos en Supabase si la columna es tipo `uuid`.
+
+**Causa raíz:** `generateUUID()` no estaba definida ni importada en `AddPropertyModal.tsx`. Se usó `Date.now()` como atajo, repitiendo exactamente el error de la Lección 1.
+
+**Regla derivada:** Todo archivo que cree registros con ID para Supabase DEBE definir o importar `generateUUID()`. Antes de cada merge, buscar `Date.now()` usado como ID con `grep -r "Date.now()" --include="*.tsx" --include="*.ts"` y verificar que no se usa como ID de BD.
+
+**Archivos afectados:** `components/AddPropertyModal.tsx`, `hooks/useReminders.ts`
+
+---
+
+### Lección 7 — Registro de edificio nunca se crea en tabla buildings
+**Qué pasó:** Al crear un edificio con unidades, `AddPropertyModal` generaba un `buildingId` y lo asignaba a cada propiedad, pero nunca llamaba `saveBuilding()` para crear el registro en la tabla `buildings`. El edificio no aparecía en `DataContext.buildings` y el mapa no lo reconocía como edificio real.
+
+**Causa raíz:** El flujo de creación de edificio solo operaba a nivel de propiedades. Se asumió que el edificio se inferiría automáticamente de las propiedades, pero `DataContext` carga edificios desde la tabla `buildings` explícitamente.
+
+**Regla derivada:** Siempre que se creen propiedades con `buildingId`, también crear el registro del edificio en la tabla `buildings` via `saveBuilding()`. El building record debe incluir: id, address, coordinates, country, currency.
+
+**Archivos afectados:** `App.tsx` (`handleSaveProperty`)
+
+---
+
+### Lección 8 — No se puede agregar unidades a edificio existente
+**Qué pasó:** Una vez creado el edificio, no había forma de agregarle nuevas unidades. `BuildingUnitManager` se oculta en modo edición (`isEditing`), y `BuildingCard` no tenía acción de "agregar unidad". Los administradores tenían que recrear el edificio completo para sumar un departamento.
+
+**Causa raíz:** El diseño original solo contempló la creación inicial del edificio con todas sus unidades, sin considerar el crecimiento posterior (ej: nuevos departamentos, subdivisiones).
+
+**Regla derivada:** Toda entidad que agrupa sub-entidades (edificio→unidades, profesional→tareas) debe ofrecer una acción para agregar sub-entidades desde la vista de detalle de la entidad padre. Usar una prop como `targetBuilding` para pre-configurar el modal de creación.
+
+**Archivos afectados:** `components/BuildingCard.tsx`, `components/AddPropertyModal.tsx`, `App.tsx`
 
 ---
 

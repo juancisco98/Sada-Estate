@@ -2,6 +2,7 @@ import { useDataContext } from '../context/DataContext';
 import { Tenant, TenantPayment, PropertyStatus } from '../types';
 import { tenantToDb, paymentToDb } from '../utils/mappers';
 import { supabaseUpsert, supabaseDelete, supabaseInsert, supabaseUpdate } from '../utils/supabaseHelpers';
+import { logAdminAction } from '../services/actionLogger';
 import { toast } from 'sonner';
 
 export const useTenantData = (currentUserId?: string) => {
@@ -69,6 +70,12 @@ export const useTenantData = (currentUserId?: string) => {
                 supabaseUpsert('tenants', tenantToDb(tenantWithUser), `tenant ${tenant.name}`),
                 ...propertyUpdates
             ]);
+            logAdminAction({
+                actionType: 'TENANT_CREATED',
+                entityTable: 'tenants',
+                entityId: tenant.id,
+                actionPayload: { name: tenant.name, phone: tenant.phone, email: tenant.email, propertyId: tenant.propertyId },
+            });
         } catch (error: any) {
             setTenants(prevTenants);
             setProperties(prevProperties);
@@ -123,6 +130,12 @@ export const useTenantData = (currentUserId?: string) => {
 
         try {
             await supabaseInsert('tenant_payments', paymentToDb(paymentWithUser), `payment for tenant ${payment.tenantId}`);
+            logAdminAction({
+                actionType: 'PAYMENT_REGISTERED',
+                entityTable: 'tenant_payments',
+                entityId: payment.id,
+                actionPayload: { tenantId: payment.tenantId, amount: payment.amount, month: payment.month, year: payment.year, status: payment.status },
+            });
         } catch (error: any) {
             setPayments(prevPayments);
             toast.error(`Error registrando el pago: ${error?.message || 'Error desconocido'}`);
@@ -157,7 +170,7 @@ export const useTenantData = (currentUserId?: string) => {
             return {
                 month: i + 1,
                 amount: latestPayment?.amount || 0,
-                paid: monthPayments.length > 0,
+                paid: monthPayments.some(p => p.status === 'APPROVED'),
                 status: latestPayment?.status,
                 proofUrl: latestPayment?.proofOfPayment,
             };
@@ -189,10 +202,19 @@ export const useTenantData = (currentUserId?: string) => {
 
     const handleUpdatePayment = async (payment: TenantPayment) => {
         const prevPayments = [...payments];
+        const oldPayment = payments.find(p => p.id === payment.id);
         setPayments(prev => prev.map(p => p.id === payment.id ? payment : p));
 
         try {
             await supabaseUpdate('tenant_payments', payment.id, paymentToDb(payment), `payment ${payment.id}`);
+            if (payment.status === 'APPROVED' && oldPayment?.status !== 'APPROVED') {
+                logAdminAction({
+                    actionType: 'PAYMENT_APPROVED',
+                    entityTable: 'tenant_payments',
+                    entityId: payment.id,
+                    actionPayload: { tenantId: payment.tenantId, amount: payment.amount, month: payment.month, year: payment.year, previousStatus: oldPayment?.status },
+                });
+            }
         } catch (error: any) {
             setPayments(prevPayments);
             toast.error(`Error actualizando el pago: ${error?.message || 'Error desconocido'}`);

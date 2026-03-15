@@ -2,7 +2,7 @@
 // Recibe un snapshot del estado de la app y genera recordatorios con IA
 //
 // Configurar secrets en Supabase:
-//   supabase secrets set AI_PROVIDER=gemini AI_API_KEY=xxx AI_MODEL=gemini-2.0-flash
+//   supabase secrets set AI_PROVIDER=gemini AI_API_KEY=xxx AI_MODEL=gemini-2.5-flash
 //   Providers soportados: gemini, claude, openai
 //
 // Deploy:
@@ -122,11 +122,11 @@ serve(async (req: Request) => {
         const provider = Deno.env.get('AI_PROVIDER') || 'gemini';
         const apiKey = Deno.env.get('AI_API_KEY');
         const defaultModels: Record<string, string> = {
-            gemini: 'gemini-2.0-flash',
+            gemini: 'gemini-2.5-flash',
             claude: 'claude-sonnet-4-20250514',
             openai: 'gpt-4o-mini',
         };
-        const model = Deno.env.get('AI_MODEL') || defaultModels[provider] || 'gemini-2.0-flash';
+        const model = Deno.env.get('AI_MODEL') || defaultModels[provider] || 'gemini-2.5-flash';
 
         if (!apiKey) {
             return new Response(

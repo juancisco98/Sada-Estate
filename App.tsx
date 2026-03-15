@@ -24,6 +24,7 @@ import { useMaintenance } from './hooks/useMaintenance';
 import { useBuildings } from './hooks/useBuildings';
 import { useTenantData } from './hooks/useTenantData';
 import { useReminders } from './hooks/useReminders';
+import { useAutomation } from './hooks/useAutomation';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useSearch } from './hooks/useSearch';
 import type { Session } from '@supabase/supabase-js';
@@ -36,6 +37,7 @@ const FinanceView = lazy(() => import('./components/DashboardViews').then(module
 const ProfessionalsView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.ProfessionalsView })));
 const TenantsView = lazy(() => import('./components/TenantsView'));
 const RemindersView = lazy(() => import('./components/RemindersView'));
+const AutomationView = lazy(() => import('./components/AutomationView'));
 const TenantPortal = lazy(() => import('./components/TenantPortal'));
 const ExpensesAdminPortal = lazy(() => import('./components/ExpensesAdminPortal'));
 
@@ -101,6 +103,23 @@ const Dashboard: React.FC = () => {
     lastAnalysis,
   } = useReminders();
 
+  // Automation
+  const {
+    pendingProposals,
+    automationRules,
+    automationHistory,
+    stats: automationStats,
+    isAnalyzing: isAutomationAnalyzing,
+    toggleRule,
+    toggleApprovalRequired,
+    updateConfidenceThreshold,
+    approveProposal,
+    rejectProposal,
+    undoExecution,
+    triggerAnalysis,
+    loadActionLogCount,
+  } = useAutomation();
+
   // Selection State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
@@ -123,6 +142,7 @@ const Dashboard: React.FC = () => {
   const [showPropertyModal, setShowPropertyModal] = useState(false);
   const [propertyToEdit, setPropertyToEdit] = useState<Property | null>(null);
   const [isRestrictedEdit, setIsRestrictedEdit] = useState(false);
+  const [targetBuilding, setTargetBuilding] = useState<Building | null>(null);
   const [finishingProperty, setFinishingProperty] = useState<Property | null>(null);
   const [showAddProModal, setShowAddProModal] = useState(false);
   const [professionalToEdit, setProfessionalToEdit] = useState<Professional | null>(null);
@@ -413,6 +433,7 @@ const Dashboard: React.FC = () => {
   const handleOpenAddModal = useCallback(() => {
     setPropertyToEdit(null);
     setIsRestrictedEdit(false);
+    setTargetBuilding(null);
     setShowPropertyModal(true);
   }, []);
 
@@ -422,17 +443,38 @@ const Dashboard: React.FC = () => {
     setShowPropertyModal(true);
   }, []);
 
+  const handleAddUnitToBuilding = useCallback((building: Building) => {
+    setTargetBuilding(building);
+    setPropertyToEdit(null);
+    setIsRestrictedEdit(false);
+    setShowPropertyModal(true);
+  }, []);
+
   const handleSaveProperty = useCallback((savedPropOrProps: Property | Property[]) => {
     if (Array.isArray(savedPropOrProps)) {
+      // Building mode: save all units + create building record
       savePropertiesData(savedPropOrProps);
+      if (savedPropOrProps.length > 0 && savedPropOrProps[0].buildingId) {
+        const first = savedPropOrProps[0];
+        handleSaveBuilding({
+          id: first.buildingId!,
+          address: first.address,
+          coordinates: first.coordinates,
+          country: first.country,
+          currency: first.currency,
+          imageUrl: first.imageUrl,
+        });
+      }
       setShowPropertyModal(false);
       setPropertyToEdit(null);
+      setTargetBuilding(null);
       setSearchResult(null);
       setSearchQuery('');
     } else {
       savePropertyData(savedPropOrProps);
       setShowPropertyModal(false);
       setPropertyToEdit(null);
+      setTargetBuilding(null);
       setSearchResult(null);
       setSearchQuery('');
 
@@ -440,7 +482,7 @@ const Dashboard: React.FC = () => {
         setSelectedProperty(savedPropOrProps);
       }
     }
-  }, [savePropertiesData, savePropertyData, propertyToEdit, setSearchResult, setSearchQuery]);
+  }, [savePropertiesData, savePropertyData, propertyToEdit, setSearchResult, setSearchQuery, handleSaveBuilding]);
 
   const handleUpdateNote = useCallback((propertyId: string, newNote: string) => {
     updateNoteData(propertyId, newNote);
@@ -597,6 +639,32 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         );
+      case 'AUTOMATION':
+        return (
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
+            <div className="max-w-7xl mx-auto">
+              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando automatizaciones...</div>}>
+                <AutomationView
+                  rules={automationRules}
+                  history={automationHistory}
+                  pendingProposals={pendingProposals}
+                  stats={automationStats}
+                  isAnalyzing={isAutomationAnalyzing}
+                  onToggleRule={toggleRule}
+                  onToggleApprovalRequired={toggleApprovalRequired}
+                  onUpdateConfidenceThreshold={updateConfidenceThreshold}
+                  onApproveProposal={approveProposal}
+                  onRejectProposal={rejectProposal}
+                  onUndoExecution={undoExecution}
+                  onTriggerAnalysis={triggerAnalysis}
+                  onLoadActionLogCount={loadActionLogCount}
+                  properties={properties}
+                  tenants={tenants}
+                />
+              </Suspense>
+            </div>
+          </div>
+        );
       case 'MAP':
       default:
         return (
@@ -623,6 +691,7 @@ const Dashboard: React.FC = () => {
                   setSelectedBuilding(null);
                   setSelectedProperty(unit);
                 }}
+                onAddUnit={handleAddUnitToBuilding}
               />
             )}
             {selectedProperty && (
@@ -763,6 +832,7 @@ const Dashboard: React.FC = () => {
         onLogout={handleLogout}
         onSwitchMode={() => setAdminMode('choosing')}
         reminderCount={reminderActiveCount}
+        automationCount={pendingProposals.length}
       />
 
       <Header
@@ -788,15 +858,17 @@ const Dashboard: React.FC = () => {
 
       {showPropertyModal && (
         <AddPropertyModal
-          address={searchResult?.address}
-          coordinates={searchResult ? [searchResult.lat, searchResult.lng] : undefined}
+          address={targetBuilding ? targetBuilding.address : searchResult?.address}
+          coordinates={targetBuilding ? targetBuilding.coordinates : searchResult ? [searchResult.lat, searchResult.lng] : undefined}
           existingProperty={propertyToEdit}
           isRestrictedMode={isRestrictedEdit}
-          detectedCountry={searchResult?.address ? detectCountryFromAddress(searchResult.address) : undefined}
+          detectedCountry={targetBuilding ? targetBuilding.country : searchResult?.address ? detectCountryFromAddress(searchResult.address) : undefined}
+          targetBuilding={targetBuilding || undefined}
           onClose={() => {
             setShowPropertyModal(false);
             setPropertyToEdit(null);
             setIsRestrictedEdit(false);
+            setTargetBuilding(null);
           }}
           onSave={handleSaveProperty}
           onDelete={handleDeleteProperty}

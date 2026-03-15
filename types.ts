@@ -157,7 +157,8 @@ export interface AppNotification {
   recipientEmail: string;
   title: string;
   message: string;
-  type: 'PAYMENT_SUBMITTED' | 'PAYMENT_APPROVED' | 'PAYMENT_REVISION' | 'PAYMENT_RETURNED';
+  type: 'PAYMENT_SUBMITTED' | 'PAYMENT_APPROVED' | 'PAYMENT_REVISION' | 'PAYMENT_RETURNED'
+    | 'AUTOMATION_PROPOSED' | 'AUTOMATION_EXECUTED' | 'AUTOMATION_UNDONE';
   paymentId?: string;
   read: boolean;
   createdAt: string;
@@ -200,5 +201,71 @@ export interface SmartReminder {
   completed: boolean;
   urgency: 'overdue' | 'urgent' | 'upcoming' | 'done';
   createdAt?: string;
+}
+
+// ========== AUTOMATION ==========
+
+export type AutomationActionType =
+  | 'PAYMENT_REGISTERED'
+  | 'PAYMENT_APPROVED'
+  | 'PAYMENT_RETURNED'
+  | 'MAINTENANCE_COMPLETED'
+  | 'RENT_UPDATED'
+  | 'REMINDER_COMPLETED'
+  | 'TENANT_CREATED'
+  | 'TENANT_DELETED'
+  | 'PROFESSIONAL_ASSIGNED'
+  | 'PROPERTY_CREATED'
+  | 'PROPERTY_DELETED';
+
+export type AutomationRuleType =
+  | 'AUTO_APPROVE_PAYMENT'
+  | 'AUTO_REGISTER_PAYMENT'
+  | 'AUTO_UPDATE_RENT'
+  | 'AUTO_REMIND';
+
+export type AutomationStatus = 'PROPOSED' | 'APPROVED' | 'EXECUTED' | 'UNDONE' | 'REJECTED';
+
+export interface AdminActionLog {
+  id: string;
+  userEmail: string;
+  actionType: AutomationActionType;
+  entityTable: string;
+  entityId?: string;
+  actionPayload: Record<string, unknown>;
+  context?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description?: string;
+  ruleType: AutomationRuleType;
+  conditions: Record<string, unknown>;
+  enabled: boolean;
+  requiresApproval: boolean;
+  confidenceThreshold: number;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AutomationHistoryEntry {
+  id: string;
+  ruleId?: string;
+  actionType: string;
+  entityTable: string;
+  entityId?: string;
+  status: AutomationStatus;
+  actionPayload: Record<string, unknown>;
+  undoPayload?: Record<string, unknown>;
+  confidence?: number;
+  description?: string;
+  proposedAt: string;
+  executedAt?: string;
+  executedBy?: string;
+  undoneAt?: string;
+  undoneBy?: string;
 }
 

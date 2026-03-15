@@ -62,8 +62,8 @@ export async function generateAIReminders(data: AIReminderRequest): Promise<AIRe
     });
 
     if (error) {
-        // Try to extract actual error from Edge Function response body
-        let detailedMessage = error.message;
+        // Extract the actual error from Edge Function response body
+        let detailedMessage = error.message || 'Error desconocido';
         try {
             if (error.context && typeof error.context.json === 'function') {
                 const body = await error.context.json();
@@ -71,9 +71,7 @@ export async function generateAIReminders(data: AIReminderRequest): Promise<AIRe
             }
         } catch { /* ignore parse errors */ }
 
-        if (detailedMessage?.includes('not found') || detailedMessage?.includes('404')) {
-            throw new Error('EDGE_FUNCTION_NOT_CONFIGURED');
-        }
+        console.error('[AI Service] Error:', { original: error.message, detailed: detailedMessage, error });
         throw new Error(detailedMessage);
     }
 

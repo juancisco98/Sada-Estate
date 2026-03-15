@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment, AppNotification, ExpenseSheet, ManualReminder } from '../types';
-import { DbTenantPaymentRow, DbExpenseSheetRow, DbReminderRow } from '../types/dbRows';
+import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment, AppNotification, ExpenseSheet, ManualReminder, AutomationRule, AutomationHistoryEntry } from '../types';
+import { DbTenantPaymentRow, DbExpenseSheetRow, DbReminderRow, DbAutomationRuleRow, DbAutomationHistoryRow } from '../types/dbRows';
 import { supabase } from '../services/supabaseClient';
 import {
     dbToBuilding, dbToProperty,
@@ -9,12 +9,14 @@ import {
     dbToTenant,
     dbToPayment,
     dbToExpenseSheet,
-    dbToReminder
+    dbToReminder,
+    dbToAutomationRule,
+    dbToAutomationHistory
 } from '../utils/mappers';
 import { handleError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { toast } from 'sonner';
-import { Upload } from 'lucide-react';
+import { Upload, Bot } from 'lucide-react';
 
 interface DataContextType {
     properties: Property[];
@@ -33,6 +35,10 @@ interface DataContextType {
     setExpenseSheets: React.Dispatch<React.SetStateAction<ExpenseSheet[]>>;
     reminders: ManualReminder[];
     setReminders: React.Dispatch<React.SetStateAction<ManualReminder[]>>;
+    automationRules: AutomationRule[];
+    setAutomationRules: React.Dispatch<React.SetStateAction<AutomationRule[]>>;
+    automationHistory: AutomationHistoryEntry[];
+    setAutomationHistory: React.Dispatch<React.SetStateAction<AutomationHistoryEntry[]>>;
     notifications: AppNotification[];
     unreadCount: number;
     markNotificationRead: (id: string) => Promise<void>;
@@ -63,6 +69,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [payments, setPayments] = useState<TenantPayment[]>([]);
     const [expenseSheets, setExpenseSheets] = useState<ExpenseSheet[]>([]);
     const [reminders, setReminders] = useState<ManualReminder[]>([]);
+    const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
+    const [automationHistory, setAutomationHistory] = useState<AutomationHistoryEntry[]>([]);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -92,7 +100,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 paymentsResult,
                 notificationsResult,
                 expenseSheetsResult,
-                remindersResult
+                remindersResult,
+                automationRulesResult,
+                automationHistoryResult
             ] = await Promise.all([
                 supabase.from('professionals').select('*').order('created_at', { ascending: true }),
                 supabase.from('properties').select('*').order('created_at', { ascending: true }),
@@ -102,7 +112,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 supabase.from('tenant_payments').select('*').order('created_at', { ascending: true }),
                 supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
                 supabase.from('expense_sheets').select('*').order('uploaded_at', { ascending: false }),
-                supabase.from('reminders').select('*').order('due_date', { ascending: true })
+                supabase.from('reminders').select('*').order('due_date', { ascending: true }),
+                supabase.from('automation_rules').select('*').order('created_at', { ascending: true }),
+                supabase.from('automation_history').select('*').order('proposed_at', { ascending: false }).limit(100)
             ]);
 
             if (prosResult.error) throw prosResult.error;
@@ -121,6 +133,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (notificationsResult.data) setNotifications(notificationsResult.data.map(dbToNotification));
             if (expenseSheetsResult.data) setExpenseSheets(expenseSheetsResult.data.map(dbToExpenseSheet));
             if (remindersResult.data) setReminders(remindersResult.data.map(dbToReminder));
+            if (automationRulesResult.data) setAutomationRules(automationRulesResult.data.map(dbToAutomationRule));
+            if (automationHistoryResult.data) setAutomationHistory(automationHistoryResult.data.map(dbToAutomationHistory));
 
             logger.log('[Supabase] All data loaded.');
 
@@ -182,6 +196,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             description: notif.message,
                             duration: 8000,
                         });
+                    } else if (notif.type === 'AUTOMATION_PROPOSED') {
+                        toast(notif.title, {
+                            description: notif.message,
+                            icon: React.createElement(Bot, { className: 'w-4 h-4 text-violet-500' }),
+                            duration: 8000,
+                        });
+                    } else if (notif.type === 'AUTOMATION_EXECUTED') {
+                        toast.success(notif.title, {
+                            description: notif.message,
+                            icon: React.createElement(Bot, { className: 'w-4 h-4 text-emerald-500' }),
+                            duration: 6000,
+                        });
+                    } else if (notif.type === 'AUTOMATION_UNDONE') {
+                        toast.warning(notif.title, {
+                            description: notif.message,
+                            icon: React.createElement(Bot, { className: 'w-4 h-4 text-amber-500' }),
+                            duration: 6000,
+                        });
                     }
                 }
             )
@@ -241,11 +273,50 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             )
             .subscribe();
 
+        const automationHistoryChannel = supabase
+            .channel('automation_history_realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'automation_history' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setAutomationHistory(prev => {
+                            if (prev.some(h => h.id === payload.new.id)) return prev;
+                            return [dbToAutomationHistory(payload.new as DbAutomationHistoryRow), ...prev];
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        setAutomationHistory(prev => prev.map(h =>
+                            h.id === payload.new.id ? dbToAutomationHistory(payload.new as DbAutomationHistoryRow) : h
+                        ));
+                    } else if (payload.eventType === 'DELETE') {
+                        setAutomationHistory(prev => prev.filter(h => h.id !== payload.old.id));
+                    }
+                }
+            )
+            .subscribe();
+
+        const automationRulesChannel = supabase
+            .channel('automation_rules_realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'automation_rules' },
+                (payload) => {
+                    if (payload.eventType === 'UPDATE') {
+                        setAutomationRules(prev => prev.map(r =>
+                            r.id === payload.new.id ? dbToAutomationRule(payload.new as DbAutomationRuleRow) : r
+                        ));
+                    }
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(paymentsChannel);
             supabase.removeChannel(notificationsChannel);
             supabase.removeChannel(expenseSheetsChannel);
             supabase.removeChannel(remindersChannel);
+            supabase.removeChannel(automationHistoryChannel);
+            supabase.removeChannel(automationRulesChannel);
         };
     }, []);
 
@@ -259,6 +330,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             payments, setPayments,
             expenseSheets, setExpenseSheets,
             reminders, setReminders,
+            automationRules, setAutomationRules,
+            automationHistory, setAutomationHistory,
             notifications,
             unreadCount,
             markNotificationRead,

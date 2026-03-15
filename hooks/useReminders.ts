@@ -4,6 +4,7 @@ import { ManualReminder, SmartReminder, SmartReminderType, Property, TenantPayme
 import { reminderToDb } from '../utils/mappers';
 import { supabase } from '../services/supabaseClient';
 import { generateAIReminders, AIReminderRequest, AIReminderResponse } from '../services/aiService';
+import { logAdminAction } from '../services/actionLogger';
 import { toast } from 'sonner';
 import {
     CONTRACT_EXPIRY_WARNING_DAYS,
@@ -192,7 +193,16 @@ export const useReminders = (currentUserId?: string) => {
         const newCompleted = !reminder.completed;
         setReminders(prev => prev.map(r => r.id === id ? { ...r, completed: newCompleted } : r));
         const { error } = await supabase.from('reminders').update({ completed: newCompleted }).eq('id', id);
-        if (error) toast.error(`Error: ${error.message}`);
+        if (error) {
+            toast.error(`Error: ${error.message}`);
+        } else if (newCompleted) {
+            logAdminAction({
+                actionType: 'REMINDER_COMPLETED',
+                entityTable: 'reminders',
+                entityId: id,
+                actionPayload: { title: reminder.title, entityType: reminder.entityType, entityId: reminder.entityId },
+            });
+        }
     }, [reminders, setReminders]);
 
     const deleteReminder = useCallback(async (id: string) => {
@@ -261,7 +271,7 @@ export const useReminders = (currentUserId?: string) => {
 
             // Convert AI results to SmartReminder
             const newAiReminders: SmartReminder[] = aiResults.map((r, i) => ({
-                id: `ai-${Date.now()}-${i}`,
+                id: generateUUID(),
                 title: r.title,
                 description: r.description,
                 dueDate: r.suggestedDueDate || new Date().toISOString(),

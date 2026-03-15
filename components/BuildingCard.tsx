@@ -2,13 +2,14 @@ import React from 'react';
 import { Building, Property, PropertyStatus } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { getPropertyDisplayInfo } from '../utils/property';
-import { Home, ChevronRight, Building2, Users, DollarSign } from 'lucide-react';
+import { Home, ChevronRight, Building2, Users, DollarSign, Plus } from 'lucide-react';
 
 interface BuildingCardProps {
   building: Building;
   units: Property[];
   onClose: () => void;
   onSelectUnit: (property: Property) => void;
+  onAddUnit?: (building: Building) => void;
 }
 
 const getStatusDot = (status: PropertyStatus, hasProf: boolean) => {
@@ -35,7 +36,8 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
   building,
   units,
   onClose,
-  onSelectUnit
+  onSelectUnit,
+  onAddUnit
 }) => {
   const totalRent = units.reduce((acc, p) => acc + p.monthlyRent, 0);
   const totalUnits = units.length;
@@ -104,8 +106,16 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
 
       {/* Unit List */}
       <div className="max-h-[260px] overflow-y-auto pr-1 pb-1 mt-2">
-        <div className="px-4 py-2">
+        <div className="px-4 py-2 flex items-center justify-between">
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Departamentos</p>
+          {onAddUnit && (
+            <button
+              onClick={() => onAddUnit(building)}
+              className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-full border border-violet-200 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> Agregar Unidad
+            </button>
+          )}
         </div>
         <div className="px-3 pb-2 flex flex-col gap-2">
           {units

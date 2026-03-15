@@ -125,3 +125,48 @@ export interface DbReminderRow {
     completed: boolean;
     created_at?: string;
 }
+
+// ========== AUTOMATION TABLES ==========
+
+export interface DbAdminActionLogRow {
+    id: string;
+    user_email: string;
+    action_type: string;
+    entity_table: string;
+    entity_id?: string | null;
+    action_payload: Record<string, unknown>;
+    context?: Record<string, unknown> | null;
+    created_at?: string;
+}
+
+export interface DbAutomationRuleRow {
+    id: string;
+    name: string;
+    description?: string | null;
+    rule_type: string;
+    conditions: Record<string, unknown>;
+    enabled: boolean;
+    requires_approval: boolean;
+    confidence_threshold: number | string;
+    created_by?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface DbAutomationHistoryRow {
+    id: string;
+    rule_id?: string | null;
+    action_type: string;
+    entity_table: string;
+    entity_id?: string | null;
+    status: string;
+    action_payload: Record<string, unknown>;
+    undo_payload?: Record<string, unknown> | null;
+    confidence?: number | string | null;
+    description?: string | null;
+    proposed_at?: string;
+    executed_at?: string | null;
+    executed_by?: string | null;
+    undone_at?: string | null;
+    undone_by?: string | null;
+}

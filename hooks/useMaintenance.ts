@@ -3,6 +3,7 @@ import { supabase } from '../services/supabaseClient';
 import { Professional, MaintenanceTask, TaskStatus } from '../types';
 import { taskToDb, professionalToDb } from '../utils/mappers';
 import { supabaseUpdate, supabaseInsert } from '../utils/supabaseHelpers';
+import { logAdminAction } from '../services/actionLogger';
 import { logger } from '../utils/logger';
 
 const generateUUID = (): string =>
@@ -53,6 +54,13 @@ export const useMaintenance = (currentUserId?: string) => {
         }, 'property assignment');
 
         await supabaseInsert('maintenance_tasks', taskToDb(newTask), 'maintenance task');
+
+        logAdminAction({
+            actionType: 'PROFESSIONAL_ASSIGNED',
+            entityTable: 'maintenance_tasks',
+            entityId: newTask.id,
+            actionPayload: { propertyId, professionalId: professional.id, professionalName: professional.name, taskDescription },
+        });
     };
 
     const addPartialExpense = async (taskId: string, expense: { description: string, amount: number, date: string, by: string, proofUrl?: string }) => {
@@ -160,6 +168,13 @@ export const useMaintenance = (currentUserId?: string) => {
                     cost: finalCost || 0,
                     end_date: new Date().toISOString()
                 }, 'maintenance completion');
+
+                logAdminAction({
+                    actionType: 'MAINTENANCE_COMPLETED',
+                    entityTable: 'maintenance_tasks',
+                    entityId: activeTasks[0].id,
+                    actionPayload: { propertyId, finalCost, rating, speedRating, comment },
+                });
             }
         } catch (err) {
             logger.error('[Supabase] Exception finishing maintenance:', err);
