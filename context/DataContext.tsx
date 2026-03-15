@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment, AppNotification, ExpenseSheet } from '../types';
-import { DbTenantPaymentRow, DbExpenseSheetRow } from '../types/dbRows';
+import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment, AppNotification, ExpenseSheet, ManualReminder } from '../types';
+import { DbTenantPaymentRow, DbExpenseSheetRow, DbReminderRow } from '../types/dbRows';
 import { supabase } from '../services/supabaseClient';
 import {
     dbToBuilding, dbToProperty,
@@ -8,7 +8,8 @@ import {
     dbToTask,
     dbToTenant,
     dbToPayment,
-    dbToExpenseSheet
+    dbToExpenseSheet,
+    dbToReminder
 } from '../utils/mappers';
 import { handleError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
@@ -30,6 +31,8 @@ interface DataContextType {
     setPayments: React.Dispatch<React.SetStateAction<TenantPayment[]>>;
     expenseSheets: ExpenseSheet[];
     setExpenseSheets: React.Dispatch<React.SetStateAction<ExpenseSheet[]>>;
+    reminders: ManualReminder[];
+    setReminders: React.Dispatch<React.SetStateAction<ManualReminder[]>>;
     notifications: AppNotification[];
     unreadCount: number;
     markNotificationRead: (id: string) => Promise<void>;
@@ -59,6 +62,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [payments, setPayments] = useState<TenantPayment[]>([]);
     const [expenseSheets, setExpenseSheets] = useState<ExpenseSheet[]>([]);
+    const [reminders, setReminders] = useState<ManualReminder[]>([]);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -87,7 +91,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 tenantsResult,
                 paymentsResult,
                 notificationsResult,
-                expenseSheetsResult
+                expenseSheetsResult,
+                remindersResult
             ] = await Promise.all([
                 supabase.from('professionals').select('*').order('created_at', { ascending: true }),
                 supabase.from('properties').select('*').order('created_at', { ascending: true }),
@@ -96,7 +101,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 supabase.from('tenants').select('*').order('created_at', { ascending: true }),
                 supabase.from('tenant_payments').select('*').order('created_at', { ascending: true }),
                 supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
-                supabase.from('expense_sheets').select('*').order('uploaded_at', { ascending: false })
+                supabase.from('expense_sheets').select('*').order('uploaded_at', { ascending: false }),
+                supabase.from('reminders').select('*').order('due_date', { ascending: true })
             ]);
 
             if (prosResult.error) throw prosResult.error;
@@ -114,6 +120,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (paymentsResult.data) setPayments(paymentsResult.data.map(dbToPayment));
             if (notificationsResult.data) setNotifications(notificationsResult.data.map(dbToNotification));
             if (expenseSheetsResult.data) setExpenseSheets(expenseSheetsResult.data.map(dbToExpenseSheet));
+            if (remindersResult.data) setReminders(remindersResult.data.map(dbToReminder));
 
             logger.log('[Supabase] All data loaded.');
 
@@ -212,10 +219,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             )
             .subscribe();
 
+        const remindersChannel = supabase
+            .channel('reminders_realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'reminders' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setReminders(prev => {
+                            if (prev.some(r => r.id === payload.new.id)) return prev;
+                            return [...prev, dbToReminder(payload.new as DbReminderRow)];
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        setReminders(prev => prev.map(r =>
+                            r.id === payload.new.id ? dbToReminder(payload.new as DbReminderRow) : r
+                        ));
+                    } else if (payload.eventType === 'DELETE') {
+                        setReminders(prev => prev.filter(r => r.id !== payload.old.id));
+                    }
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(paymentsChannel);
             supabase.removeChannel(notificationsChannel);
             supabase.removeChannel(expenseSheetsChannel);
+            supabase.removeChannel(remindersChannel);
         };
     }, []);
 
@@ -228,6 +258,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             tenants, setTenants,
             payments, setPayments,
             expenseSheets, setExpenseSheets,
+            reminders, setReminders,
             notifications,
             unreadCount,
             markNotificationRead,

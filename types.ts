@@ -163,3 +163,42 @@ export interface AppNotification {
   createdAt: string;
 }
 
+// ========== REMINDERS ==========
+
+export type ReminderEntityType = 'property' | 'tenant' | 'professional' | 'maintenance_task';
+
+export interface ManualReminder {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  dueDate: string;
+  entityType?: ReminderEntityType;
+  entityId?: string;
+  completed: boolean;
+  createdAt: string;
+}
+
+export type SmartReminderType =
+  | 'CONTRACT_EXPIRY'
+  | 'RENT_ADJUSTMENT_DUE'
+  | 'MAINTENANCE_STALE'
+  | 'PAYMENT_REVISION_STALE'
+  | 'PAYMENT_OVERDUE'
+  | 'AI_GENERATED'
+  | 'MANUAL';
+
+export interface SmartReminder {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  type: SmartReminderType;
+  source: 'manual' | 'auto' | 'ai';
+  entityType?: ReminderEntityType;
+  entityId?: string;
+  completed: boolean;
+  urgency: 'overdue' | 'urgent' | 'upcoming' | 'done';
+  createdAt?: string;
+}
+

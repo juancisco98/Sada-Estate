@@ -23,6 +23,7 @@ import { useProfessionals } from './hooks/useProfessionals';
 import { useMaintenance } from './hooks/useMaintenance';
 import { useBuildings } from './hooks/useBuildings';
 import { useTenantData } from './hooks/useTenantData';
+import { useReminders } from './hooks/useReminders';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useSearch } from './hooks/useSearch';
 import type { Session } from '@supabase/supabase-js';
@@ -34,6 +35,7 @@ const OverviewView = lazy(() => import('./components/DashboardViews').then(modul
 const FinanceView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.FinanceView })));
 const ProfessionalsView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.ProfessionalsView })));
 const TenantsView = lazy(() => import('./components/TenantsView'));
+const RemindersView = lazy(() => import('./components/RemindersView'));
 const TenantPortal = lazy(() => import('./components/TenantPortal'));
 const ExpensesAdminPortal = lazy(() => import('./components/ExpensesAdminPortal'));
 
@@ -87,6 +89,18 @@ const Dashboard: React.FC = () => {
     getTenantMetrics,
   } = useTenantData(currentUser?.id);
 
+  // Reminders
+  const {
+    allReminders,
+    activeCount: reminderActiveCount,
+    createReminder,
+    toggleComplete: toggleReminderComplete,
+    deleteReminder,
+    analyzeWithAI,
+    isAnalyzing,
+    lastAnalysis,
+  } = useReminders();
+
   // Selection State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
@@ -124,7 +138,7 @@ const Dashboard: React.FC = () => {
       const viewParam = params.get('view') as ViewState;
       const propertyIdParam = params.get('property');
 
-      if (viewParam && ['MAP', 'OVERVIEW', 'FINANCE', 'PROFESSIONALS', 'TENANTS'].includes(viewParam)) {
+      if (viewParam && ['MAP', 'OVERVIEW', 'FINANCE', 'PROFESSIONALS', 'TENANTS', 'REMINDERS'].includes(viewParam)) {
         setCurrentView(viewParam);
       }
 
@@ -465,6 +479,22 @@ const Dashboard: React.FC = () => {
     handleSearch(searchQuery);
   }, [handleSearch, searchQuery]);
 
+  const handleNavigateToEntity = useCallback((entityType: string, entityId: string) => {
+    if (entityType === 'property') {
+      const prop = properties.find(p => p.id === entityId);
+      if (prop) {
+        setSelectedProperty(prop);
+        setCurrentView('MAP');
+      }
+    } else if (entityType === 'tenant') {
+      setCurrentView('TENANTS');
+    } else if (entityType === 'professional') {
+      setCurrentView('PROFESSIONALS');
+    } else if (entityType === 'maintenance_task') {
+      setCurrentView('PROFESSIONALS');
+    }
+  }, [properties]);
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'OVERVIEW':
@@ -539,6 +569,29 @@ const Dashboard: React.FC = () => {
                   getTenantMetrics={getTenantMetrics}
                   maintenanceTasks={maintenanceTasks}
                   refreshData={refreshData}
+                />
+              </Suspense>
+            </div>
+          </div>
+        );
+      case 'REMINDERS':
+        return (
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
+            <div className="max-w-7xl mx-auto">
+              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando recordatorios...</div>}>
+                <RemindersView
+                  smartReminders={allReminders}
+                  onCreateReminder={createReminder}
+                  onToggleComplete={toggleReminderComplete}
+                  onDeleteReminder={deleteReminder}
+                  onAnalyzeAI={analyzeWithAI}
+                  isAnalyzing={isAnalyzing}
+                  lastAnalysis={lastAnalysis}
+                  properties={properties}
+                  tenants={tenants}
+                  professionals={professionals}
+                  maintenanceTasks={maintenanceTasks}
+                  onNavigateToEntity={handleNavigateToEntity}
                 />
               </Suspense>
             </div>
@@ -709,6 +762,7 @@ const Dashboard: React.FC = () => {
         onNavigate={setCurrentView}
         onLogout={handleLogout}
         onSwitchMode={() => setAdminMode('choosing')}
+        reminderCount={reminderActiveCount}
       />
 
       <Header
@@ -724,6 +778,8 @@ const Dashboard: React.FC = () => {
           setMapCenter(undefined);
           setSearchResult(null);
         }}
+        reminderCount={reminderActiveCount}
+        onNavigateToReminders={() => setCurrentView('REMINDERS')}
       />
 
       <div className="w-full h-full relative">

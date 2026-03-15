@@ -15,6 +15,8 @@ interface HeaderProps {
     onSearchSubmit: () => void;
     isSearching: boolean;
     onNavigateToMap: () => void;
+    reminderCount?: number;
+    onNavigateToReminders?: () => void;
 }
 
 const timeAgo = (dateStr: string): string => {
@@ -41,7 +43,9 @@ const Header: React.FC<HeaderProps> = ({
     onSearchChange,
     onSearchSubmit,
     isSearching,
-    onNavigateToMap
+    onNavigateToMap,
+    reminderCount,
+    onNavigateToReminders
 }) => {
     const { theme, toggleTheme } = useTheme();
     const { notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useDataContext();
@@ -216,17 +220,26 @@ const Header: React.FC<HeaderProps> = ({
                                     )}
                                 </div>
 
-                                {/* Footer — navigate to map */}
-                                {currentView !== 'MAP' && (
-                                    <div className="px-4 py-2 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5">
+                                {/* Footer */}
+                                <div className="px-4 py-2 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 flex items-center justify-between">
+                                    {onNavigateToReminders && (
+                                        <button
+                                            onClick={() => { setShowNotifications(false); onNavigateToReminders(); }}
+                                            className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1"
+                                        >
+                                            <Bell className="w-3 h-3" />
+                                            {reminderCount && reminderCount > 0 ? `${reminderCount} recordatorios pendientes` : 'Ver recordatorios'}
+                                        </button>
+                                    )}
+                                    {currentView !== 'MAP' && (
                                         <button
                                             onClick={() => { setShowNotifications(false); onNavigateToMap(); }}
-                                            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                                            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline ml-auto"
                                         >
                                             Volver al mapa
                                         </button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

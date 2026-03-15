@@ -113,3 +113,15 @@ export interface DbTenantPaymentRow {
     user_id?: string | null;
     created_at?: string;
 }
+
+export interface DbReminderRow {
+    id: string;
+    user_id: string;
+    title: string;
+    description?: string | null;
+    due_date: string;
+    entity_type?: string | null;
+    entity_id?: string | null;
+    completed: boolean;
+    created_at?: string;
+}

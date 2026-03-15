@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck, ArrowLeftRight } from 'lucide-react';
+import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck, ArrowLeftRight, Bell } from 'lucide-react';
 
-export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS';
+export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS' | 'REMINDERS';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -10,12 +10,14 @@ interface SidebarProps {
   onNavigate: (view: ViewState) => void;
   onLogout?: () => void;
   onSwitchMode?: () => void;
+  reminderCount?: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavigate, onLogout, onSwitchMode }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavigate, onLogout, onSwitchMode, reminderCount }) => {
   const menuItems = [
     { id: 'MAP', label: 'Mapa Interactivo', icon: MapIcon },
     { id: 'OVERVIEW', label: 'Visión General', icon: LayoutDashboard },
+    { id: 'REMINDERS', label: 'Recordatorios', icon: Bell, badge: reminderCount },
     { id: 'TENANTS', label: 'Inquilinos', icon: UserCheck },
     { id: 'FINANCE', label: 'Finanzas', icon: Wallet },
     { id: 'PROFESSIONALS', label: 'Profesionales', icon: Users },
@@ -62,6 +64,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
                   <item.icon className="w-5 h-5" />
                 </div>
                 <span className="text-base font-semibold tracking-tight">{item.label}</span>
+                {(item as any).badge > 0 && (
+                  <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                  }`}>
+                    {(item as any).badge > 99 ? '99+' : (item as any).badge}
+                  </span>
+                )}
               </button>
             );
           })}

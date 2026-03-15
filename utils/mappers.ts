@@ -1,4 +1,4 @@
-import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment, PropertyType, ExpenseSheet } from '../types';
+import { Property, Professional, MaintenanceTask, Building, PropertyStatus, TaskStatus, Tenant, TenantPayment, PropertyType, ExpenseSheet, ManualReminder, ReminderEntityType } from '../types';
 import {
     DbBuildingRow,
     DbPropertyRow,
@@ -6,7 +6,8 @@ import {
     DbMaintenanceTaskRow,
     DbTenantRow,
     DbTenantPaymentRow,
-    DbExpenseSheetRow
+    DbExpenseSheetRow,
+    DbReminderRow
 } from '../types/dbRows';
 
 // ========== BUILDING MAPPERS ==========
@@ -224,4 +225,29 @@ export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }):
     sheet_data: s.sheetData,
     sheet_name: s.sheetName,
     uploaded_by: s.uploadedBy,
+});
+
+// ========== REMINDER MAPPERS ==========
+
+export const dbToReminder = (row: DbReminderRow): ManualReminder => ({
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    description: row.description ?? undefined,
+    dueDate: row.due_date,
+    entityType: (row.entity_type as ReminderEntityType) ?? undefined,
+    entityId: row.entity_id ?? undefined,
+    completed: row.completed,
+    createdAt: row.created_at || '',
+});
+
+export const reminderToDb = (r: ManualReminder): Record<string, unknown> => ({
+    id: r.id,
+    user_id: r.userId,
+    title: r.title,
+    description: r.description || null,
+    due_date: r.dueDate,
+    entity_type: r.entityType || null,
+    entity_id: r.entityId || null,
+    completed: r.completed,
 });

@@ -28,3 +28,9 @@ export const MAP_RESIZE_DELAY_MS = 200;
 
 // Currency cache duration in ms (5 minutes)
 export const CURRENCY_CACHE_DURATION_MS = 5 * 60 * 1000;
+
+// Reminder thresholds
+export const CONTRACT_EXPIRY_WARNING_DAYS = 30;
+export const MAINTENANCE_STALE_DAYS = 14;
+export const PAYMENT_REVISION_STALE_DAYS = 3;
+export const PAYMENT_OVERDUE_DAY = 10;
