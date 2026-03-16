@@ -41,6 +41,7 @@ const AutomationView = lazy(() => import('./components/AutomationView'));
 const TenantPortal = lazy(() => import('./components/TenantPortal'));
 const ExpensesAdminPortal = lazy(() => import('./components/ExpensesAdminPortal'));
 
+
 const Dashboard: React.FC = () => {
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);

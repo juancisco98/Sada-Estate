@@ -92,6 +92,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const loadData = async () => {
         setIsLoading(true);
         try {
+            // Core tables (required - throw on error)
             const [
                 prosResult,
                 propsResult,
@@ -101,9 +102,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 paymentsResult,
                 notificationsResult,
                 expenseSheetsResult,
-                remindersResult,
-                automationRulesResult,
-                automationHistoryResult
             ] = await Promise.all([
                 supabase.from('professionals').select('*').order('created_at', { ascending: true }),
                 supabase.from('properties').select('*').order('created_at', { ascending: true }),
@@ -113,9 +111,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 supabase.from('tenant_payments').select('*').order('created_at', { ascending: true }),
                 supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
                 supabase.from('expense_sheets').select('*').order('uploaded_at', { ascending: false }),
-                supabase.from('reminders').select('*').order('due_date', { ascending: true }),
-                supabase.from('automation_rules').select('*').order('created_at', { ascending: true }),
-                supabase.from('automation_history').select('*').order('proposed_at', { ascending: false }).limit(100)
             ]);
 
             if (prosResult.error) throw prosResult.error;
@@ -133,9 +128,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (paymentsResult.data) setPayments(paymentsResult.data.map(dbToPayment));
             if (notificationsResult.data) setNotifications(notificationsResult.data.map(dbToNotification));
             if (expenseSheetsResult.data) setExpenseSheets(expenseSheetsResult.data.map(dbToExpenseSheet));
-            if (remindersResult.data) setReminders(remindersResult.data.map(dbToReminder));
-            if (automationRulesResult.data) setAutomationRules(automationRulesResult.data.map(dbToAutomationRule));
-            if (automationHistoryResult.data) setAutomationHistory(automationHistoryResult.data.map(dbToAutomationHistory));
+
+            // Optional tables (don't break app if missing)
+            try {
+                const [remindersResult, automationRulesResult, automationHistoryResult] = await Promise.all([
+                    supabase.from('reminders').select('*').order('due_date', { ascending: true }),
+                    supabase.from('automation_rules').select('*').order('created_at', { ascending: true }),
+                    supabase.from('automation_history').select('*').order('proposed_at', { ascending: false }).limit(100),
+                ]);
+                if (remindersResult.data) setReminders(remindersResult.data.map(dbToReminder));
+                if (automationRulesResult.data) setAutomationRules(automationRulesResult.data.map(dbToAutomationRule));
+                if (automationHistoryResult.data) setAutomationHistory(automationHistoryResult.data.map(dbToAutomationHistory));
+            } catch (optionalError) {
+                logger.warn('[DataContext] Optional tables failed to load (reminders/automation):', optionalError);
+            }
 
             // Auto-repair: create missing building records for orphaned buildingIds
             const propertiesData = propsResult.data ? propsResult.data.map(dbToProperty) : [];

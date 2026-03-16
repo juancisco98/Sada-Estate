@@ -364,6 +364,52 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     const getTenantName = (tenantId: string) =>
         tenants.find(t => t.id === tenantId)?.name || 'Inquilino desconocido';
 
+    // ── Early return if building not found ─────────────────────────────────
+    if (!velezBuilding) {
+        return (
+            <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+                <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
+                            <FileSpreadsheet className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-base font-bold text-slate-800 dark:text-white leading-tight">Admin de Expensas</h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{currentUser.name}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {onSwitchMode && (
+                            <button onClick={onSwitchMode} className="flex items-center gap-1.5 text-sm text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 transition-colors px-3 py-2 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-500/10">
+                                <ArrowLeftRight className="w-4 h-4" />
+                                <span className="hidden sm:inline">Cambiar modo</span>
+                            </button>
+                        )}
+                        <button onClick={onLogout} className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10">
+                            <LogOut className="w-4 h-4" />
+                            <span className="hidden sm:inline">Salir</span>
+                        </button>
+                    </div>
+                </header>
+                <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center space-y-4">
+                        <AlertCircle className="w-16 h-16 text-amber-400 mx-auto" />
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Edificio no encontrado</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md">
+                            {buildings.length === 0
+                                ? 'Los datos están cargando. Esperá un momento y recargá la página.'
+                                : `No se encontró el edificio Vélez Sársfield. Buildings disponibles: ${buildings.map(b => b.address).join(', ')}`
+                            }
+                        </p>
+                        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 transition-colors">
+                            Recargar página
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     return (
         <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
