@@ -255,6 +255,9 @@ ${JSON.stringify(body.maintenanceTasks || [], null, 0)}
 ═══ PROFESIONALES (${body.professionals?.length || 0}) ═══
 ${JSON.stringify(body.professionals || [], null, 0)}
 
+═══ RECORDATORIOS PENDIENTES DEL SISTEMA (${body.reminders?.length || 0}) ═══
+${JSON.stringify(body.reminders || [], null, 0)}
+
 Seguí el framework de razonamiento de 5 pasos (ANALIZAR → COMPARAR → CALIBRAR → PROPONER → EXPLICAR). Usá el historial de feedback para calibrar tu confianza. Proponé solo acciones con evidencia real.`;
 
         let rawResponse: string;

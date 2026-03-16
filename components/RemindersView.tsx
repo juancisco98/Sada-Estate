@@ -1,18 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
-    Bell, Plus, Sparkles, FileText, TrendingUp, Wrench, Clock, DollarSign,
-    CheckCircle, Trash2, ExternalLink, AlertTriangle, Loader, Bot
+    Bell, Sparkles, FileText, TrendingUp, Wrench, Clock, DollarSign,
+    ChevronRight, Loader, Bot, AlertTriangle
 } from 'lucide-react';
-import { SmartReminder, Property, Tenant, Professional, MaintenanceTask, ReminderEntityType } from '../types';
-import AddReminderModal from './AddReminderModal';
-
-type FilterTab = 'all' | 'overdue' | 'urgent' | 'upcoming' | 'done';
+import { SmartReminder, Property, Tenant, Professional, MaintenanceTask } from '../types';
 
 interface RemindersViewProps {
     smartReminders: SmartReminder[];
-    onCreateReminder: (data: { title: string; description?: string; dueDate: string; entityType?: ReminderEntityType; entityId?: string }) => Promise<void>;
-    onToggleComplete: (id: string) => Promise<void>;
-    onDeleteReminder: (id: string) => Promise<void>;
     onAnalyzeAI: () => Promise<void>;
     isAnalyzing: boolean;
     lastAnalysis: Date | null;
@@ -33,16 +27,11 @@ const REMINDER_ICONS: Record<string, React.FC<{ className?: string }>> = {
     MANUAL: Bell,
 };
 
-const URGENCY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-    overdue: { bg: 'bg-red-100 dark:bg-red-500/20', text: 'text-red-700 dark:text-red-400', label: 'Vencido' },
-    urgent: { bg: 'bg-amber-100 dark:bg-amber-500/20', text: 'text-amber-700 dark:text-amber-400', label: 'Urgente' },
-    upcoming: { bg: 'bg-indigo-100 dark:bg-indigo-500/20', text: 'text-indigo-700 dark:text-indigo-400', label: 'Próximo' },
-    done: { bg: 'bg-emerald-100 dark:bg-emerald-500/20', text: 'text-emerald-700 dark:text-emerald-400', label: 'Hecho' },
-};
-
-const SOURCE_BADGES: Record<string, { bg: string; text: string; label: string }> = {
-    ai: { bg: 'bg-gradient-to-r from-violet-500 to-purple-600', text: 'text-white', label: 'IA' },
-    auto: { bg: 'bg-slate-200 dark:bg-slate-700', text: 'text-slate-600 dark:text-slate-300', label: 'Auto' },
+const URGENCY_STYLES: Record<string, { bg: string; text: string; label: string; border: string }> = {
+    overdue: { bg: 'bg-red-100 dark:bg-red-500/20', text: 'text-red-700 dark:text-red-400', label: 'Vencido', border: 'border-red-200 dark:border-red-500/20' },
+    urgent: { bg: 'bg-amber-100 dark:bg-amber-500/20', text: 'text-amber-700 dark:text-amber-400', label: 'Urgente', border: 'border-amber-200 dark:border-amber-500/20' },
+    upcoming: { bg: 'bg-indigo-100 dark:bg-indigo-500/20', text: 'text-indigo-700 dark:text-indigo-400', label: 'Próximo', border: 'border-indigo-200 dark:border-indigo-500/20' },
+    done: { bg: 'bg-emerald-100 dark:bg-emerald-500/20', text: 'text-emerald-700 dark:text-emerald-400', label: 'Hecho', border: 'border-emerald-200 dark:border-emerald-500/20' },
 };
 
 function formatDueDate(dateStr: string): string {
@@ -69,35 +58,23 @@ function formatLastAnalysis(date: Date | null): string {
 }
 
 const RemindersView: React.FC<RemindersViewProps> = ({
-    smartReminders, onCreateReminder, onToggleComplete, onDeleteReminder,
-    onAnalyzeAI, isAnalyzing, lastAnalysis,
-    properties, tenants, professionals, maintenanceTasks,
+    smartReminders, onAnalyzeAI, isAnalyzing, lastAnalysis,
     onNavigateToEntity
 }) => {
-    const [activeTab, setActiveTab] = useState<FilterTab>('all');
-    const [showModal, setShowModal] = useState(false);
+    // Only show non-completed reminders, sorted by urgency priority
+    const urgencyOrder: Record<string, number> = { overdue: 0, urgent: 1, upcoming: 2, done: 3 };
+    const activeReminders = useMemo(() =>
+        smartReminders
+            .filter(r => !r.completed && r.urgency !== 'done')
+            .sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9)),
+        [smartReminders]
+    );
 
-    // Stats
-    const stats = useMemo(() => ({
-        overdue: smartReminders.filter(r => r.urgency === 'overdue').length,
-        urgent: smartReminders.filter(r => r.urgency === 'urgent').length,
-        upcoming: smartReminders.filter(r => r.urgency === 'upcoming').length,
-        done: smartReminders.filter(r => r.urgency === 'done').length,
-    }), [smartReminders]);
-
-    // Filter
-    const filtered = useMemo(() => {
-        if (activeTab === 'all') return smartReminders.filter(r => r.urgency !== 'done');
-        return smartReminders.filter(r => r.urgency === activeTab);
-    }, [smartReminders, activeTab]);
-
-    const tabs: { id: FilterTab; label: string; count: number }[] = [
-        { id: 'all', label: 'Activos', count: stats.overdue + stats.urgent + stats.upcoming },
-        { id: 'overdue', label: 'Vencidos', count: stats.overdue },
-        { id: 'urgent', label: 'Urgentes', count: stats.urgent },
-        { id: 'upcoming', label: 'Próximos', count: stats.upcoming },
-        { id: 'done', label: 'Hechos', count: stats.done },
-    ];
+    const handleClick = (reminder: SmartReminder) => {
+        if (reminder.entityId && onNavigateToEntity) {
+            onNavigateToEntity(reminder.entityType || '', reminder.entityId);
+        }
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-24">
@@ -105,165 +82,84 @@ const RemindersView: React.FC<RemindersViewProps> = ({
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Recordatorios</h2>
-                    <p className="text-slate-500 dark:text-slate-400">Tu asistente de gestión diaria</p>
+                    <p className="text-slate-500 dark:text-slate-400">
+                        {activeReminders.length > 0
+                            ? `${activeReminders.length} pendiente${activeReminders.length > 1 ? 's' : ''} de atención`
+                            : 'Todo al día'}
+                    </p>
                 </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={onAnalyzeAI}
-                        disabled={isAnalyzing}
-                        className="bg-gradient-to-r from-violet-600 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:from-violet-700 hover:to-purple-700 shadow-lg flex items-center gap-2 transition-all disabled:opacity-50 text-sm"
-                    >
-                        {isAnalyzing ? (
-                            <Loader className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Sparkles className="w-4 h-4" />
-                        )}
-                        {isAnalyzing ? 'Analizando...' : 'Analizar con IA'}
-                    </button>
-                    <button
-                        onClick={() => setShowModal(true)}
-                        className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 shadow-lg flex items-center gap-2 transition-all text-sm"
-                    >
-                        <Plus className="w-4 h-4" /> Nuevo
-                    </button>
-                </div>
+                <button
+                    onClick={onAnalyzeAI}
+                    disabled={isAnalyzing}
+                    className="bg-gradient-to-r from-violet-600 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:from-violet-700 hover:to-purple-700 shadow-lg flex items-center gap-2 transition-all disabled:opacity-50 text-sm"
+                >
+                    {isAnalyzing ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <Sparkles className="w-4 h-4" />
+                    )}
+                    {isAnalyzing ? 'Analizando...' : 'Analizar con IA'}
+                </button>
             </header>
 
-            {/* Stats strip */}
-            <div className="grid grid-cols-4 gap-3">
-                {[
-                    { label: 'Vencidos', count: stats.overdue, color: 'text-red-500 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20' },
-                    { label: 'Urgentes', count: stats.urgent, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20' },
-                    { label: 'Próximos', count: stats.upcoming, color: 'text-indigo-500 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20' },
-                    { label: 'Hechos', count: stats.done, color: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' },
-                ].map(s => (
-                    <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center border`}>
-                        <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{s.label}</p>
-                    </div>
-                ))}
-            </div>
-
-            {/* Filter tabs */}
-            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl">
-                {tabs.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
-                            activeTab === tab.id
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                    >
-                        {tab.label}
-                        {tab.count > 0 && (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                                activeTab === tab.id ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
-                            }`}>
-                                {tab.count}
-                            </span>
-                        )}
-                    </button>
-                ))}
-            </div>
-
-            {/* Reminder cards */}
+            {/* Reminder list */}
             <div className="space-y-3">
-                {filtered.length === 0 ? (
+                {activeReminders.length === 0 ? (
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-12 text-center border border-slate-100 dark:border-white/5">
                         <Bell className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-400 dark:text-slate-500 font-medium">
-                            {activeTab === 'done' ? 'No hay recordatorios completados' : 'Sin recordatorios pendientes'}
-                        </p>
-                        {activeTab !== 'done' && smartReminders.length === 0 && (
+                        <p className="text-slate-400 dark:text-slate-500 font-medium">Sin recordatorios pendientes</p>
+                        {smartReminders.length === 0 && (
                             <p className="text-sm text-slate-400 dark:text-slate-500 mt-2">
                                 Presioná "Analizar con IA" para generar recordatorios inteligentes
                             </p>
                         )}
                     </div>
                 ) : (
-                    filtered.map(reminder => {
+                    activeReminders.map(reminder => {
                         const Icon = REMINDER_ICONS[reminder.type] || Bell;
-                        const urgency = URGENCY_STYLES[reminder.urgency];
-                        const sourceBadge = reminder.source !== 'manual' ? SOURCE_BADGES[reminder.source] : null;
+                        const urgency = URGENCY_STYLES[reminder.urgency] || URGENCY_STYLES.upcoming;
+                        const isClickable = !!(reminder.entityId && onNavigateToEntity);
 
                         return (
                             <div
                                 key={reminder.id}
-                                className={`bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl border p-4 transition-all ${
-                                    reminder.completed
-                                        ? 'border-slate-100 dark:border-white/5 opacity-60'
-                                        : 'border-slate-200/50 dark:border-white/10 hover:shadow-md'
+                                onClick={() => handleClick(reminder)}
+                                className={`bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl border ${urgency.border} p-4 transition-all hover:shadow-md ${
+                                    isClickable ? 'cursor-pointer active:scale-[0.99]' : ''
                                 }`}
                             >
-                                <div className="flex items-start gap-3">
+                                <div className="flex items-center gap-3">
                                     {/* Icon */}
-                                    <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${urgency.bg}`}>
-                                        <Icon className={`w-4 h-4 ${urgency.text}`} />
+                                    <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${urgency.bg}`}>
+                                        <Icon className={`w-5 h-5 ${urgency.text}`} />
                                     </div>
 
                                     {/* Content */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            {sourceBadge && (
-                                                <span className={`${sourceBadge.bg} ${sourceBadge.text} text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>
-                                                    {sourceBadge.label}
-                                                </span>
-                                            )}
-                                            <h4 className={`font-bold text-sm ${reminder.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}>
-                                                {reminder.title}
-                                            </h4>
-                                        </div>
+                                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                                            {reminder.title}
+                                        </h4>
                                         {reminder.description && (
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
                                                 {reminder.description}
                                             </p>
                                         )}
                                     </div>
 
-                                    {/* Right side: urgency badge + date */}
-                                    <div className="shrink-0 text-right">
-                                        <span className={`inline-block ${urgency.bg} ${urgency.text} text-[10px] font-bold px-2 py-0.5 rounded-full mb-1`}>
-                                            {urgency.label}
-                                        </span>
-                                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                                            {formatDueDate(reminder.dueDate)}
-                                        </p>
+                                    {/* Right side */}
+                                    <div className="shrink-0 flex items-center gap-2">
+                                        <div className="text-right">
+                                            <span className={`inline-block ${urgency.bg} ${urgency.text} text-[10px] font-bold px-2 py-0.5 rounded-full mb-0.5`}>
+                                                {urgency.label}
+                                            </span>
+                                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+                                                {formatDueDate(reminder.dueDate)}
+                                            </p>
+                                        </div>
+                                        {isClickable && (
+                                            <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                                        )}
                                     </div>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-100 dark:border-white/5">
-                                    {reminder.source === 'manual' && (
-                                        <>
-                                            <button
-                                                onClick={() => onToggleComplete(reminder.id)}
-                                                className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ${
-                                                    reminder.completed
-                                                        ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400'
-                                                }`}
-                                            >
-                                                <CheckCircle className="w-3 h-3" />
-                                                {reminder.completed ? 'Completado' : 'Completar'}
-                                            </button>
-                                            <button
-                                                onClick={() => onDeleteReminder(reminder.id)}
-                                                className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                                            >
-                                                <Trash2 className="w-3 h-3" />
-                                            </button>
-                                        </>
-                                    )}
-                                    {reminder.entityId && onNavigateToEntity && (
-                                        <button
-                                            onClick={() => onNavigateToEntity(reminder.entityType || '', reminder.entityId || '')}
-                                            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors ml-auto"
-                                        >
-                                            <ExternalLink className="w-3 h-3" /> Ver
-                                        </button>
-                                    )}
                                 </div>
                             </div>
                         );
@@ -276,18 +172,6 @@ const RemindersView: React.FC<RemindersViewProps> = ({
                 <div className="text-center text-xs text-slate-400 dark:text-slate-500 py-2">
                     Último análisis IA: {formatLastAnalysis(lastAnalysis)}
                 </div>
-            )}
-
-            {/* Modal */}
-            {showModal && (
-                <AddReminderModal
-                    onClose={() => setShowModal(false)}
-                    onSave={onCreateReminder}
-                    properties={properties}
-                    tenants={tenants}
-                    professionals={professionals}
-                    maintenanceTasks={maintenanceTasks}
-                />
             )}
         </div>
     );

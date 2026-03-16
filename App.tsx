@@ -539,17 +539,36 @@ const Dashboard: React.FC = () => {
     if (entityType === 'property') {
       const prop = properties.find(p => p.id === entityId);
       if (prop) {
-        setSelectedProperty(prop);
         setCurrentView('MAP');
+        setSelectedProperty(prop);
+        // Auto-abrir edición para que pueda modificar renta/importe
+        setPropertyToEdit(prop);
+        setIsRestrictedEdit(false);
+        setTargetBuilding(null);
+        setShowPropertyModal(true);
       }
     } else if (entityType === 'tenant') {
+      // Find the property linked to this tenant
+      const tenant = tenants.find(t => t.id === entityId);
+      if (tenant?.propertyId) {
+        const prop = properties.find(p => p.id === tenant.propertyId);
+        if (prop) {
+          setCurrentView('MAP');
+          setSelectedProperty(prop);
+          setPropertyToEdit(prop);
+          setIsRestrictedEdit(false);
+          setTargetBuilding(null);
+          setShowPropertyModal(true);
+          return;
+        }
+      }
       setCurrentView('TENANTS');
     } else if (entityType === 'professional') {
       setCurrentView('PROFESSIONALS');
     } else if (entityType === 'maintenance_task') {
       setCurrentView('PROFESSIONALS');
     }
-  }, [properties]);
+  }, [properties, tenants]);
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -637,9 +656,6 @@ const Dashboard: React.FC = () => {
               <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando recordatorios...</div>}>
                 <RemindersView
                   smartReminders={allReminders}
-                  onCreateReminder={createReminder}
-                  onToggleComplete={toggleReminderComplete}
-                  onDeleteReminder={deleteReminder}
                   onAnalyzeAI={analyzeWithAI}
                   isAnalyzing={isAnalyzing}
                   lastAnalysis={lastAnalysis}
@@ -670,7 +686,12 @@ const Dashboard: React.FC = () => {
                   onApproveProposal={approveProposal}
                   onRejectProposal={rejectProposal}
                   onUndoExecution={undoExecution}
-                  onTriggerAnalysis={triggerAnalysis}
+                  onTriggerAnalysis={() => triggerAnalysis(
+                    allReminders.filter(r => !r.completed).map(r => ({
+                      title: r.title, type: r.type, dueDate: r.dueDate,
+                      entityType: r.entityType, entityId: r.entityId, urgency: r.urgency,
+                    }))
+                  )}
                   onLoadActionLogCount={loadActionLogCount}
                   properties={properties}
                   tenants={tenants}

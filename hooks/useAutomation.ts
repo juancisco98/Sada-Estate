@@ -169,24 +169,11 @@ export const useAutomation = () => {
 
     // ── Trigger AI analysis (manual) ──
 
-    const triggerAnalysis = useCallback(async () => {
+    const triggerAnalysis = useCallback(async (activeReminders?: Array<{ title: string; type: string; dueDate: string; entityType?: string; entityId?: string; urgency: string }>) => {
         setIsAnalyzing(true);
         try {
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const { data: sessionData } = await supabase.auth.getSession();
-            const accessToken = sessionData?.session?.access_token;
-
-            if (!supabaseUrl || !accessToken) {
-                throw new Error('No se pudo obtener la sesión de Supabase');
-            }
-
-            const response = await fetch(`${supabaseUrl}/functions/v1/smart-automation`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-                body: JSON.stringify({
+            const { data, error } = await supabase.functions.invoke('smart-automation', {
+                body: {
                     properties: properties.map(p => ({
                         id: p.id, address: p.address, tenantName: p.tenantName,
                         monthlyRent: p.monthlyRent, currency: p.currency, status: p.status,
@@ -208,17 +195,14 @@ export const useAutomation = () => {
                     professionals: professionals.map(p => ({
                         id: p.id, name: p.name, profession: p.profession,
                     })),
+                    reminders: activeReminders || [],
                     currentDate: new Date().toISOString().slice(0, 10),
-                }),
+                },
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || `Error ${response.status}`);
-            }
+            if (error) throw error;
 
-            const result = await response.json();
-            toast.success(`IA generó ${result.proposalsCreated || 0} propuestas de automatización`);
+            toast.success(`IA generó ${data?.proposalsCreated || 0} propuestas de automatización`);
         } catch (error: any) {
             toast.error(`Error de análisis: ${error?.message || 'Error desconocido'}`);
         } finally {

@@ -5,7 +5,8 @@ import { MONTH_NAMES } from '../constants';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import UploadReceiptModal from './UploadReceiptModal';
-import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell, RotateCcw } from 'lucide-react';
+import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell, RotateCcw, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Notification {
     id: string;
@@ -387,7 +388,20 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                             <span className="text-sm font-bold text-slate-800 dark:text-white">
                                                 {MONTH_NAMES[sheet.month - 1]} {sheet.year}
                                             </span>
-                                            <span className="text-xs text-slate-400">Actualizado: {sheet.uploadedAt ? new Date(sheet.uploadedAt).toLocaleDateString('es-AR') : '—'}</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs text-slate-400">Actualizado: {sheet.uploadedAt ? new Date(sheet.uploadedAt).toLocaleDateString('es-AR') : '—'}</span>
+                                                <button
+                                                    onClick={() => {
+                                                        const ws = XLSX.utils.aoa_to_sheet(sheet.sheetData || []);
+                                                        const wb = XLSX.utils.book_new();
+                                                        XLSX.utils.book_append_sheet(wb, ws, sheet.sheetName || 'Expensas');
+                                                        XLSX.writeFile(wb, `Expensas_${MONTH_NAMES[sheet.month - 1]}_${sheet.year}.xlsx`);
+                                                    }}
+                                                    className="flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" /> Descargar
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {rows.length === 0 ? (
