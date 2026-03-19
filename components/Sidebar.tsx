@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck, ArrowLeftRight, Bell, Bot } from 'lucide-react';
+import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck, ArrowLeftRight, Bell } from 'lucide-react';
 
-export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS' | 'REMINDERS' | 'AUTOMATION';
+export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS' | 'REMINDERS';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -11,15 +11,13 @@ interface SidebarProps {
   onLogout?: () => void;
   onSwitchMode?: () => void;
   reminderCount?: number;
-  automationCount?: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavigate, onLogout, onSwitchMode, reminderCount, automationCount }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavigate, onLogout, onSwitchMode, reminderCount }) => {
   const menuItems = [
     { id: 'MAP', label: 'Mapa Interactivo', icon: MapIcon },
     { id: 'OVERVIEW', label: 'Visión General', icon: LayoutDashboard },
     { id: 'REMINDERS', label: 'Recordatorios', icon: Bell, badge: reminderCount },
-    { id: 'AUTOMATION', label: 'Automatizaciones', icon: Bot, badge: automationCount },
     { id: 'TENANTS', label: 'Inquilinos', icon: UserCheck },
     { id: 'FINANCE', label: 'Finanzas', icon: Wallet },
     { id: 'PROFESSIONALS', label: 'Profesionales', icon: Users },

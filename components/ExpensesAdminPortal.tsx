@@ -9,7 +9,7 @@ import { MONTH_NAMES } from '../constants';
 import {
     LogOut, Bell, Upload, FileSpreadsheet, CheckCircle,
     AlertCircle, X, Eye, Users, Clock, ArrowLeftRight,
-    RotateCcw, ChevronDown, ChevronUp, ExternalLink, Home
+    RotateCcw, ChevronLeft, ChevronRight, ExternalLink, Home
 } from 'lucide-react';
 
 interface ExpensesAdminPortalProps {
@@ -31,16 +31,12 @@ const matchSheetToTenant = (identifier: string, tenants: Tenant[]): Tenant | und
     return tenants.find(t => {
         const tenantNorm = normalizeStr(t.name);
         const parts = tenantNorm.split(' ');
-        // t.name en DB: "Nombre Apellido" → parts[0]=Nombre, parts[1+]=Apellido
         const firstName = parts[0];
         const lastName = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
-        // El identifier del Excel es "APELLIDO NOMBRE UNIDAD" (ej: "MOYANO ETELVINA PB F")
-        // Buscar apellido en el identifier
         if (lastName && normalized.includes(lastName)) {
-            if (parts.length === 1) return true; // nombre único
-            if (firstName && normalized.includes(firstName)) return true; // apellido + nombre ambos presentes
+            if (parts.length === 1) return true;
+            if (firstName && normalized.includes(firstName)) return true;
         }
-        // Fallback: coincidencia exacta o contenida
         if (normalized === tenantNorm) return true;
         if (normalized.includes(tenantNorm)) return true;
         return false;
@@ -58,7 +54,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         [buildings]
     );
 
-    // Debug: si no encuentra el building, loguear las direcciones disponibles
     useEffect(() => {
         if (!velezBuilding && buildings.length > 0) {
             console.warn('[ExpensesPortal] No se encontró edificio Vélez Sársfield. Buildings disponibles:', buildings.map(b => ({ id: b.id, address: b.address })));
@@ -86,14 +81,15 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         [payments, velezPropertyIds]
     );
 
-    // Tabs
-    const [activeTab, setActiveTab] = useState<'upload' | 'review'>('upload');
+    // ── State ────────────────────────────────────────────────────────────────
+    const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+    const [showUploadSection, setShowUploadSection] = useState(false);
+    const [viewYear, setViewYear] = useState(new Date().getFullYear());
 
     // Review state
     const [returningId, setReturningId] = useState<string | null>(null);
     const [returnReason, setReturnReason] = useState('');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
     // Bell / notifications dropdown
     const [showNotif, setShowNotif] = useState(false);
@@ -106,7 +102,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [isUploading, setIsUploading] = useState(false);
 
-    // History modal
+    // Sheet data modal
     const [viewingSheet, setViewingSheet] = useState<ExpenseSheet | null>(null);
 
     // Close notif dropdown on outside click
@@ -120,27 +116,21 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    // Filter notifications relevant to this expenses admin (all PAYMENT_SUBMITTED)
+    // Filter notifications relevant to this expenses admin
     const myNotifications = useMemo(() =>
         notifications.filter(n => n.type === 'PAYMENT_SUBMITTED' || n.type === 'PAYMENT_REVISION'),
         [notifications]
     );
     const myUnreadCount = myNotifications.filter(n => !n.read).length;
 
-    // History sorted by uploaded_at desc
-    const history = useMemo(() =>
-        [...expenseSheets].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
-        [expenseSheets]
-    );
-
-    // Payments in REVISION (pending Nora's review) — solo del edificio Vélez
+    // Payments in REVISION — solo del edificio Vélez
     const pendingReviews = useMemo(() =>
         filteredPayments.filter(p => p.status === 'REVISION' && (p.proofOfExpenses || (p.expenseAmount ?? 0) > 0))
             .sort((a, b) => b.year - a.year || b.month - a.month),
         [filteredPayments]
     );
 
-    // Current year payments grouped by tenant for the tenant list — solo Vélez
+    // Tenant monthly status for the grid cards
     const currentYear = new Date().getFullYear();
     const tenantMonthlyStatus = useMemo(() => {
         return filteredTenants.map(tenant => {
@@ -149,7 +139,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             const months = MONTH_NAMES.map((_, i) => {
                 const payment = tenantPayments.find(p => p.month === i + 1);
                 if (!payment) return 'PENDING';
-                // Solo considerar como pagado si tiene datos de expensas
                 const hasExpenseData = (payment.expenseAmount ?? 0) > 0 || !!payment.proofOfExpenses;
                 if (!hasExpenseData) return 'PENDING';
                 if (payment.status === 'APPROVED') return 'APPROVED';
@@ -157,9 +146,22 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                 if (payment.status === 'REVISION') return 'REVISION';
                 return 'PENDING';
             });
-            return { tenant, months, pendingCount };
+            const approvedExpenses = tenantPayments.filter(p => p.status === 'APPROVED' && (p.expenseAmount ?? 0) > 0);
+            const totalExpenses = approvedExpenses.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
+            const approvedCount = months.filter(s => s === 'APPROVED').length;
+            return { tenant, months, pendingCount, totalExpenses, approvedCount };
         });
     }, [filteredTenants, filteredPayments, currentYear]);
+
+    // Selected tenant data for the detail modal
+    const selectedTenant = useMemo(() =>
+        selectedTenantId ? filteredTenants.find(t => t.id === selectedTenantId) : null,
+        [selectedTenantId, filteredTenants]
+    );
+    const selectedProperty = useMemo(() =>
+        selectedTenant ? properties.find(p => p.id === selectedTenant.propertyId) : null,
+        [selectedTenant, properties]
+    );
 
     // ── Excel parse ─────────────────────────────────────────────────────────
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,17 +177,13 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                 const workbook = XLSX.read(data, { type: 'array' });
 
                 const sheets = workbook.SheetNames
-                    // Saltar la hoja ADMINISTRACION (resumen general, no es un inquilino)
                     .filter(name => name.toUpperCase().trim() !== 'ADMINISTRACION')
                     .map(name => {
                         const ws = workbook.Sheets[name];
                         const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
-                        // Remove fully empty rows at the end
                         while (rows.length > 0 && rows[rows.length - 1].every((c: any) => c === '' || c === null || c === undefined)) {
                             rows.pop();
                         }
-                        // Row 7 contiene el identificador: "MOYANO ETELVINA PB F"
-                        // La columna varía entre hojas (col 0, 2, 3 o 4), así que concatenamos todas las celdas no vacías
                         const row7 = rows[7] || [];
                         const tenantIdentifier = row7
                             .map((c: any) => String(c ?? '').trim())
@@ -193,7 +191,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                             .join(' ');
                         const tenant = matchSheetToTenant(tenantIdentifier || name, filteredTenants);
 
-                        // Row 8: extraer monto total de expensas (primer número > 0)
                         const row8 = rows[8] || [];
                         const expenseTotal = row8
                             .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
@@ -204,7 +201,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
                 setParsedSheets(sheets);
 
-                // Auto-detectar mes/año del encabezado del Excel (Row 0: "EXPENSAS MARZO 2026")
                 if (sheets.length > 0) {
                     const row0Text = (sheets[0].data[0] || [])
                         .map((c: any) => String(c ?? '')).join(' ').toUpperCase();
@@ -220,7 +216,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             }
         };
         reader.readAsArrayBuffer(file);
-        // Reset input so same file can be re-selected
         e.target.value = '';
     };
 
@@ -248,7 +243,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                     uploaded_at: new Date().toISOString(),
                 };
 
-                // Upsert: replace existing sheet for same tenant+month+year
                 const existing = expenseSheets.find(
                     s => s.tenantId === sheet.tenant!.id && s.month === selectedMonth && s.year === selectedYear
                 );
@@ -278,7 +272,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                 }
                 successCount++;
 
-                // Notificar al inquilino que su liquidación está disponible
                 if (sheet.tenant?.email) {
                     const monthName = MONTH_NAMES[selectedMonth - 1];
                     await supabase.from('notifications').insert([{
@@ -360,7 +353,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         setReturnReason('');
     };
 
-    // ── Get tenant name for a sheet ─────────────────────────────────────────
     const getTenantName = (tenantId: string) =>
         tenants.find(t => t.id === tenantId)?.name || 'Inquilino desconocido';
 
@@ -471,7 +463,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                         )}
                     </div>
 
-                    {/* Switch mode (solo para admins que vienen del modo selector) */}
                     {onSwitchMode && (
                         <button
                             onClick={onSwitchMode}
@@ -482,7 +473,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                         </button>
                     )}
 
-                    {/* Logout */}
                     <button
                         onClick={onLogout}
                         className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10"
@@ -494,444 +484,429 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             </header>
 
             {/* ── Main content ─────────────────────────────────────────── */}
-            <main className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
+            <main className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
 
-                {/* ── Tabs ──────────────────────────────────────────────── */}
-                <div className="flex gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl w-fit">
+                {/* ── Upload Excel (collapsible) ─────────────────────────── */}
+                <div>
                     <button
-                        onClick={() => setActiveTab('upload')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'upload' ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                        onClick={() => setShowUploadSection(v => !v)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${showUploadSection ? 'bg-violet-600 text-white shadow-lg shadow-violet-200 dark:shadow-none' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:border-violet-300 dark:hover:border-violet-500/40'}`}
                     >
                         <Upload className="w-4 h-4" />
                         Cargar Excel
+                        {showUploadSection ? <ChevronLeft className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4 rotate-90" />}
                     </button>
-                    <button
-                        onClick={() => setActiveTab('review')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'review' ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                    >
-                        <Eye className="w-4 h-4" />
-                        Revisiones
-                        {pendingReviews.length > 0 && (
-                            <span className="min-w-[20px] h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                                {pendingReviews.length}
-                            </span>
-                        )}
-                    </button>
+
+                    {showUploadSection && (
+                        <section className="mt-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
+                            <label className="flex flex-col items-center justify-center w-full min-h-[100px] border-2 border-dashed border-slate-200 dark:border-white/20 rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                                <div className="flex flex-col items-center gap-2 p-5 text-center">
+                                    <FileSpreadsheet className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                                    {fileName ? (
+                                        <>
+                                            <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{fileName}</p>
+                                            <p className="text-xs text-slate-400">Seleccioná otro archivo para reemplazar</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Arrastrá o seleccioná el Excel</p>
+                                            <p className="text-xs text-slate-400">.xlsx o .xls — cada hoja = un inquilino</p>
+                                        </>
+                                    )}
+                                </div>
+                                <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
+                            </label>
+
+                            {parsedSheets.length > 0 && (
+                                <div className="mt-5 space-y-5">
+                                    <div className="flex gap-3 flex-wrap">
+                                        <div className="flex-1 min-w-[140px] space-y-1">
+                                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mes</label>
+                                            <select
+                                                value={selectedMonth}
+                                                onChange={e => setSelectedMonth(Number(e.target.value))}
+                                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                            >
+                                                {MONTH_NAMES.map((m, i) => (
+                                                    <option key={i} value={i + 1}>{m}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex-1 min-w-[100px] space-y-1">
+                                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Año</label>
+                                            <input
+                                                type="number"
+                                                value={selectedYear}
+                                                onChange={e => setSelectedYear(Number(e.target.value))}
+                                                min={2020}
+                                                max={2099}
+                                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                            Hojas detectadas ({parsedSheets.length})
+                                        </p>
+                                        <div className="rounded-xl border border-slate-100 dark:border-white/10 overflow-hidden">
+                                            {parsedSheets.map((sheet, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`flex items-center justify-between px-4 py-3 text-sm ${i < parsedSheets.length - 1 ? 'border-b border-slate-100 dark:border-white/5' : ''}`}
+                                                >
+                                                    <div className="min-w-0 mr-3">
+                                                        <span className="font-medium text-slate-700 dark:text-slate-300 block truncate">
+                                                            {sheet.name}
+                                                        </span>
+                                                        {sheet.tenantIdentifier && (
+                                                            <span className="text-xs text-slate-400 dark:text-slate-500 block truncate">
+                                                                {sheet.tenantIdentifier}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {sheet.tenant ? (
+                                                        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold shrink-0">
+                                                            <CheckCircle className="w-3.5 h-3.5" />
+                                                            {sheet.tenant.name}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1.5 text-amber-500 text-xs font-semibold shrink-0">
+                                                            <AlertCircle className="w-3.5 h-3.5" />
+                                                            Sin match
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {parsedSheets.some(s => !s.tenant) && (
+                                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                                                Las hojas sin match no se subirán. Verificá que el nombre de la hoja contenga el apellido del inquilino.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        onClick={handleUpload}
+                                        disabled={isUploading || parsedSheets.filter(s => s.tenant).length === 0}
+                                        className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-white disabled:text-slate-400 font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        {isUploading ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Subiendo...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-4 h-4" />
+                                                Subir {parsedSheets.filter(s => s.tenant).length} hoja{parsedSheets.filter(s => s.tenant).length !== 1 ? 's' : ''} — {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                        </section>
+                    )}
                 </div>
 
-                {/* ── Upload section ────────────────────────────────────── */}
-                {activeTab === 'upload' && (<>
-                <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
-                    <h2 className="text-base font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
-                        <Upload className="w-5 h-5 text-violet-500" />
-                        Cargar Excel de Expensas
+                {/* ── Pending reviews banner ──────────────────────────────── */}
+                {pendingReviews.length > 0 && (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl">
+                        <Clock className="w-5 h-5 text-amber-500 shrink-0" />
+                        <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                            {pendingReviews.length} pago{pendingReviews.length !== 1 ? 's' : ''} pendiente{pendingReviews.length !== 1 ? 's' : ''} de revisión
+                        </p>
+                    </div>
+                )}
+
+                {/* ── Tenant Grid ─────────────────────────────────────────── */}
+                <section>
+                    <h2 className="text-base font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 px-1">
+                        <Users className="w-5 h-5 text-violet-500" />
+                        Inquilinos — Vélez Sársfield 134
                     </h2>
 
-                    {/* File picker */}
-                    <label className="flex flex-col items-center justify-center w-full min-h-[120px] border-2 border-dashed border-slate-200 dark:border-white/20 rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
-                        <div className="flex flex-col items-center gap-2 p-6 text-center">
-                            <FileSpreadsheet className="w-10 h-10 text-slate-300 dark:text-slate-600" />
-                            {fileName ? (
-                                <>
-                                    <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{fileName}</p>
-                                    <p className="text-xs text-slate-400">Seleccioná otro archivo para reemplazar</p>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Arrastrá o seleccioná el Excel</p>
-                                    <p className="text-xs text-slate-400">.xlsx o .xls — cada hoja = un inquilino</p>
-                                </>
-                            )}
+                    {filteredTenants.length === 0 ? (
+                        <div className="text-center py-12">
+                            <Users className="w-12 h-12 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
+                            <p className="text-sm text-slate-400">Sin inquilinos registrados en este edificio.</p>
                         </div>
-                        <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
-                    </label>
-
-                    {/* Month / Year selector */}
-                    {parsedSheets.length > 0 && (
-                        <div className="mt-5 space-y-5">
-                            <div className="flex gap-3 flex-wrap">
-                                <div className="flex-1 min-w-[140px] space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mes</label>
-                                    <select
-                                        value={selectedMonth}
-                                        onChange={e => setSelectedMonth(Number(e.target.value))}
-                                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {tenantMonthlyStatus.map(({ tenant, pendingCount, totalExpenses, approvedCount }) => {
+                                const property = properties.find(p => p.id === tenant.propertyId);
+                                return (
+                                    <button
+                                        key={tenant.id}
+                                        onClick={() => { setSelectedTenantId(tenant.id); setViewYear(currentYear); setReturningId(null); setReturnReason(''); }}
+                                        className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-4 shadow-sm hover:shadow-lg hover:shadow-violet-500/10 dark:hover:border-violet-500/40 hover:scale-[1.02] transition-all duration-200 group"
                                     >
-                                        {MONTH_NAMES.map((m, i) => (
-                                            <option key={i} value={i + 1}>{m}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex-1 min-w-[100px] space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Año</label>
-                                    <input
-                                        type="number"
-                                        value={selectedYear}
-                                        onChange={e => setSelectedYear(Number(e.target.value))}
-                                        min={2020}
-                                        max={2099}
-                                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Sheet match preview */}
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    Hojas detectadas ({parsedSheets.length})
-                                </p>
-                                <div className="rounded-xl border border-slate-100 dark:border-white/10 overflow-hidden">
-                                    {parsedSheets.map((sheet, i) => (
-                                        <div
-                                            key={i}
-                                            className={`flex items-center justify-between px-4 py-3 text-sm ${i < parsedSheets.length - 1 ? 'border-b border-slate-100 dark:border-white/5' : ''}`}
-                                        >
-                                            <div className="min-w-0 mr-3">
-                                                <span className="font-medium text-slate-700 dark:text-slate-300 block truncate">
-                                                    {sheet.name}
-                                                </span>
-                                                {sheet.tenantIdentifier && (
-                                                    <span className="text-xs text-slate-400 dark:text-slate-500 block truncate">
-                                                        {sheet.tenantIdentifier}
-                                                    </span>
+                                        {/* Status dot + name */}
+                                        <div className="flex items-start gap-2.5 mb-2">
+                                            <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : approvedCount > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                                            <div className="min-w-0">
+                                                <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors truncate">
+                                                    {tenant.name}
+                                                </h3>
+                                                {property?.unitLabel && (
+                                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate flex items-center gap-1">
+                                                        <Home size={10} />
+                                                        {property.unitLabel}
+                                                    </p>
                                                 )}
                                             </div>
-                                            {sheet.tenant ? (
-                                                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold shrink-0">
-                                                    <CheckCircle className="w-3.5 h-3.5" />
-                                                    {sheet.tenant.name}
+                                        </div>
+
+                                        {/* Badges */}
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {pendingCount > 0 && (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-500/30">
+                                                    {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
                                                 </span>
-                                            ) : (
-                                                <span className="flex items-center gap-1.5 text-amber-500 text-xs font-semibold shrink-0">
-                                                    <AlertCircle className="w-3.5 h-3.5" />
-                                                    Sin match
+                                            )}
+                                            {totalExpenses > 0 && (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/30">
+                                                    ${totalExpenses.toLocaleString('es-AR')}
                                                 </span>
                                             )}
                                         </div>
-                                    ))}
-                                </div>
-                                {parsedSheets.some(s => !s.tenant) && (
-                                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                                        Las hojas sin match no se subirán. Verificá que el nombre de la hoja contenga el apellido del inquilino.
-                                    </p>
-                                )}
-                            </div>
-
-                            <button
-                                onClick={handleUpload}
-                                disabled={isUploading || parsedSheets.filter(s => s.tenant).length === 0}
-                                className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-white disabled:text-slate-400 font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-                            >
-                                {isUploading ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Subiendo...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload className="w-4 h-4" />
-                                        Subir {parsedSheets.filter(s => s.tenant).length} hoja{parsedSheets.filter(s => s.tenant).length !== 1 ? 's' : ''} — {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
-                                    </>
-                                )}
-                            </button>
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </section>
+            </main>
 
-                {/* ── History section ───────────────────────────────────── */}
-                <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
-                    <h2 className="text-base font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-violet-500" />
-                        Historial de Expensas
-                    </h2>
-
-                    {history.length === 0 ? (
-                        <div className="text-center py-12">
-                            <Users className="w-12 h-12 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
-                            <p className="text-sm text-slate-400">Todavía no subiste ningún Excel.</p>
+            {/* ── Tenant Detail Modal ────────────────────────────────────── */}
+            {selectedTenant && (
+                <div
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+                    onClick={() => setSelectedTenantId(null)}
+                >
+                    <div
+                        className="bg-white dark:bg-slate-900 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] border-t sm:border border-slate-100 dark:border-white/10"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-white/10 shrink-0">
+                            <div className="min-w-0">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white truncate">
+                                    {selectedTenant.name}
+                                </h3>
+                                <p className="text-xs text-slate-400 dark:text-slate-500">
+                                    {selectedProperty?.unitLabel && `${selectedProperty.unitLabel} · `}Vélez Sársfield 134
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                                {/* Year navigator */}
+                                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-1 py-1">
+                                    <button
+                                        onClick={() => setViewYear(y => y - 1)}
+                                        className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                    >
+                                        <ChevronLeft className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                                    </button>
+                                    <span className="text-sm font-bold text-slate-700 dark:text-white min-w-[48px] text-center tabular-nums">
+                                        {viewYear}
+                                    </span>
+                                    <button
+                                        onClick={() => setViewYear(y => y + 1)}
+                                        className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                    >
+                                        <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedTenantId(null)}
+                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-slate-400" />
+                                </button>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-white/10">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-left">
-                                        <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Inquilino</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Período</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subido</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {history.map((sheet, i) => (
-                                        <tr
-                                            key={sheet.id}
-                                            className={`${i < history.length - 1 ? 'border-b border-slate-50 dark:border-white/5' : ''} hover:bg-slate-50 dark:hover:bg-white/5 transition-colors`}
-                                        >
-                                            <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">{getTenantName(sheet.tenantId)}</td>
-                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{MONTH_NAMES[sheet.month - 1]} {sheet.year}</td>
-                                            <td className="px-4 py-3 text-slate-400 dark:text-slate-500 text-xs">
-                                                {sheet.uploadedAt ? new Date(sheet.uploadedAt).toLocaleDateString('es-AR') : '—'}
-                                            </td>
-                                            <td className="px-4 py-3">
+
+                        {/* Modal Body — month list */}
+                        <div className="overflow-y-auto flex-1 p-4 space-y-2">
+                            {MONTH_NAMES.map((monthName, i) => {
+                                const monthNum = i + 1;
+                                const payment = filteredPayments.find(p => p.tenantId === selectedTenant.id && p.month === monthNum && p.year === viewYear);
+                                const sheet = expenseSheets.find(s => s.tenantId === selectedTenant.id && s.month === monthNum && s.year === viewYear);
+                                const hasExpenseData = payment && ((payment.expenseAmount ?? 0) > 0 || !!payment.proofOfExpenses);
+                                const status = hasExpenseData ? (payment.status || 'PENDING') : 'PENDING';
+                                const isReturning = returningId === payment?.id;
+                                const isLoading = actionLoading === payment?.id;
+
+                                return (
+                                    <div key={monthName} className={`rounded-xl border p-4 transition-all ${
+                                        status === 'APPROVED' ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20' :
+                                        status === 'REVISION' ? 'bg-amber-50/50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20' :
+                                        status === 'RETURNED' ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-400/30' :
+                                        'bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-white/5'
+                                    }`}>
+                                        {/* Row 1: Month + Status + Amount */}
+                                        <div className="flex items-center justify-between gap-3 mb-2">
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 w-24">
+                                                    {monthName}
+                                                </span>
+                                                {/* Status badge */}
+                                                {status === 'APPROVED' && (
+                                                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                                                        <CheckCircle size={10} /> Aprobado
+                                                    </span>
+                                                )}
+                                                {status === 'REVISION' && (
+                                                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
+                                                        <Clock size={10} /> En revisión
+                                                    </span>
+                                                )}
+                                                {status === 'RETURNED' && (
+                                                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
+                                                        <RotateCcw size={10} /> Devuelto
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {payment?.expenseAmount && (
+                                                <span className="text-sm font-bold text-slate-700 dark:text-white tabular-nums">
+                                                    ${payment.expenseAmount.toLocaleString('es-AR')}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Row 2: Liquidación de Nora + Comprobante del inquilino */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {/* Nora's sheet */}
+                                            {sheet ? (
                                                 <button
                                                     onClick={() => setViewingSheet(sheet)}
-                                                    className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 transition-colors"
+                                                    className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
                                                 >
-                                                    <Eye className="w-3.5 h-3.5" />
-                                                    Ver datos
+                                                    <FileSpreadsheet size={12} />
+                                                    Ver liquidación
                                                 </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
-                </>)}
+                                            ) : (
+                                                <span className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 px-2.5 py-1.5">
+                                                    <FileSpreadsheet size={12} />
+                                                    Sin liquidación
+                                                </span>
+                                            )}
 
-                {/* ── Review tab ───────────────────────────────────────── */}
-                {activeTab === 'review' && (
-                    <div className="space-y-6">
-                        {/* Sección A: Pagos pendientes de revisión */}
-                        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
-                            <h2 className="text-base font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-amber-500" />
-                                Pagos Pendientes de Revisión
-                                {pendingReviews.length > 0 && (
-                                    <span className="ml-auto min-w-[24px] h-6 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-full flex items-center justify-center px-2">
-                                        {pendingReviews.length}
-                                    </span>
-                                )}
-                            </h2>
-
-                            {pendingReviews.length === 0 ? (
-                                <div className="text-center py-10">
-                                    <CheckCircle className="w-12 h-12 text-emerald-200 dark:text-emerald-700 mx-auto mb-3" />
-                                    <p className="text-sm text-slate-400">Sin pagos pendientes de revisión.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {pendingReviews.map(payment => {
-                                        const tenant = tenants.find(t => t.id === payment.tenantId);
-                                        const isReturning = returningId === payment.id;
-                                        const isLoading = actionLoading === payment.id;
-                                        return (
-                                            <div key={payment.id} className="rounded-xl border border-slate-100 dark:border-white/10 p-4 bg-slate-50 dark:bg-slate-800/40">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                        <p className="font-semibold text-slate-800 dark:text-white truncate">{tenant?.name || 'Desconocido'}</p>
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                                            {MONTH_NAMES[payment.month - 1]} {payment.year}
-                                                            {payment.expenseAmount ? ` · $${payment.expenseAmount.toLocaleString('es-AR')}` : ''}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 shrink-0">
-                                                        {payment.proofOfExpenses && (
-                                                            <a
-                                                                href={payment.proofOfExpenses}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10"
-                                                            >
-                                                                <ExternalLink className="w-3 h-3" /> Ver comprobante
-                                                            </a>
-                                                        )}
-                                                        {!isReturning && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => handleApprove(payment)}
-                                                                    disabled={isLoading}
-                                                                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
-                                                                >
-                                                                    {isLoading ? <div className="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                                                    Aprobar
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => { setReturningId(payment.id); setReturnReason(''); }}
-                                                                    disabled={isLoading}
-                                                                    className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
-                                                                >
-                                                                    <RotateCcw className="w-3.5 h-3.5" /> Devolver
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                {isReturning && (
-                                                    <div className="mt-3 space-y-2">
-                                                        <textarea
-                                                            value={returnReason}
-                                                            onChange={e => setReturnReason(e.target.value)}
-                                                            placeholder="Motivo de devolución (ej: El comprobante está borroso, subí uno más claro)"
-                                                            rows={2}
-                                                            className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-amber-400 outline-none resize-none"
-                                                        />
-                                                        <div className="flex gap-2 justify-end">
-                                                            <button
-                                                                onClick={() => { setReturningId(null); setReturnReason(''); }}
-                                                                className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl transition-colors"
-                                                            >
-                                                                Cancelar
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReturn(payment)}
-                                                                disabled={isLoading || !returnReason.trim()}
-                                                                className="flex items-center gap-1.5 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 px-3 py-1.5 rounded-xl transition-colors"
-                                                            >
-                                                                {isLoading ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                                                                Confirmar devolución
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </section>
-
-                        {/* Sección B: Lista de inquilinos con historial mensual */}
-                        <section>
-                            <h2 className="text-base font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 px-1">
-                                <Users className="w-5 h-5 text-violet-500" />
-                                Historial por Inquilino — {currentYear}
-                            </h2>
-
-                            {filteredTenants.length === 0 ? (
-                                <p className="text-sm text-slate-400 text-center py-8">Sin inquilinos registrados.</p>
-                            ) : (
-                                <div>
-                                    {tenantMonthlyStatus.map(({ tenant, months, pendingCount }) => {
-                                        const isExpanded = expandedTenants.has(tenant.id);
-                                        const property = properties.find(p => p.id === tenant.propertyId);
-                                        const address = property?.address || '';
-                                        const tenantYearPayments = payments.filter(p => p.tenantId === tenant.id && p.year === currentYear);
-                                        const approvedExpenses = tenantYearPayments.filter(p => p.status === 'APPROVED' && (p.expenseAmount ?? 0) > 0);
-                                        const totalExpenses = approvedExpenses.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
-                                        const approvedCount = months.filter(s => s === 'APPROVED').length;
-                                        return (
-                                            <div key={tenant.id} className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-[2.2rem] border border-white dark:border-white/10 shadow-lg dark:shadow-none overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-violet-500/10 dark:hover:border-violet-500/40 hover:scale-[1.01] hover:translate-x-1 group mb-3">
-                                                {/* Main Row */}
-                                                <div
-                                                    className="flex items-center p-6 gap-5 cursor-pointer"
-                                                    onClick={() => setExpandedTenants(prev => {
-                                                        const next = new Set(prev);
-                                                        isExpanded ? next.delete(tenant.id) : next.add(tenant.id);
-                                                        return next;
-                                                    })}
+                                            {/* Tenant's proof */}
+                                            {payment?.proofOfExpenses ? (
+                                                <a
+                                                    href={payment.proofOfExpenses}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
                                                 >
-                                                    {/* Status dot */}
-                                                    <div className={`w-3 h-3 rounded-full shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : approvedCount > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                                                    <ExternalLink size={12} />
+                                                    Ver comprobante
+                                                </a>
+                                            ) : status !== 'PENDING' ? (
+                                                <span className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 px-2.5 py-1.5">
+                                                    <ExternalLink size={12} />
+                                                    Sin comprobante
+                                                </span>
+                                            ) : null}
 
-                                                    {/* Info */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <h3 className="font-black text-slate-900 dark:text-white text-lg tracking-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors uppercase">
-                                                                {tenant.name}
-                                                            </h3>
-                                                            {pendingCount > 0 && (
-                                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/30">
-                                                                    {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        {address && (
-                                                            <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
-                                                                <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-md">
-                                                                    <Home size={14} className="text-slate-400" />
-                                                                </div>
-                                                                <p className="text-sm font-bold uppercase tracking-tight truncate">{address}</p>
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                            {/* Rent proof */}
+                                            {payment?.proofOfPayment && (
+                                                <a
+                                                    href={payment.proofOfPayment}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 px-2.5 py-1.5 rounded-lg transition-colors"
+                                                >
+                                                    <ExternalLink size={12} />
+                                                    Comprobante alquiler
+                                                </a>
+                                            )}
+                                        </div>
 
-                                                    {/* Total expensas + chevron */}
-                                                    <div className="flex items-center gap-6 shrink-0">
-                                                        {totalExpenses > 0 && (
-                                                            <div className="text-right hidden sm:block">
-                                                                <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-0.5">Expensas</p>
-                                                                <p className="text-base font-black text-slate-700 dark:text-white tabular-nums">
-                                                                    ${totalExpenses.toLocaleString('es-AR')}
-                                                                </p>
-                                                            </div>
-                                                        )}
-                                                        <div className={`p-2 rounded-2xl transition-all ${isExpanded ? 'bg-violet-600 dark:bg-violet-500 text-white shadow-lg shadow-violet-200 dark:shadow-none' : 'bg-slate-50 dark:bg-white/5 text-slate-300 dark:text-violet-400/50'}`}>
-                                                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                        {/* Row 3: Return notes */}
+                                        {status === 'RETURNED' && payment?.notes && (
+                                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 italic">
+                                                Motivo: {payment.notes}
+                                            </p>
+                                        )}
 
-                                                {/* Expanded */}
-                                                {isExpanded && (
-                                                    <div className="border-t border-gray-100 dark:border-white/5 p-5 bg-gray-50/50 dark:bg-slate-800/50 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                                                        <p className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-3">
-                                                            Historial Expensas — {currentYear}
-                                                        </p>
-                                                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
-                                                            {MONTH_NAMES.map((m, i) => {
-                                                                const s = months[i];
-                                                                const payment = tenantYearPayments.find(p => p.month === i + 1);
-                                                                return (
-                                                                    <div
-                                                                        key={m}
-                                                                        className={`text-center p-2 rounded-xl border transition-all hover:scale-105 ${
-                                                                            s === 'APPROVED' ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-500/10' :
-                                                                            s === 'REVISION' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-500/30' :
-                                                                            s === 'RETURNED' ? 'bg-amber-100 dark:bg-amber-500/15 border-amber-300 dark:border-amber-400/40' :
-                                                                            'bg-gray-100 dark:bg-slate-700/50 border-gray-200 dark:border-white/5'
-                                                                        }`}
-                                                                    >
-                                                                        <p className="text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase mb-1">
-                                                                            {m.slice(0, 3)}
-                                                                        </p>
-                                                                        {s === 'APPROVED' && <CheckCircle size={16} className="text-violet-500 mx-auto" />}
-                                                                        {s === 'REVISION' && <Clock size={16} className="text-amber-500 dark:text-amber-400 mx-auto" />}
-                                                                        {s === 'RETURNED' && <RotateCcw size={16} className="text-amber-600 dark:text-amber-400 mx-auto" />}
-                                                                        {s === 'PENDING' && <div className="h-4 flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-slate-600" /></div>}
-                                                                        {payment?.expenseAmount && s === 'APPROVED' && (
-                                                                            <p className="text-[10px] text-violet-600 dark:text-violet-400 font-bold mt-1 truncate">
-                                                                                ${payment.expenseAmount.toLocaleString('es-AR')}
-                                                                            </p>
-                                                                        )}
-                                                                        {payment?.proofOfExpenses && (
-                                                                            <a
-                                                                                href={payment.proofOfExpenses}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                onClick={e => e.stopPropagation()}
-                                                                                className="block mt-0.5"
-                                                                                title="Ver comprobante"
-                                                                            >
-                                                                                <ExternalLink size={10} className="text-indigo-400 mx-auto" />
-                                                                            </a>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                        <div className="flex items-center gap-4 mt-2 text-[10px] text-slate-400">
-                                                            <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-violet-500" /> Aprobado</span>
-                                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-amber-500" /> En revisión</span>
-                                                            <span className="flex items-center gap-1"><RotateCcw className="w-3 h-3 text-amber-600" /> Devuelto</span>
-                                                        </div>
-                                                    </div>
-                                                )}
+                                        {/* Row 4: Actions (only for REVISION) */}
+                                        {status === 'REVISION' && payment && !isReturning && (
+                                            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-white/5">
+                                                <button
+                                                    onClick={() => handleApprove(payment)}
+                                                    disabled={isLoading}
+                                                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+                                                >
+                                                    {isLoading ? <div className="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                                    Aprobar
+                                                </button>
+                                                <button
+                                                    onClick={() => { setReturningId(payment.id); setReturnReason(''); }}
+                                                    disabled={isLoading}
+                                                    className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+                                                >
+                                                    <RotateCcw className="w-3.5 h-3.5" /> Devolver
+                                                </button>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </section>
+                                        )}
+
+                                        {/* Return reason form */}
+                                        {isReturning && payment && (
+                                            <div className="mt-3 space-y-2">
+                                                <textarea
+                                                    value={returnReason}
+                                                    onChange={e => setReturnReason(e.target.value)}
+                                                    placeholder="Motivo de devolución (ej: El comprobante está borroso, subí uno más claro)"
+                                                    rows={2}
+                                                    className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-amber-400 outline-none resize-none"
+                                                />
+                                                <div className="flex gap-2 justify-end">
+                                                    <button
+                                                        onClick={() => { setReturningId(null); setReturnReason(''); }}
+                                                        className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl transition-colors"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReturn(payment)}
+                                                        disabled={isLoading || !returnReason.trim()}
+                                                        className="flex items-center gap-1.5 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 px-3 py-1.5 rounded-xl transition-colors"
+                                                    >
+                                                        {isLoading ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                                                        Confirmar devolución
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-5 py-3 border-t border-slate-100 dark:border-white/10 shrink-0 flex items-center justify-between">
+                            <div className="flex items-center gap-4 text-[10px] text-slate-400">
+                                <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> Aprobado</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-amber-500" /> En revisión</span>
+                                <span className="flex items-center gap-1"><RotateCcw className="w-3 h-3 text-amber-600" /> Devuelto</span>
+                            </div>
+                            <button
+                                onClick={() => setSelectedTenantId(null)}
+                                className="text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
-                )}
-            </main>
+                </div>
+            )}
 
             {/* ── Sheet data modal ─────────────────────────────────────── */}
             {viewingSheet && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                    className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
                     onClick={() => setViewingSheet(null)}
                 >
                     <div

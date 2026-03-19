@@ -24,7 +24,7 @@ import { useMaintenance } from './hooks/useMaintenance';
 import { useBuildings } from './hooks/useBuildings';
 import { useTenantData } from './hooks/useTenantData';
 import { useReminders } from './hooks/useReminders';
-import { useAutomation } from './hooks/useAutomation';
+import { useSmartActions } from './hooks/useSmartActions';
 import { detectCountryFromAddress } from './utils/taxConfig';
 import { useSearch } from './hooks/useSearch';
 import type { Session } from '@supabase/supabase-js';
@@ -37,7 +37,6 @@ const FinanceView = lazy(() => import('./components/DashboardViews').then(module
 const ProfessionalsView = lazy(() => import('./components/DashboardViews').then(module => ({ default: module.ProfessionalsView })));
 const TenantsView = lazy(() => import('./components/TenantsView'));
 const RemindersView = lazy(() => import('./components/RemindersView'));
-const AutomationView = lazy(() => import('./components/AutomationView'));
 const TenantPortal = lazy(() => import('./components/TenantPortal'));
 const ExpensesAdminPortal = lazy(() => import('./components/ExpensesAdminPortal'));
 
@@ -104,22 +103,14 @@ const Dashboard: React.FC = () => {
     lastAnalysis,
   } = useReminders();
 
-  // Automation
+  // Smart Actions
   const {
-    pendingProposals,
-    automationRules,
-    automationHistory,
-    stats: automationStats,
-    isAnalyzing: isAutomationAnalyzing,
-    toggleRule,
-    toggleApprovalRequired,
-    updateConfidenceThreshold,
-    approveProposal,
-    rejectProposal,
-    undoExecution,
-    triggerAnalysis,
-    loadActionLogCount,
-  } = useAutomation();
+    smartActions,
+    executeSmartAction,
+    dismissSmartAction,
+    executedActions,
+    actionLoading: smartActionLoading,
+  } = useSmartActions();
 
   // Selection State
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -665,37 +656,11 @@ const Dashboard: React.FC = () => {
                   professionals={professionals}
                   maintenanceTasks={maintenanceTasks}
                   onNavigateToEntity={handleNavigateToEntity}
-                />
-              </Suspense>
-            </div>
-          </div>
-        );
-      case 'AUTOMATION':
-        return (
-          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
-            <div className="max-w-7xl mx-auto">
-              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando automatizaciones...</div>}>
-                <AutomationView
-                  rules={automationRules}
-                  history={automationHistory}
-                  pendingProposals={pendingProposals}
-                  stats={automationStats}
-                  isAnalyzing={isAutomationAnalyzing}
-                  onToggleRule={toggleRule}
-                  onToggleApprovalRequired={toggleApprovalRequired}
-                  onUpdateConfidenceThreshold={updateConfidenceThreshold}
-                  onApproveProposal={approveProposal}
-                  onRejectProposal={rejectProposal}
-                  onUndoExecution={undoExecution}
-                  onTriggerAnalysis={() => triggerAnalysis(
-                    allReminders.filter(r => !r.completed).map(r => ({
-                      title: r.title, type: r.type, dueDate: r.dueDate,
-                      entityType: r.entityType, entityId: r.entityId, urgency: r.urgency,
-                    }))
-                  )}
-                  onLoadActionLogCount={loadActionLogCount}
-                  properties={properties}
-                  tenants={tenants}
+                  smartActions={smartActions}
+                  executedActions={executedActions}
+                  onExecuteSmartAction={executeSmartAction}
+                  onDismissSmartAction={dismissSmartAction}
+                  smartActionLoading={smartActionLoading}
                 />
               </Suspense>
             </div>
@@ -867,8 +832,7 @@ const Dashboard: React.FC = () => {
         onNavigate={setCurrentView}
         onLogout={handleLogout}
         onSwitchMode={() => setAdminMode('choosing')}
-        reminderCount={reminderActiveCount}
-        automationCount={pendingProposals.length}
+        reminderCount={reminderActiveCount + smartActions.length}
       />
 
       <Header

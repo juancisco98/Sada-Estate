@@ -3,7 +3,9 @@ import {
     Bell, Sparkles, FileText, TrendingUp, Wrench, Clock, DollarSign,
     ChevronRight, Loader, Bot, AlertTriangle
 } from 'lucide-react';
-import { SmartReminder, Property, Tenant, Professional, MaintenanceTask } from '../types';
+import { SmartReminder, Property, Tenant, Professional, MaintenanceTask, AutomationHistoryEntry } from '../types';
+import SmartActionsPanel from './SmartActionsPanel';
+import { SmartAction } from '../hooks/useSmartActions';
 
 interface RemindersViewProps {
     smartReminders: SmartReminder[];
@@ -15,6 +17,11 @@ interface RemindersViewProps {
     professionals: Professional[];
     maintenanceTasks: MaintenanceTask[];
     onNavigateToEntity?: (entityType: string, entityId: string) => void;
+    smartActions?: SmartAction[];
+    executedActions?: AutomationHistoryEntry[];
+    onExecuteSmartAction?: (action: SmartAction) => Promise<void>;
+    onDismissSmartAction?: (actionId: string) => void;
+    smartActionLoading?: string | null;
 }
 
 const REMINDER_ICONS: Record<string, React.FC<{ className?: string }>> = {
@@ -59,7 +66,8 @@ function formatLastAnalysis(date: Date | null): string {
 
 const RemindersView: React.FC<RemindersViewProps> = ({
     smartReminders, onAnalyzeAI, isAnalyzing, lastAnalysis,
-    onNavigateToEntity
+    onNavigateToEntity,
+    smartActions, executedActions, onExecuteSmartAction, onDismissSmartAction, smartActionLoading,
 }) => {
     // Only show non-completed reminders, sorted by urgency priority
     const urgencyOrder: Record<string, number> = { overdue: 0, urgent: 1, upcoming: 2, done: 3 };
@@ -101,6 +109,17 @@ const RemindersView: React.FC<RemindersViewProps> = ({
                     {isAnalyzing ? 'Analizando...' : 'Analizar con IA'}
                 </button>
             </header>
+
+            {/* Smart Actions */}
+            {smartActions && onExecuteSmartAction && onDismissSmartAction && (
+                <SmartActionsPanel
+                    actions={smartActions}
+                    executedActions={executedActions || []}
+                    onExecute={onExecuteSmartAction}
+                    onDismiss={onDismissSmartAction}
+                    actionLoading={smartActionLoading || null}
+                />
+            )}
 
             {/* Reminder list */}
             <div className="space-y-3">
