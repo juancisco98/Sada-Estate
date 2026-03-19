@@ -308,9 +308,10 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                         </>
                                     )}
                                 </div>
-                                {payment && payment.amount > 0 && status !== 'PENDING' && (
+                                {payment?.expenseAmount && payment.expenseAmount > 0 && (
                                     <div className="mt-3 pt-2.5 border-t border-black/5 dark:border-white/10 w-full text-center">
-                                        <span className="text-[13px] font-extrabold text-slate-700 dark:text-slate-200 tabular-nums">${payment.amount.toLocaleString('es-AR')}</span>
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Expensas</span>
+                                        <span className="block text-[13px] font-extrabold text-slate-700 dark:text-slate-200 tabular-nums">${payment.expenseAmount.toLocaleString('es-AR')}</span>
                                     </div>
                                 )}
                                 {status === 'RETURNED' && payment?.notes && (
