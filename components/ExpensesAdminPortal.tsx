@@ -54,16 +54,18 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         [buildings]
     );
 
-    useEffect(() => {
-        if (!velezBuilding && buildings.length > 0) {
-            console.warn('[ExpensesPortal] No se encontró edificio Vélez Sársfield. Buildings disponibles:', buildings.map(b => ({ id: b.id, address: b.address })));
-        }
-    }, [velezBuilding, buildings]);
-
+    // Properties that belong to Vélez Sársfield 134 (by buildingId OR by address match)
     const velezPropertyIds = useMemo(() => {
-        if (!velezBuilding) return new Set<string>();
-        return new Set(properties.filter(p => p.buildingId === velezBuilding.id).map(p => p.id));
+        const ids = new Set<string>();
+        // Match by buildingId
+        if (velezBuilding) {
+            properties.filter(p => p.buildingId === velezBuilding.id).forEach(p => ids.add(p.id));
+        }
+        // Fallback: also match by address if buildingId chain misses some
+        properties.filter(p => normalizeStr(p.address).includes('velez sarsfield')).forEach(p => ids.add(p.id));
+        return ids;
     }, [properties, velezBuilding]);
+
     const filteredTenants = useMemo(() =>
         tenants.filter(t => t.propertyId && velezPropertyIds.has(t.propertyId)),
         [tenants, velezPropertyIds]
@@ -72,6 +74,14 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         payments.filter(p => p.propertyId && velezPropertyIds.has(p.propertyId)),
         [payments, velezPropertyIds]
     );
+
+    useEffect(() => {
+        console.log(`[ExpensesPortal] Building: ${velezBuilding?.id || 'NOT FOUND'}. VelezProps: ${velezPropertyIds.size}, Tenants: ${filteredTenants.length}, Total tenants: ${tenants.length}`);
+        if (filteredTenants.length === 0 && tenants.length > 0) {
+            console.log('[ExpensesPortal] Tenants sin match:', tenants.map(t => ({ id: t.id, name: t.name, propertyId: t.propertyId })));
+            console.log('[ExpensesPortal] Properties:', properties.map(p => ({ id: p.id, address: p.address, buildingId: p.buildingId })));
+        }
+    }, [velezBuilding, velezPropertyIds, filteredTenants, tenants, properties]);
 
     // ── State ────────────────────────────────────────────────────────────────
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -345,8 +355,8 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         toast.warning(`Pago de ${MONTH_NAMES[payment.month - 1]} devuelto.`);
     };
 
-    // ── Early return if building not found ─────────────────────────────────
-    if (!velezBuilding) {
+    // ── Early return if no Vélez properties found at all ──────────────────
+    if (!velezBuilding && velezPropertyIds.size === 0) {
         return (
             <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
                 <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-sm">
