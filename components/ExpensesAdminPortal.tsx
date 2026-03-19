@@ -50,7 +50,10 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
     // Filtro: solo inquilinos del edificio Vélez Sársfield 134
     const velezBuilding = useMemo(() =>
-        buildings.find(b => normalizeStr(b.address).includes('velez sarsfield')),
+        buildings.find(b => {
+            const addr = normalizeStr(b.address);
+            return addr.includes('velez sarsfield') && addr.includes('134');
+        }),
         [buildings]
     );
 
@@ -61,8 +64,11 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         if (velezBuilding) {
             properties.filter(p => p.buildingId === velezBuilding.id).forEach(p => ids.add(p.id));
         }
-        // Fallback: also match by address if buildingId chain misses some
-        properties.filter(p => normalizeStr(p.address).includes('velez sarsfield')).forEach(p => ids.add(p.id));
+        // Fallback: also match by address — must include "velez sarsfield" AND "134"
+        properties.filter(p => {
+            const addr = normalizeStr(p.address);
+            return addr.includes('velez sarsfield') && addr.includes('134');
+        }).forEach(p => ids.add(p.id));
         return ids;
     }, [properties, velezBuilding]);
 
