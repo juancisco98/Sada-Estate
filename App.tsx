@@ -249,7 +249,7 @@ const Dashboard: React.FC = () => {
             const { data: expensesAdminData } = await supabase
               .from('expenses_admins')
               .select('email')
-              .eq('email', userEmail)
+              .ilike('email', userEmail)
               .maybeSingle();
 
             if (expensesAdminData) {
@@ -271,7 +271,11 @@ const Dashboard: React.FC = () => {
               .ilike('email', userEmail)
               .maybeSingle();
 
-            if (tenantData && !error) {
+            if (error) {
+              logger.error('[Auth] Error querying tenants table:', error.message, error.code);
+            }
+
+            if (tenantData) {
               // Link Auth UID to tenant record if missing or different
               if (!tenantData.user_id || tenantData.user_id !== session.user.id) {
                 await supabase
@@ -293,9 +297,9 @@ const Dashboard: React.FC = () => {
               setIsAuthenticated(true);
               logger.log('[Auth] User authenticated as TENANT.');
             } else {
-              logger.warn('[Auth] Unauthorized access attempt for ' + userEmail);
+              logger.warn('[Auth] No tenant/admin/expenses_admin record found for: ' + userEmail);
               await signOut();
-              handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está registrado como administrador ni inquilino.`);
+              handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está registrado como administrador ni inquilino. Contactá a la administración.`);
               setIsAuthenticated(false);
               setCurrentUser(null);
             }
