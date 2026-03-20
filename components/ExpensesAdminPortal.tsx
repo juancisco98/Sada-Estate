@@ -9,8 +9,9 @@ import { MONTH_NAMES } from '../constants';
 import {
     LogOut, Bell, Upload, FileSpreadsheet, CheckCircle,
     AlertCircle, Users, Clock, ArrowLeftRight,
-    ChevronLeft, ChevronRight, Home
+    ChevronLeft, ChevronRight, Home, Sun, Moon
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import ExpensesTenantDetail from './expenses/ExpensesTenantDetail';
 
 interface ExpensesAdminPortalProps {
@@ -47,6 +48,7 @@ const matchSheetToTenant = (identifier: string, tenants: Tenant[]): Tenant | und
 
 const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, onLogout, onSwitchMode }) => {
     const { tenants, payments, setPayments, properties, buildings, expenseSheets, setExpenseSheets, notifications, markNotificationRead, markAllNotificationsRead } = useDataContext();
+    const { theme, toggleTheme } = useTheme();
 
     // Filtro: solo inquilinos del edificio Vélez Sársfield 134
     const velezBuilding = useMemo(() =>
@@ -481,6 +483,14 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                             </div>
                         )}
                     </div>
+
+                    <button
+                        onClick={toggleTheme}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+                    >
+                        {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+                    </button>
 
                     {onSwitchMode && (
                         <button
