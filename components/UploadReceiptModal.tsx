@@ -42,17 +42,32 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     // ── Expense sheet data ──────────────────────────────────────────────────
     const sheetTotal = useMemo(() => {
         if (!expenseSheet?.sheetData?.length) return 0;
-        const row8 = expenseSheet.sheetData[8] || [];
-        return row8
-            .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
-            .find((n: number) => !isNaN(n) && n > 0) || 0;
+        // 1. Buscar fila con "TOTAL"
+        for (const row of expenseSheet.sheetData) {
+            const hasTotal = (row as any[]).some((c: any) => String(c ?? '').toUpperCase().includes('TOTAL'));
+            if (hasTotal) {
+                const num = (row as any[])
+                    .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
+                    .filter((n: number) => !isNaN(n) && n > 0)
+                    .sort((a: number, b: number) => b - a)[0];
+                if (num) return num;
+            }
+        }
+        // 2. Fallback: el mayor número de la hoja
+        let max = 0;
+        for (const row of expenseSheet.sheetData) {
+            for (const cell of row as any[]) {
+                const n = typeof cell === 'number' ? cell : parseFloat(String(cell).replace(/[^0-9.,]/g, '').replace(',', '.'));
+                if (!isNaN(n) && n > max) max = n;
+            }
+        }
+        return max;
     }, [expenseSheet]);
 
-    const conceptRows = useMemo(() => {
+    // Todas las filas originales del Excel, sin filtrar
+    const allSheetRows = useMemo(() => {
         if (!expenseSheet?.sheetData?.length) return [];
-        return expenseSheet.sheetData.slice(8).filter((row: any[]) =>
-            row.some((cell: any) => cell !== '' && cell !== null && cell !== undefined)
-        );
+        return expenseSheet.sheetData;
     }, [expenseSheet]);
 
     // ── Form state ──────────────────────────────────────────────────────────
@@ -158,12 +173,44 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
         setShowConfirm(true);
     };
 
-    const handleDownloadSheet = () => {
+    const handleDownloadExcel = () => {
         if (!expenseSheet) return;
         const ws = XLSX.utils.aoa_to_sheet(expenseSheet.sheetData || []);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, expenseSheet.sheetName || 'Expensas');
         XLSX.writeFile(wb, `Expensas_${MONTH_NAMES[month - 1]}_${year}.xlsx`);
+    };
+
+    const handleDownloadPDF = () => {
+        if (!expenseSheet?.sheetData?.length) return;
+        const monthName = MONTH_NAMES[month - 1];
+        const rows = expenseSheet.sheetData;
+        // Renderizar TODAS las filas exactamente como vienen del Excel original
+        const tableRows = rows.map((row: any[]) => {
+            const cells = (row as any[]).map((cell: any) => {
+                const val = cell !== null && cell !== undefined ? String(cell) : '';
+                return `<td style="border:1px solid #ddd;padding:6px 10px;white-space:nowrap;">${val}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Liquidación ${monthName} ${year}</title>
+<style>body{font-family:Arial,sans-serif;margin:20px;color:#333}h1{font-size:18px;margin-bottom:4px}p{font-size:13px;color:#666;margin-bottom:16px}
+table{border-collapse:collapse;width:100%;font-size:12px}td{border:1px solid #ddd;padding:6px 10px}
+.total-box{margin-top:16px;text-align:right;font-size:16px;font-weight:bold}
+@media print{body{margin:10px}}</style></head>
+<body><h1>Liquidación de Expensas — ${monthName} ${year}</h1>
+<p>${tenant.name} · ${property?.address || ''}</p>
+<table>${tableRows}</table>
+${sheetTotal > 0 ? `<div class="total-box">Total: $${sheetTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>` : ''}
+</body></html>`;
+
+        const win = window.open('', '_blank');
+        if (win) {
+            win.document.write(html);
+            win.document.close();
+            setTimeout(() => win.print(), 400);
+        }
     };
 
     return (
@@ -290,13 +337,22 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                                     <FileSpreadsheet className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                                                     <span className="text-sm font-bold text-violet-800 dark:text-violet-300">Liquidación de expensas</span>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleDownloadSheet}
-                                                    className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-white dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
-                                                >
-                                                    <Download className="w-3 h-3" /> Descargar
-                                                </button>
+                                                <div className="flex items-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleDownloadPDF}
+                                                        className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-white dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
+                                                    >
+                                                        <Download className="w-3 h-3" /> PDF
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleDownloadExcel}
+                                                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 bg-white dark:bg-white/5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 transition-colors"
+                                                    >
+                                                        <FileSpreadsheet className="w-3 h-3" /> Excel
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {/* Total prominente */}
@@ -309,23 +365,25 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                                 </div>
                                             )}
 
-                                            {/* Desglose */}
-                                            {conceptRows.length > 0 && (
-                                                <div className="max-h-48 overflow-auto">
+                                            {/* Desglose completo */}
+                                            {allSheetRows.length > 0 && (
+                                                <div className="max-h-64 overflow-auto">
                                                     <table className="w-full text-[11px]">
                                                         <tbody>
-                                                            {conceptRows.map((row: any[], ri: number) => {
-                                                                const cells = (row as any[]).filter((c: any) => c !== '' && c !== null && c !== undefined);
-                                                                if (cells.length === 0) return null;
-                                                                const isTotal = cells.some((c: any) => String(c).toUpperCase().includes('TOTAL'));
+                                                            {allSheetRows.map((row: any[], ri: number) => {
+                                                                const isTotal = (row as any[]).some((c: any) => String(c ?? '').toUpperCase().includes('TOTAL'));
+                                                                const isFirstRow = ri === 0;
                                                                 return (
                                                                     <tr
                                                                         key={ri}
-                                                                        className={isTotal
-                                                                            ? 'bg-slate-100 dark:bg-white/5 font-bold'
-                                                                            : ri % 2 === 0
-                                                                                ? 'bg-slate-50/50 dark:bg-white/[0.02]'
-                                                                                : ''
+                                                                        className={
+                                                                            isTotal
+                                                                                ? 'bg-violet-50 dark:bg-violet-500/10 font-bold'
+                                                                                : isFirstRow
+                                                                                    ? 'bg-slate-100 dark:bg-white/5 font-semibold'
+                                                                                    : ri % 2 === 0
+                                                                                        ? 'bg-slate-50/50 dark:bg-white/[0.02]'
+                                                                                        : ''
                                                                         }
                                                                     >
                                                                         {(row as any[]).map((cell, ci) => (

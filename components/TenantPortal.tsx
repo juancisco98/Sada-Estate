@@ -263,10 +263,26 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         const sheet = tenantExpenseSheetsThisYear.find(s => s.month === index + 1);
                         const sheetTotal = (() => {
                             if (!sheet?.sheetData?.length) return 0;
-                            const row8 = sheet.sheetData[8] || [];
-                            return row8
-                                .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
-                                .find((n: number) => !isNaN(n) && n > 0) || 0;
+                            // Buscar fila con "TOTAL"
+                            for (const row of sheet.sheetData) {
+                                const hasTotal = (row as any[]).some((c: any) => String(c ?? '').toUpperCase().includes('TOTAL'));
+                                if (hasTotal) {
+                                    const num = (row as any[])
+                                        .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
+                                        .filter((n: number) => !isNaN(n) && n > 0)
+                                        .sort((a: number, b: number) => b - a)[0];
+                                    if (num) return num;
+                                }
+                            }
+                            // Fallback: mayor número
+                            let max = 0;
+                            for (const row of sheet.sheetData) {
+                                for (const cell of row as any[]) {
+                                    const n = typeof cell === 'number' ? cell : parseFloat(String(cell).replace(/[^0-9.,]/g, '').replace(',', '.'));
+                                    if (!isNaN(n) && n > max) max = n;
+                                }
+                            }
+                            return max;
                         })();
 
                         return (
