@@ -289,6 +289,7 @@ const Dashboard: React.FC = () => {
             .from('tenants')
             .select('*')
             .ilike('email', userEmail)
+            .limit(1)
             .maybeSingle();
 
           console.log('[Auth] Step 4 result:', { found: !!tenantData, error: tenantErr?.message || null, code: tenantErr?.code || null });
