@@ -152,6 +152,15 @@ export interface ExpenseSheet {
   uploadedBy: string;
 }
 
+export interface ExpensesAdmin {
+  id: string;
+  email: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  deactivatedAt: string | null;
+}
+
 export interface AppNotification {
   id: string;
   recipientEmail: string;

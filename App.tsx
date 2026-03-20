@@ -39,6 +39,7 @@ const TenantsView = lazy(() => import('./components/TenantsView'));
 const RemindersView = lazy(() => import('./components/RemindersView'));
 const TenantPortal = lazy(() => import('./components/TenantPortal'));
 const ExpensesAdminPortal = lazy(() => import('./components/ExpensesAdminPortal'));
+const AdminSettings = lazy(() => import('./components/AdminSettings'));
 
 
 const Dashboard: React.FC = () => {
@@ -150,7 +151,7 @@ const Dashboard: React.FC = () => {
       const viewParam = params.get('view') as ViewState;
       const propertyIdParam = params.get('property');
 
-      if (viewParam && ['MAP', 'OVERVIEW', 'FINANCE', 'PROFESSIONALS', 'TENANTS', 'REMINDERS'].includes(viewParam)) {
+      if (viewParam && ['MAP', 'OVERVIEW', 'FINANCE', 'PROFESSIONALS', 'TENANTS', 'REMINDERS', 'SETTINGS'].includes(viewParam)) {
         setCurrentView(viewParam);
       }
 
@@ -262,6 +263,8 @@ const Dashboard: React.FC = () => {
               .from('expenses_admins')
               .select('email')
               .ilike('email', userEmail)
+              .eq('active', true)
+              .limit(1)
               .maybeSingle();
 
             console.log('[Auth] Step 3 result:', { found: !!expensesAdminData, error: expErr?.message || null });
@@ -692,6 +695,16 @@ const Dashboard: React.FC = () => {
                   onDismissSmartAction={dismissSmartAction}
                   smartActionLoading={smartActionLoading}
                 />
+              </Suspense>
+            </div>
+          </div>
+        );
+      case 'SETTINGS':
+        return (
+          <div className="h-full overflow-y-auto pt-28 px-6 bg-gray-50 dark:bg-slate-900 transition-colors duration-500">
+            <div className="max-w-4xl mx-auto">
+              <Suspense fallback={<div className="p-10 text-center dark:text-white">Cargando ajustes...</div>}>
+                <AdminSettings />
               </Suspense>
             </div>
           </div>

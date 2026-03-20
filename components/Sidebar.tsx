@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck, ArrowLeftRight, Bell } from 'lucide-react';
+import { LayoutDashboard, Wallet, Users, X, Map as MapIcon, LogOut, UserCheck, ArrowLeftRight, Bell, Settings } from 'lucide-react';
 
-export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS' | 'REMINDERS';
+export type ViewState = 'MAP' | 'OVERVIEW' | 'FINANCE' | 'PROFESSIONALS' | 'TENANTS' | 'REMINDERS' | 'SETTINGS';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, onNavig
     { id: 'TENANTS', label: 'Inquilinos', icon: UserCheck },
     { id: 'FINANCE', label: 'Finanzas', icon: Wallet },
     { id: 'PROFESSIONALS', label: 'Profesionales', icon: Users },
+    { id: 'SETTINGS', label: 'Ajustes', icon: Settings },
   ];
 
   return (
