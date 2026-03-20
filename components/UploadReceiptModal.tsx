@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { X, UploadCloud, FileText, AlertTriangle, Loader2, CheckCircle, Clock } from 'lucide-react';
-import { Tenant, TenantPayment, Property } from '../types';
+import React, { useState, useMemo } from 'react';
+import * as XLSX from 'xlsx';
+import { X, UploadCloud, FileText, AlertTriangle, Loader2, CheckCircle, Clock, Download, FileSpreadsheet, Info } from 'lucide-react';
+import { Tenant, TenantPayment, Property, ExpenseSheet } from '../types';
 import { uploadFile } from '../services/storage';
 import { supabase } from '../services/supabaseClient';
 import { logger } from '../utils/logger';
@@ -23,6 +24,7 @@ interface UploadReceiptModalProps {
     tenant: Tenant;
     property: Property | null;
     existingPayment?: TenantPayment;
+    expenseSheet?: ExpenseSheet;
     onClose: () => void;
     onSuccess: (updatedPayment: TenantPayment) => void;
 }
@@ -33,45 +35,54 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     tenant,
     property,
     existingPayment,
+    expenseSheet,
     onClose,
     onSuccess
 }) => {
-    const [rentFile, setRentFile] = useState<File | null>(null);
+    // ── Expense sheet data ──────────────────────────────────────────────────
+    const sheetTotal = useMemo(() => {
+        if (!expenseSheet?.sheetData?.length) return 0;
+        const row8 = expenseSheet.sheetData[8] || [];
+        return row8
+            .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
+            .find((n: number) => !isNaN(n) && n > 0) || 0;
+    }, [expenseSheet]);
+
+    const conceptRows = useMemo(() => {
+        if (!expenseSheet?.sheetData?.length) return [];
+        return expenseSheet.sheetData.slice(8).filter((row: any[]) =>
+            row.some((cell: any) => cell !== '' && cell !== null && cell !== undefined)
+        );
+    }, [expenseSheet]);
+
+    // ── Form state ──────────────────────────────────────────────────────────
     const [expensesFile, setExpensesFile] = useState<File | null>(null);
-    const [deletedRent, setDeletedRent] = useState(false);
     const [deletedExpenses, setDeletedExpenses] = useState(false);
-    const [rentAmount, setRentAmount] = useState(existingPayment?.amount?.toString() || property?.monthlyRent?.toString() || '');
-    const [expenseAmount, setExpenseAmount] = useState(existingPayment?.expenseAmount?.toString() || '');
+    const [expenseAmount, setExpenseAmount] = useState(
+        existingPayment?.expenseAmount?.toString() || (sheetTotal > 0 ? sheetTotal.toString() : '')
+    );
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
     // Only locked when APPROVED — tenant can re-upload when REVISION
     const isLocked = existingPayment?.status === 'APPROVED';
     const isRevision = existingPayment?.status === 'REVISION';
+    const isReturned = existingPayment?.status === 'RETURNED';
 
-    const hasRentProof = rentFile || (!deletedRent && existingPayment?.proofOfPayment);
     const hasExpensesProof = expensesFile || (!deletedExpenses && existingPayment?.proofOfExpenses);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'rent' | 'expenses') => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
-            if (type === 'rent') setRentFile(e.target.files[0]);
-            if (type === 'expenses') setExpensesFile(e.target.files[0]);
+            setExpensesFile(e.target.files[0]);
         }
     };
 
     const handleConfirmSubmit = async () => {
         setIsSubmitting(true);
         try {
-            let rentUrl = deletedRent ? '' : (existingPayment?.proofOfPayment || '');
             let expensesUrl = deletedExpenses ? '' : (existingPayment?.proofOfExpenses || '');
 
             const baseFolder = `tenants/${tenant.id}/${year}-${month}`;
-
-            if (rentFile) {
-                const url = await uploadFile(rentFile, `${baseFolder}/rent`);
-                if (!url) throw new Error('Error al subir el comprobante de alquiler.');
-                rentUrl = url;
-            }
 
             if (expensesFile) {
                 const url = await uploadFile(expensesFile, `${baseFolder}/expenses`);
@@ -85,7 +96,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 id: existingPayment?.id || generateUUID(),
                 tenantId: tenant.id,
                 propertyId: property?.id || null,
-                amount: parseFloat(rentAmount) || existingPayment?.amount || 0,
+                amount: existingPayment?.amount || 0,
                 expenseAmount: expenseAmount ? (parseFloat(expenseAmount) || undefined) : existingPayment?.expenseAmount,
                 currency: property?.currency || 'ARS',
                 month,
@@ -93,7 +104,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 paidOnTime: true,
                 paymentDate: existingPayment?.paymentDate || todayString,
                 paymentMethod: existingPayment?.paymentMethod || 'TRANSFER',
-                proofOfPayment: rentUrl,
+                proofOfPayment: existingPayment?.proofOfPayment || '',
                 proofOfExpenses: expensesUrl,
                 status: 'REVISION',
                 userId: tenant.userId,
@@ -109,7 +120,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 throw new Error(error.message || 'Error al guardar el pago en la base de datos.');
             }
 
-            // Notify all admins (non-blocking — don't let failures abort the payment success)
+            // Notify all admins (non-blocking)
             try {
                 const notifInserts = ALLOWED_EMAILS.map(adminEmail => ({
                     recipient_email: adminEmail,
@@ -121,7 +132,6 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 await supabase.from('notifications').insert(notifInserts);
             } catch (notifError: any) {
                 logger.error('Notifications insert failed (non-blocking):', notifError);
-                // Don't rethrow — payment was already saved successfully
             }
 
             toast.success('Comprobantes enviados correctamente.');
@@ -137,7 +147,6 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
 
     const handleInitiateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Both expense amount and proof are required
         if (!expenseAmount || isNaN(parseFloat(expenseAmount)) || parseFloat(expenseAmount) <= 0) {
             toast.error('Ingresá el monto de las expensas.');
             return;
@@ -149,23 +158,33 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
         setShowConfirm(true);
     };
 
+    const handleDownloadSheet = () => {
+        if (!expenseSheet) return;
+        const ws = XLSX.utils.aoa_to_sheet(expenseSheet.sheetData || []);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, expenseSheet.sheetName || 'Expensas');
+        XLSX.writeFile(wb, `Expensas_${MONTH_NAMES[month - 1]}_${year}.xlsx`);
+    };
+
     return (
         <div
-            className="fixed inset-0 z-[1500] flex items-end sm:items-center justify-center p-4 sm:p-0"
+            className="fixed inset-0 z-[1500] flex items-end sm:items-center justify-center p-0 sm:p-4"
             onClick={onClose}
         >
             <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md transition-opacity"></div>
             <div
-                className="bg-white dark:bg-slate-900 border border-white/40 dark:border-white/10 rounded-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] relative animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 duration-300"
+                className="bg-white dark:bg-slate-900 border border-white/40 dark:border-white/10 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg flex flex-col max-h-[95vh] sm:max-h-[90vh] relative animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 duration-300"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 shrink-0">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 shrink-0 rounded-t-3xl sm:rounded-t-2xl">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-white">
                             {MONTH_NAMES[month - 1]} {year}
                         </h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Carga de comprobantes</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {expenseSheet ? 'Liquidación y carga de comprobante' : 'Carga de comprobante'}
+                        </p>
                     </div>
                     <button
                         onClick={onClose}
@@ -177,12 +196,12 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 </div>
 
                 {/* Body */}
-                <div className="overflow-y-auto">
+                <div className="overflow-y-auto flex-1">
                     {showConfirm ? (
-                        <div className="p-6">
-                            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-5 mb-6 text-center">
-                                <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-                                <h3 className="text-lg font-bold text-amber-800 dark:text-amber-400 mb-2">Atención inquilino</h3>
+                        <div className="p-5">
+                            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-5 mb-5 text-center">
+                                <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+                                <h3 className="text-base font-bold text-amber-800 dark:text-amber-400 mb-2">Atención</h3>
                                 <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
                                     Revisá bien lo que subiste antes de confirmar.<br /><br />
                                     Una vez entregado, el mes quedará en estado de <b>Revisión</b> para la administración.
@@ -195,7 +214,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                     disabled={isSubmitting}
                                     className="flex-1 py-3 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all disabled:opacity-50 active:scale-95"
                                 >
-                                    Volver y revisar
+                                    Volver
                                 </button>
                                 <button
                                     onClick={handleConfirmSubmit}
@@ -211,7 +230,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                             </div>
                         </div>
                     ) : (
-                        <form onSubmit={handleInitiateSubmit} className="p-6">
+                        <form onSubmit={handleInitiateSubmit} className="p-5 space-y-4">
 
                             {isLocked ? (
                                 /* APPROVED — locked */
@@ -219,104 +238,131 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                     <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3">
                                         <CheckCircle className="w-6 h-6" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-400 mb-1">Pago aprobado ✓</h3>
+                                    <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-400 mb-1">Pago aprobado</h3>
                                     <p className="text-sm text-emerald-700 dark:text-emerald-300">
                                         La administración aprobó tu pago de {MONTH_NAMES[month - 1]} {year}.
                                     </p>
-                                    {(existingPayment?.proofOfPayment || existingPayment?.proofOfExpenses) && (
-                                        <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-500/20">
-                                            {existingPayment.proofOfPayment && (
-                                                <a href={existingPayment.proofOfPayment} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                                                    <FileText className="w-4 h-4" /> Ver Alquiler
-                                                </a>
-                                            )}
-                                            {existingPayment.proofOfExpenses && (
-                                                <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                                                    <FileText className="w-4 h-4" /> Ver Expensas
-                                                </a>
-                                            )}
+                                    {existingPayment?.proofOfExpenses && (
+                                        <div className="flex items-center justify-center mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-500/20">
+                                            <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                                                <FileText className="w-4 h-4" /> Ver comprobante
+                                            </a>
                                         </div>
                                     )}
                                 </div>
                             ) : (
-                                <div className="space-y-6">
-                                    {/* REVISION banner */}
+                                <div className="space-y-4">
+                                    {/* Status banners */}
                                     {isRevision && (
-                                        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 flex items-start gap-3">
+                                        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-3.5 flex items-start gap-3">
                                             <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                                             <div>
-                                                <p className="text-sm font-bold text-amber-800 dark:text-amber-400">Pago en revisión</p>
+                                                <p className="text-sm font-bold text-amber-800 dark:text-amber-400">En revisión</p>
                                                 <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                                                    La administración requiere que revises tus comprobantes. Podés subir nuevos archivos o confirmar los actuales.
+                                                    Tu comprobante está siendo revisado por la administración.
                                                 </p>
                                             </div>
                                         </div>
                                     )}
-
-                                    {/* ALQUILER — OCULTO TEMPORALMENTE (descomentar si se reactiva) */}
-                                    {false && (
-                                    <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Alquiler</h3>
-                                            {hasRentProof && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Comprobante cargado</span>}
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Monto abonado</label>
-                                            <div className="relative">
-                                                <span className="absolute left-4 top-3 text-slate-500 dark:text-slate-400 font-bold">$</span>
-                                                <input
-                                                    type="number"
-                                                    value={rentAmount}
-                                                    onChange={(e) => setRentAmount(e.target.value)}
-                                                    placeholder="Ingresá el monto del alquiler"
-                                                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800"
-                                                />
+                                    {isReturned && (
+                                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-2xl p-3.5 flex items-start gap-3">
+                                            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm font-bold text-red-800 dark:text-red-400">Comprobante devuelto</p>
+                                                <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
+                                                    La administración requiere que subas un nuevo comprobante.
+                                                </p>
+                                                {existingPayment?.notes && (
+                                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1.5 italic font-medium">
+                                                        Motivo: {existingPayment.notes}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Comprobante</label>
-                                            {existingPayment?.proofOfPayment && !deletedRent && (
-                                                <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
-                                                    <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                                                        <FileText className="w-4 h-4" />
-                                                        {rentFile ? 'Reemplazando archivo...' : 'Alquiler subido'}
-                                                    </span>
-                                                    <div className="flex items-center gap-3">
-                                                        <a href={existingPayment.proofOfPayment} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
-                                                        <button type="button" onClick={() => { setDeletedRent(true); setRentFile(null); }} className="text-red-400 hover:text-red-600 transition-colors" title="Eliminar archivo">
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <label className="flex flex-col items-center justify-center w-full h-16 border-2 border-slate-200 dark:border-white/20 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
-                                                <div className="flex items-center gap-2 py-3">
-                                                    {rentFile ? (
-                                                        <>
-                                                            <FileText className="w-4 h-4 text-indigo-500" />
-                                                            <p className="text-xs font-medium text-slate-800 dark:text-white truncate max-w-[200px]">{rentFile.name}</p>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <UploadCloud className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                                                {existingPayment?.proofOfPayment ? 'Subir nuevo archivo de alquiler' : 'Adjuntar comprobante de alquiler'}
-                                                            </p>
-                                                        </>
-                                                    )}
-                                                </div>
-                                                <input type="file" className="hidden" accept="*/*" onChange={(e) => handleFileChange(e, 'rent')} />
-                                            </label>
-                                        </div>
-                                    </div>
                                     )}
 
-                                    {/* EXPENSAS */}
+                                    {/* ── LIQUIDACIÓN (hoja de Nora) ──────────────────────── */}
+                                    {expenseSheet ? (
+                                        <div className="border border-violet-200 dark:border-violet-500/20 rounded-2xl overflow-hidden">
+                                            {/* Sheet header */}
+                                            <div className="bg-violet-50 dark:bg-violet-500/10 px-4 py-3 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <FileSpreadsheet className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                                                    <span className="text-sm font-bold text-violet-800 dark:text-violet-300">Liquidación de expensas</span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleDownloadSheet}
+                                                    className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-white dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
+                                                >
+                                                    <Download className="w-3 h-3" /> Descargar
+                                                </button>
+                                            </div>
+
+                                            {/* Total prominente */}
+                                            {sheetTotal > 0 && (
+                                                <div className="bg-violet-100/60 dark:bg-violet-500/15 px-4 py-3 flex items-center justify-between border-b border-violet-200 dark:border-violet-500/20">
+                                                    <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">Total a pagar</span>
+                                                    <span className="text-lg font-black text-violet-900 dark:text-violet-200 tabular-nums">
+                                                        ${sheetTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* Desglose */}
+                                            {conceptRows.length > 0 && (
+                                                <div className="max-h-48 overflow-auto">
+                                                    <table className="w-full text-[11px]">
+                                                        <tbody>
+                                                            {conceptRows.map((row: any[], ri: number) => {
+                                                                const cells = (row as any[]).filter((c: any) => c !== '' && c !== null && c !== undefined);
+                                                                if (cells.length === 0) return null;
+                                                                const isTotal = cells.some((c: any) => String(c).toUpperCase().includes('TOTAL'));
+                                                                return (
+                                                                    <tr
+                                                                        key={ri}
+                                                                        className={isTotal
+                                                                            ? 'bg-slate-100 dark:bg-white/5 font-bold'
+                                                                            : ri % 2 === 0
+                                                                                ? 'bg-slate-50/50 dark:bg-white/[0.02]'
+                                                                                : ''
+                                                                        }
+                                                                    >
+                                                                        {(row as any[]).map((cell, ci) => (
+                                                                            <td
+                                                                                key={ci}
+                                                                                className="border border-slate-100 dark:border-white/10 px-2 py-1 text-slate-700 dark:text-slate-300 whitespace-nowrap"
+                                                                            >
+                                                                                {cell !== null && cell !== undefined ? String(cell) : ''}
+                                                                            </td>
+                                                                        ))}
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 flex items-center gap-3">
+                                            <Info className="w-5 h-5 text-slate-400 dark:text-slate-500 shrink-0" />
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                La liquidación de este mes aún no fue cargada por la administración.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* ── COMPROBANTE DE PAGO ─────────────────────────────── */}
                                     <div className="border border-slate-200 dark:border-white/10 rounded-2xl p-4 space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Expensas <span className="text-xs font-normal text-red-400">*obligatorio</span></h3>
-                                            {hasExpensesProof && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Comprobante cargado</span>}
+                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                                                Comprobante de pago <span className="text-xs font-normal text-red-400">*obligatorio</span>
+                                            </h3>
+                                            {hasExpensesProof && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Cargado</span>}
                                         </div>
+
+                                        {/* Monto */}
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Monto abonado</label>
                                             <div className="relative">
@@ -325,18 +371,20 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                                     type="number"
                                                     value={expenseAmount}
                                                     onChange={(e) => setExpenseAmount(e.target.value)}
-                                                    placeholder="Ingresá el monto de expensas"
+                                                    placeholder="Ingresá el monto abonado"
                                                     className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800"
                                                 />
                                             </div>
                                         </div>
+
+                                        {/* File upload */}
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Comprobante</label>
                                             {existingPayment?.proofOfExpenses && !deletedExpenses && (
                                                 <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 mb-2">
                                                     <span className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
                                                         <FileText className="w-4 h-4" />
-                                                        {expensesFile ? 'Reemplazando archivo...' : 'Expensas subidas'}
+                                                        {expensesFile ? 'Reemplazando archivo...' : 'Comprobante subido'}
                                                     </span>
                                                     <div className="flex items-center gap-3">
                                                         <a href={existingPayment.proofOfExpenses} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:underline">Ver</a>
@@ -351,28 +399,29 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                                                     {expensesFile ? (
                                                         <>
                                                             <FileText className="w-4 h-4 text-violet-500" />
-                                                            <p className="text-xs font-medium text-slate-800 dark:text-white truncate max-w-[200px]">{expensesFile.name}</p>
+                                                            <p className="text-xs font-medium text-slate-800 dark:text-white truncate max-w-[220px]">{expensesFile.name}</p>
                                                         </>
                                                     ) : (
                                                         <>
                                                             <UploadCloud className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                                                             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                                                {existingPayment?.proofOfExpenses ? 'Subir nuevo archivo de expensas' : 'Adjuntar comprobante de expensas'}
+                                                                {existingPayment?.proofOfExpenses ? 'Subir nuevo comprobante' : 'Adjuntar comprobante de pago'}
                                                             </p>
                                                         </>
                                                     )}
                                                 </div>
-                                                <input type="file" className="hidden" accept="*/*" onChange={(e) => handleFileChange(e, 'expenses')} />
+                                                <input type="file" className="hidden" accept="*/*" onChange={handleFileChange} />
                                             </label>
                                         </div>
                                     </div>
 
-                                    <div className="pt-2">
+                                    {/* Submit */}
+                                    <div className="pt-1">
                                         <button
                                             type="submit"
                                             className="w-full py-3 bg-indigo-600 rounded-2xl text-white font-bold hover:bg-indigo-700 transition-all active:scale-95"
                                         >
-                                            Enviar Comprobantes
+                                            Enviar Comprobante
                                         </button>
                                     </div>
                                 </div>

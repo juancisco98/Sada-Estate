@@ -81,7 +81,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             id: editingTenantId || generateUUID(),
             name: newTenant.name.trim(),
             phone: newTenant.phone.trim(),
-            email: newTenant.email.trim(),
+            email: newTenant.email.trim().toLowerCase(),
             propertyId: newTenant.propertyId || null,
         };
         onSaveTenant(tenant);

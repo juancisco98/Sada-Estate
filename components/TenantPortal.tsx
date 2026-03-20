@@ -5,8 +5,7 @@ import { MONTH_NAMES } from '../constants';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import UploadReceiptModal from './UploadReceiptModal';
-import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell, RotateCcw, Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell, RotateCcw } from 'lucide-react';
 
 interface Notification {
     id: string;
@@ -261,6 +260,14 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                     {MONTH_NAMES.map((monthName, index) => {
                         const status = getMonthStatus(index);
                         const payment = tenantPaymentsThisYear.find(p => p.month === index + 1);
+                        const sheet = tenantExpenseSheetsThisYear.find(s => s.month === index + 1);
+                        const sheetTotal = (() => {
+                            if (!sheet?.sheetData?.length) return 0;
+                            const row8 = sheet.sheetData[8] || [];
+                            return row8
+                                .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
+                                .find((n: number) => !isNaN(n) && n > 0) || 0;
+                        })();
 
                         return (
                             <button
@@ -308,10 +315,10 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                         </>
                                     )}
                                 </div>
-                                {payment?.expenseAmount && payment.expenseAmount > 0 && (
+                                {sheetTotal > 0 && (
                                     <div className="mt-3 pt-2.5 border-t border-black/5 dark:border-white/10 w-full text-center">
-                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Expensas</span>
-                                        <span className="block text-[13px] font-extrabold text-slate-700 dark:text-slate-200 tabular-nums">${payment.expenseAmount.toLocaleString('es-AR')}</span>
+                                        <span className="text-[10px] text-violet-500 dark:text-violet-400 uppercase tracking-wider font-medium">Expensas</span>
+                                        <span className="block text-[13px] font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">${sheetTotal.toLocaleString('es-AR')}</span>
                                     </div>
                                 )}
                                 {status === 'RETURNED' && payment?.notes && (
@@ -352,112 +359,6 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                     })}
                 </div>
 
-                {/* Detalle de Expensas — tabla cargada por Nora */}
-                {tenantExpenseSheetsThisYear.length > 0 && (
-                    <div className="mt-8 space-y-4">
-                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                            Detalle de Expensas {currentYear}
-                        </h3>
-                        {tenantExpenseSheetsThisYear
-                            .sort((a, b) => a.month - b.month)
-                            .map(sheet => {
-                                const rows = sheet.sheetData || [];
-                                // Extraer info clave del Excel
-                                const row7 = (rows[7] || []).map((c: any) => String(c ?? '').trim()).filter(Boolean).join(' ');
-                                const row8 = rows[8] || [];
-                                const totalAmount = row8
-                                    .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
-                                    .find((n: number) => !isNaN(n) && n > 0) || 0;
-
-                                // Filas de conceptos: desde fila 8 en adelante, filtrar filas vacías
-                                const conceptRows = rows.slice(8).filter((row: any[]) =>
-                                    row.some((cell: any) => cell !== '' && cell !== null && cell !== undefined)
-                                );
-
-                                return (
-                                    <div key={sheet.id} className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-white/10 overflow-hidden shadow-sm">
-                                        {/* Header */}
-                                        <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 flex items-center justify-between">
-                                            <span className="text-sm font-bold text-slate-800 dark:text-white">
-                                                {MONTH_NAMES[sheet.month - 1]} {sheet.year}
-                                            </span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xs text-slate-400">Actualizado: {sheet.uploadedAt ? new Date(sheet.uploadedAt).toLocaleDateString('es-AR') : '—'}</span>
-                                                <button
-                                                    onClick={() => {
-                                                        const ws = XLSX.utils.aoa_to_sheet(sheet.sheetData || []);
-                                                        const wb = XLSX.utils.book_new();
-                                                        XLSX.utils.book_append_sheet(wb, ws, sheet.sheetName || 'Expensas');
-                                                        XLSX.writeFile(wb, `Expensas_${MONTH_NAMES[sheet.month - 1]}_${sheet.year}.xlsx`);
-                                                    }}
-                                                    className="flex items-center gap-1 text-xs font-medium text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
-                                                >
-                                                    <Download className="w-3.5 h-3.5" /> Descargar
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {rows.length === 0 ? (
-                                            <p className="text-sm text-slate-400 text-center py-6">Sin datos</p>
-                                        ) : (
-                                            <div className="p-4 space-y-3">
-                                                {/* Inquilino + unidad */}
-                                                {row7 && (
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400">{row7}</p>
-                                                )}
-
-                                                {/* Monto total prominente */}
-                                                {totalAmount > 0 && (
-                                                    <div className="bg-violet-50 dark:bg-violet-500/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                                        <span className="text-sm font-semibold text-violet-800 dark:text-violet-300">Total a pagar</span>
-                                                        <span className="text-lg font-black text-violet-900 dark:text-violet-200">
-                                                            ${totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* Conceptos */}
-                                                {conceptRows.length > 0 && (
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-xs">
-                                                            <tbody>
-                                                                {conceptRows.map((row: any[], ri: number) => {
-                                                                    const cells = (row as any[]).filter((c: any) => c !== '' && c !== null && c !== undefined);
-                                                                    if (cells.length === 0) return null;
-                                                                    const isTotal = cells.some((c: any) => String(c).toUpperCase().includes('TOTAL'));
-                                                                    return (
-                                                                        <tr
-                                                                            key={ri}
-                                                                            className={isTotal
-                                                                                ? 'bg-slate-100 dark:bg-white/5 font-bold'
-                                                                                : ri % 2 === 0
-                                                                                    ? 'bg-slate-50/50 dark:bg-white/[0.02]'
-                                                                                    : ''
-                                                                            }
-                                                                        >
-                                                                            {(row as any[]).map((cell, ci) => (
-                                                                                <td
-                                                                                    key={ci}
-                                                                                    className="border border-slate-100 dark:border-white/10 px-3 py-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap"
-                                                                                >
-                                                                                    {cell !== null && cell !== undefined ? String(cell) : ''}
-                                                                                </td>
-                                                                            ))}
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        }
-                    </div>
-                )}
             </main>
 
             {/* MODAL Carga de comprobantes */}
@@ -468,6 +369,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                     tenant={tenantRecord}
                     property={tenantProperty}
                     existingPayment={tenantPaymentsThisYear.find(p => p.month === selectedMonth)}
+                    expenseSheet={tenantExpenseSheetsThisYear.find(s => s.month === selectedMonth)}
                     onClose={() => setSelectedMonth(null)}
                     onSuccess={handleUploadComplete}
                 />

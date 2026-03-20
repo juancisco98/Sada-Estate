@@ -268,7 +268,7 @@ const Dashboard: React.FC = () => {
             const { data: tenantData, error } = await supabase
               .from('tenants')
               .select('*')
-              .eq('email', userEmail)
+              .ilike('email', userEmail)
               .maybeSingle();
 
             if (tenantData && !error) {

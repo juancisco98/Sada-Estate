@@ -164,7 +164,7 @@ export const tenantToDb = (t: Tenant): Record<string, unknown> => ({
     id: t.id,
     name: t.name,
     phone: t.phone,
-    email: t.email,
+    email: t.email?.toLowerCase() || '',
     property_id: t.propertyId || null,
     user_id: t.userId || undefined,
 });

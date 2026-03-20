@@ -81,14 +81,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         [payments, velezPropertyIds]
     );
 
-    useEffect(() => {
-        console.log(`[ExpensesPortal] Building: ${velezBuilding?.id || 'NOT FOUND'}. VelezProps: ${velezPropertyIds.size}, Tenants: ${filteredTenants.length}, Total tenants: ${tenants.length}`);
-        if (filteredTenants.length === 0 && tenants.length > 0) {
-            console.log('[ExpensesPortal] Tenants sin match:', tenants.map(t => ({ id: t.id, name: t.name, propertyId: t.propertyId })));
-            console.log('[ExpensesPortal] Properties:', properties.map(p => ({ id: p.id, address: p.address, buildingId: p.buildingId })));
-        }
-    }, [velezBuilding, velezPropertyIds, filteredTenants, tenants, properties]);
-
     // ── State ────────────────────────────────────────────────────────────────
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
     const [showUploadSection, setShowUploadSection] = useState(false);
