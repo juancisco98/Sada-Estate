@@ -14,8 +14,9 @@ Sada Estate es una aplicación de gestión de propiedades en alquiler para uso f
 - Portal exclusivo para inquilinos donde pueden subir comprobantes de pago
 - Aprobación de comprobantes por parte del admin con flujo PENDING → REVISION → APPROVED
 
-**Dos sesiones de usuario:**
+**Tres sesiones de usuario:**
 - **ADMIN**: Emails en `allowed_emails` table (juan.sada98@gmail.com, svsistemas@yahoo.com, antovent64@gmail.com). Acceso total.
+- **EXPENSES_ADMIN**: Emails en `expenses_admins` table (ej: Nora). Solo ve el portal de gestión de expensas (`ExpensesAdminPortal.tsx`).
 - **TENANT**: Cualquier email registrado en la tabla `tenants`. Solo ve su portal de pagos (`TenantPortal.tsx`).
 
 **Stack técnico:**
@@ -57,6 +58,9 @@ Componentes UI (TenantsView, TenantPortal, DashboardViews, etc.)
 | `types.ts` | Todas las interfaces TypeScript de la app |
 | `types/dbRows.ts` | Tipos de las filas de DB (snake_case) |
 | `constants.ts` | `ALLOWED_EMAILS`, `MONTH_NAMES`, `MAP_CENTER`, etc. |
+| `components/ExpensesAdminPortal.tsx` | Portal CRM para admin de expensas (Nora) |
+| `components/expenses/ExpensesTenantDetail.tsx` | Vista detalle inquilino en admin expensas |
+| `components/UploadReceiptModal.tsx` | Modal inquilino: ver liquidación + subir comprobante |
 
 ### Tablas Supabase
 - `allowed_emails` — whitelist de admins
@@ -66,6 +70,9 @@ Componentes UI (TenantsView, TenantPortal, DashboardViews, etc.)
 - `tenant_payments` — pagos mensuales (id: UUID, status: PENDING|REVISION|APPROVED)
 - `professionals` — profesionales de mantenimiento
 - `maintenance_tasks` — tareas de mantenimiento
+- `expense_sheets` — hojas de liquidación de expensas (sheet_data: JSONB con filas del Excel)
+- `expenses_admins` — whitelist de admins de expensas (Nora)
+- `notifications` — notificaciones para admins e inquilinos
 
 ### RLS (Row Level Security)
 - Admins: acceso total via subquery `(auth.jwt() ->> 'email') IN (SELECT email FROM allowed_emails)`
@@ -149,6 +156,26 @@ className="... shrink-0"
 - Nomenclatura: `dbToX()` para DB→App, `XToDb()` para App→DB.
 - Los tipos de DB viven en `types/dbRows.ts` (snake_case).
 - Los tipos de la app viven en `types.ts` (camelCase).
+
+### Emails — normalización obligatoria
+- Al guardar emails en Supabase: `email.trim().toLowerCase()`
+- Al comparar emails en queries JS: usar `.ilike('email', x)` NUNCA `.eq('email', x)`
+- En RLS policies de PostgreSQL: `LOWER(email) = LOWER(auth.jwt() ->> 'email')`
+- **Por qué**: Google OAuth devuelve emails en minúsculas. Si el email almacenado tiene mayúsculas, la comparación case-sensitive falla silenciosamente.
+
+### Queries con `.maybeSingle()` — CRÍTICO
+- **SIEMPRE** agregar `.limit(1)` antes de `.maybeSingle()`: `.ilike('email', x).limit(1).maybeSingle()`
+- **Por qué**: Si hay filas duplicadas, `.maybeSingle()` devuelve error `PGRST116` ("Results contain N rows") en vez de `null`. Esto causa "Acceso denegado" falso.
+- Al ver error `PGRST116` en consola → buscar filas duplicadas inmediatamente.
+
+### Datos de Excel — NUNCA hardcodear índices
+- **NUNCA** usar `sheetData[8]` o `sheetData.slice(N)` para extraer datos de un Excel.
+- **SIEMPRE** buscar dinámicamente: buscar fila que contiene "TOTAL" para el total, y mostrar TODAS las filas al usuario.
+- **Por qué**: Cada archivo Excel puede tener un formato diferente. Hardcodear rompe cuando el formato cambia.
+
+### Logging en flujos críticos
+- Para **autenticación** y flujos de login: usar `console.log/error/warn` directo, NO `logger`.
+- **Por qué**: `logger` (en `utils/logger.ts`) solo imprime cuando `import.meta.env.DEV === true`. En producción (Vercel), los logs son silenciados y no se puede diagnosticar problemas.
 
 ### Herramienta Write vs Edit
 - **SIEMPRE** usar el tool `Read` antes de `Write` o `Edit` en un archivo existente.
@@ -249,6 +276,50 @@ Esta sección se actualiza automáticamente cuando Claude comete un error que el
 **Regla derivada:** Toda entidad que agrupa sub-entidades (edificio→unidades, profesional→tareas) debe ofrecer una acción para agregar sub-entidades desde la vista de detalle de la entidad padre. Usar una prop como `targetBuilding` para pre-configurar el modal de creación.
 
 **Archivos afectados:** `components/BuildingCard.tsx`, `components/AddPropertyModal.tsx`, `App.tsx`
+
+---
+
+### Lección 9 — RLS policies case-sensitive bloquean login de inquilinos
+**Qué pasó:** `sadajuan98@gmail.com` estaba registrado como inquilino pero recibía "Acceso denegado" al intentar ingresar. El diagnóstico tomó varios intentos porque los logs no aparecían en producción.
+
+**Causa raíz:** TODAS las RLS policies de PostgreSQL usaban `email = (auth.jwt() ->> 'email')`, que es comparación case-sensitive. Google OAuth devuelve el email normalizado a minúsculas. Si el email en la BD tenía alguna mayúscula diferente, RLS bloqueaba la lectura y la query devolvía `null` — indistinguible de "no existe".
+
+**Regla derivada:** Toda RLS policy que compare emails DEBE usar `LOWER()` en ambos lados. Toda query JS que busque por email DEBE usar `.ilike()`. Al dar de alta inquilinos, normalizar: `email.trim().toLowerCase()`. Ver convención "Emails" en Guía de Estilo.
+
+**Archivos afectados:** `supabase/migrations/`, `supabase_rls_policies.sql`, `App.tsx`, `components/TenantsView.tsx`, `utils/mappers.ts`
+
+---
+
+### Lección 10 — `.maybeSingle()` falla con PGRST116 si hay filas duplicadas
+**Qué pasó:** Aun después de corregir RLS, el login seguía fallando. La consola mostraba `PGRST116: "Results contain 2 rows"`. Había 2 registros de `sadajuan98@gmail.com` en `tenants`. `.maybeSingle()` de Supabase falla si encuentra más de 1 fila.
+
+**Causa raíz:** No hay constraint UNIQUE en `tenants.email`. El flujo de alta no verificaba duplicados. `.maybeSingle()` sin `.limit(1)` estalla con cualquier duplicado.
+
+**Regla derivada:** SIEMPRE usar `.limit(1)` antes de `.maybeSingle()`. Al ver error PGRST116 en consola, buscar filas duplicadas en la tabla afectada. Ver convención "Queries con `.maybeSingle()`" en Guía de Estilo.
+
+**Archivos afectados:** `App.tsx`
+
+---
+
+### Lección 11 — `logger` no imprime en producción (Vercel)
+**Qué pasó:** Al debuggear el login fallido en producción, la consola del navegador estaba completamente vacía. Se perdieron varias horas sin diagnóstico porque no había output visible.
+
+**Causa raíz:** El flujo de auth usaba `logger.log()` / `logger.error()` de `utils/logger.ts`, que internamente chequea `import.meta.env.DEV`. En Vercel, `DEV` es `false`, así que todos los logs eran silenciados.
+
+**Regla derivada:** Para flujos críticos (auth, login, pagos), usar `console.log/error/warn` directo, NUNCA `logger`. Al debuggear problemas en producción, lo primero es verificar si los logs están siendo silenciados. Ver convención "Logging en flujos críticos" en Guía de Estilo.
+
+**Archivos afectados:** `App.tsx`, `utils/logger.ts`
+
+---
+
+### Lección 12 — Hardcodear índices de fila en datos de Excel rompe con formatos diferentes
+**Qué pasó:** El modal del inquilino mostraba "Liquidación de expensas" con botón Descargar, pero sin tabla de desglose ni total. El inquilino no podía ver qué le estaban cobrando.
+
+**Causa raíz:** El código usaba `sheetData[8]` para el total y `sheetData.slice(8)` para los conceptos, basándose en UN formato específico de Excel. Cuando Nora subió un archivo con estructura diferente (menos filas o total en otra posición), `sheetData[8]` era `undefined` y `slice(8)` devolvía `[]`.
+
+**Regla derivada:** NUNCA hardcodear índices de fila para datos de Excel. Buscar el total dinámicamente (fila que contiene "TOTAL", fallback: mayor número de la hoja). Mostrar TODAS las filas originales al usuario sin filtrar. Ver convención "Datos de Excel" en Guía de Estilo.
+
+**Archivos afectados:** `components/UploadReceiptModal.tsx`, `components/TenantPortal.tsx`
 
 ---
 
