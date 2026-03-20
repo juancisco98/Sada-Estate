@@ -208,11 +208,11 @@ const Dashboard: React.FC = () => {
   // --- Auth Effects ---
   useEffect(() => {
     const handleAuthChange = async (event: string, session: Session | null) => {
-      logger.log(`[Auth] Event: ${event}`);
+      console.log(`[Auth] Event: ${event}`);
 
       if (session?.user?.email) {
         const userEmail = session.user.email.toLowerCase();
-        logger.log('[Auth] Checking access for:', userEmail);
+        console.log('[Auth] Checking access for:', userEmail);
 
         try {
           // ── Step 1: Check hardcoded admin list ──────────────────────────
@@ -227,18 +227,19 @@ const Dashboard: React.FC = () => {
               role: 'ADMIN'
             });
             setIsAuthenticated(true);
-            logger.log('[Auth] ADMIN (hardcoded).');
+            console.log('[Auth] OK → ADMIN (hardcoded)');
             return;
           }
 
           // ── Step 2: Check allowed_emails table (Dynamic Admins) ────────
+          console.log('[Auth] Step 2: checking allowed_emails...');
           const { data: adminData, error: adminErr } = await supabase
             .from('allowed_emails')
             .select('email')
             .ilike('email', userEmail)
             .maybeSingle();
 
-          if (adminErr) logger.warn('[Auth] allowed_emails query error:', adminErr.message);
+          console.log('[Auth] Step 2 result:', { found: !!adminData, error: adminErr?.message || null });
 
           if (adminData) {
             setCurrentUser({
@@ -250,21 +251,22 @@ const Dashboard: React.FC = () => {
               role: 'ADMIN'
             });
             setIsAuthenticated(true);
-            logger.log('[Auth] ADMIN (database).');
+            console.log('[Auth] OK → ADMIN (database)');
             return;
           }
 
           // ── Step 3: Check expenses_admins table ────────────────────────
-          let isExpensesAdmin = false;
+          console.log('[Auth] Step 3: checking expenses_admins...');
           try {
-            const { data: expensesAdminData } = await supabase
+            const { data: expensesAdminData, error: expErr } = await supabase
               .from('expenses_admins')
               .select('email')
               .ilike('email', userEmail)
               .maybeSingle();
 
+            console.log('[Auth] Step 3 result:', { found: !!expensesAdminData, error: expErr?.message || null });
+
             if (expensesAdminData) {
-              isExpensesAdmin = true;
               setCurrentUser({
                 id: session.user.id,
                 name: session.user.user_metadata?.full_name || userEmail.split('@')[0],
@@ -274,66 +276,58 @@ const Dashboard: React.FC = () => {
                 role: 'EXPENSES_ADMIN'
               });
               setIsAuthenticated(true);
-              logger.log('[Auth] EXPENSES_ADMIN.');
+              console.log('[Auth] OK → EXPENSES_ADMIN');
               return;
             }
-          } catch (expErr: any) {
-            // expenses_admins table might not exist — not critical, continue to tenant check
-            logger.warn('[Auth] expenses_admins check skipped:', expErr?.message || 'table may not exist');
+          } catch (expCatch: any) {
+            console.warn('[Auth] Step 3 CATCH (table may not exist):', expCatch?.message);
           }
 
           // ── Step 4: Check tenants table ────────────────────────────────
-          if (!isExpensesAdmin) {
-            const { data: tenantData, error: tenantErr } = await supabase
-              .from('tenants')
-              .select('*')
-              .ilike('email', userEmail)
-              .maybeSingle();
+          console.log('[Auth] Step 4: checking tenants...');
+          const { data: tenantData, error: tenantErr } = await supabase
+            .from('tenants')
+            .select('*')
+            .ilike('email', userEmail)
+            .maybeSingle();
 
-            logger.log('[Auth] Tenant query result:', { found: !!tenantData, error: tenantErr?.message || null });
+          console.log('[Auth] Step 4 result:', { found: !!tenantData, error: tenantErr?.message || null, code: tenantErr?.code || null });
 
-            if (tenantData) {
-              // Link Auth UID to tenant record if missing or different
-              if (!tenantData.user_id || tenantData.user_id !== session.user.id) {
-                await supabase
-                  .from('tenants')
-                  .update({ user_id: session.user.id })
-                  .eq('id', tenantData.id);
-                logger.log('[Auth] Linked Auth UID to tenant record.');
-                refreshData();
-              }
-
-              setCurrentUser({
-                id: session.user.id,
-                name: session.user.user_metadata?.full_name || tenantData.name,
-                email: userEmail,
-                photoURL: session.user.user_metadata?.avatar_url,
-                color: '#10b981',
-                role: 'TENANT'
-              });
-              setIsAuthenticated(true);
-              logger.log('[Auth] TENANT authenticated:', tenantData.name);
-              return;
+          if (tenantData) {
+            // Link Auth UID to tenant record if missing or different
+            if (!tenantData.user_id || tenantData.user_id !== session.user.id) {
+              await supabase
+                .from('tenants')
+                .update({ user_id: session.user.id })
+                .eq('id', tenantData.id);
+              console.log('[Auth] Linked Auth UID to tenant record.');
+              refreshData();
             }
 
-            // If tenant query had an error (e.g. RLS blocked), log it clearly
-            if (tenantErr) {
-              logger.error('[Auth] Tenant query FAILED:', tenantErr.message, tenantErr.code, tenantErr.details);
-            }
+            setCurrentUser({
+              id: session.user.id,
+              name: session.user.user_metadata?.full_name || tenantData.name,
+              email: userEmail,
+              photoURL: session.user.user_metadata?.avatar_url,
+              color: '#10b981',
+              role: 'TENANT'
+            });
+            setIsAuthenticated(true);
+            console.log('[Auth] OK → TENANT:', tenantData.name);
+            return;
           }
 
           // ── No match found — deny access ───────────────────────────────
-          logger.warn('[Auth] DENIED: No matching record for', userEmail);
+          console.error('[Auth] DENIED for', userEmail, '| tenantErr:', tenantErr);
           await signOut();
           handleError(new Error('Unauthorized'), `Acceso denegado: El correo ${userEmail} no está registrado como administrador ni inquilino. Contactá a la administración.`);
           setIsAuthenticated(false);
           setCurrentUser(null);
 
         } catch (authFlowError: any) {
-          // Catch-all for any unexpected errors in the auth flow
-          logger.error('[Auth] CRITICAL auth flow error:', authFlowError?.message || authFlowError);
+          console.error('[Auth] CRITICAL ERROR:', authFlowError);
           await signOut();
-          handleError(authFlowError, `Error de autenticación. Intentá nuevamente.`);
+          handleError(authFlowError, `Error de autenticación: ${authFlowError?.message || 'desconocido'}. Intentá nuevamente.`);
           setIsAuthenticated(false);
           setCurrentUser(null);
         }
