@@ -308,6 +308,16 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         }
     };
 
+    // ── Delete sheet handler ──────────────────────────────────────────────────
+    const handleDeleteSheet = async (sheetId: string) => {
+        const { error } = await supabase
+            .from('expense_sheets')
+            .delete()
+            .eq('id', sheetId);
+        if (error) throw error;
+        setExpenseSheets(prev => prev.filter(s => s.id !== sheetId));
+    };
+
     // ── Review handlers ───────────────────────────────────────────────────────
     const handleApprove = async (payment: TenantPayment) => {
         const { error } = await supabase
@@ -405,6 +415,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                 onApprove={handleApprove}
                 onReturn={handleReturn}
                 onUploadSingleSheet={handleUploadSingleSheet}
+                onDeleteSheet={handleDeleteSheet}
                 currentUser={currentUser}
             />
         );

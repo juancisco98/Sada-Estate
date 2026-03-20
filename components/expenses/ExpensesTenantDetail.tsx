@@ -5,7 +5,7 @@ import { Tenant, Property, TenantPayment, ExpenseSheet, User } from '../../types
 import { MONTH_NAMES } from '../../constants';
 import {
     ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, Clock, RotateCcw,
-    FileSpreadsheet, ExternalLink, Upload, X, AlertCircle
+    FileSpreadsheet, ExternalLink, Upload, X, AlertCircle, Trash2
 } from 'lucide-react';
 
 interface ExpensesTenantDetailProps {
@@ -19,12 +19,13 @@ interface ExpensesTenantDetailProps {
     onApprove: (payment: TenantPayment) => Promise<void>;
     onReturn: (payment: TenantPayment, reason: string) => Promise<void>;
     onUploadSingleSheet: (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, expenseTotal: number) => Promise<void>;
+    onDeleteSheet: (sheetId: string) => Promise<void>;
     currentUser: User;
 }
 
 const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
     tenant, property, year, onYearChange, onBack,
-    payments, expenseSheets, onApprove, onReturn, onUploadSingleSheet, currentUser,
+    payments, expenseSheets, onApprove, onReturn, onUploadSingleSheet, onDeleteSheet, currentUser,
 }) => {
     // ── State ────────────────────────────────────────────────────────────────
     const [returningId, setReturningId] = useState<string | null>(null);
@@ -318,19 +319,36 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                         </span>
                                     ) : null}
 
-                                    {/* Replace sheet button (when sheet already exists) */}
+                                    {/* Replace / Delete sheet buttons (when sheet already exists) */}
                                     {sheet && (
-                                        <button
-                                            onClick={() => {
-                                                setUploadingMonth(monthNum);
-                                                setUploadParsedData(null);
-                                                setUploadFileName('');
-                                            }}
-                                            className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 hover:text-violet-500 dark:hover:text-violet-400 px-2 py-1 rounded transition-colors"
-                                        >
-                                            <Upload size={10} />
-                                            Reemplazar
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={() => {
+                                                    setUploadingMonth(monthNum);
+                                                    setUploadParsedData(null);
+                                                    setUploadFileName('');
+                                                }}
+                                                className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 hover:text-violet-500 dark:hover:text-violet-400 px-2 py-1 rounded transition-colors"
+                                            >
+                                                <Upload size={10} />
+                                                Reemplazar
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm(`¿Eliminar la liquidación de ${monthName}?`)) return;
+                                                    try {
+                                                        await onDeleteSheet(sheet.id);
+                                                        toast.success(`Liquidación de ${monthName} eliminada.`);
+                                                    } catch (err: any) {
+                                                        toast.error(`Error: ${err?.message || 'No se pudo eliminar.'}`);
+                                                    }
+                                                }}
+                                                className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded transition-colors"
+                                            >
+                                                <Trash2 size={10} />
+                                                Eliminar
+                                            </button>
+                                        </>
                                     )}
                                 </div>
 
