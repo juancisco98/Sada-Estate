@@ -1,16 +1,15 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { User, Tenant, ExpenseSheet, TenantPayment, ParsedExpenseSheet } from '../types';
+import { User, ExpenseSheet, TenantPayment, ParsedExpenseSheet } from '../types';
 import { useDataContext } from '../context/DataContext';
 import { supabase } from '../services/supabaseClient';
 import { dbToExpenseSheet } from '../utils/mappers';
 import { parseExpenseSheet } from '../utils/expenseSheetParser';
 import { MONTH_NAMES } from '../constants';
 import {
-    LogOut, Bell, Upload, FileSpreadsheet, CheckCircle,
+    LogOut, Bell, FileSpreadsheet, CheckCircle,
     AlertCircle, Users, Clock, ArrowLeftRight,
-    ChevronLeft, ChevronRight, Home, Sun, Moon
+    Home, Sun, Moon
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import ExpensesTenantDetail from './expenses/ExpensesTenantDetail';
@@ -59,7 +58,9 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     }, [properties, velezBuilding]);
 
     const filteredTenants = useMemo(() =>
-        tenants.filter(t => t.propertyId && velezPropertyIds.has(t.propertyId)),
+        tenants
+            .filter(t => t.propertyId && velezPropertyIds.has(t.propertyId))
+            .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })),
         [tenants, velezPropertyIds]
     );
     const filteredPayments = useMemo(() =>
@@ -69,19 +70,11 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
     // ── State ────────────────────────────────────────────────────────────────
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-    const [showUploadSection, setShowUploadSection] = useState(false);
     const [viewYear, setViewYear] = useState(new Date().getFullYear());
 
     // Bell / notifications dropdown
     const [showNotif, setShowNotif] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
-
-    // Excel upload state
-    const [fileName, setFileName] = useState<string | null>(null);
-    const [parsedSheets, setParsedSheets] = useState<{ name: string; data: any[][]; tenantId: string | null; parsed: ParsedExpenseSheet }[]>([]);
-    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-    const [isUploading, setIsUploading] = useState(false);
 
     // Close notif dropdown on outside click
     useEffect(() => {
@@ -130,102 +123,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         selectedTenant ? properties.find(p => p.id === selectedTenant.propertyId) : null,
         [selectedTenant, properties]
     );
-
-    // ── Excel parse (bulk) ────────────────────────────────────────────────────
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setFileName(file.name);
-        setParsedSheets([]);
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const data = new Uint8Array(ev.target?.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
-
-                const sheets = workbook.SheetNames
-                    .filter(name => name.toUpperCase().trim() !== 'ADMINISTRACION')
-                    .map(name => {
-                        const ws = workbook.Sheets[name];
-                        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
-                        while (rows.length > 0 && rows[rows.length - 1].every((c: any) => c === '' || c === null || c === undefined)) {
-                            rows.pop();
-                        }
-                        const parsed = parseExpenseSheet(rows);
-                        return { name, data: rows, tenantId: null as string | null, parsed };
-                    });
-
-                setParsedSheets(sheets);
-
-                // Detectar mes/año desde el período parseado de la primera hoja
-                if (sheets.length > 0 && sheets[0].parsed.period) {
-                    const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
-                        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-                    const periodUpper = sheets[0].parsed.period.toUpperCase();
-                    const detectedMonth = monthNames.findIndex(m => periodUpper.includes(m));
-                    const yearMatch = periodUpper.match(/20\d{2}/);
-                    if (detectedMonth >= 0) setSelectedMonth(detectedMonth + 1);
-                    if (yearMatch) setSelectedYear(parseInt(yearMatch[0]));
-                }
-            } catch {
-                toast.error('No se pudo leer el archivo Excel. Asegurate que sea .xlsx o .xls.');
-            }
-        };
-        reader.readAsArrayBuffer(file);
-        e.target.value = '';
-    };
-
-    // ── Upload bulk ───────────────────────────────────────────────────────────
-    const handleUpload = async () => {
-        const assigned = parsedSheets.filter(s => s.tenantId);
-        const unassigned = parsedSheets.length - assigned.length;
-        if (assigned.length === 0) {
-            toast.error('Asigná un inquilino a cada hoja antes de subir.');
-            return;
-        }
-        if (unassigned > 0) {
-            toast.warning(`${unassigned} hoja${unassigned > 1 ? 's' : ''} sin inquilino asignado — no se subirá${unassigned > 1 ? 'n' : ''}.`);
-        }
-        setIsUploading(true);
-        let successCount = 0;
-        let errorCount = 0;
-
-        for (const sheet of assigned) {
-            if (!sheet.tenantId) continue;
-            const tenant = filteredTenants.find(t => t.id === sheet.tenantId);
-            try {
-                await upsertExpenseSheet(sheet.tenantId, selectedMonth, selectedYear, sheet.data, sheet.name, sheet.parsed);
-                successCount++;
-
-                if (tenant?.email) {
-                    const monthName = MONTH_NAMES[selectedMonth - 1];
-                    await supabase.from('notifications').insert([{
-                        recipient_email: tenant.email,
-                        title: 'Expensas disponibles',
-                        message: `Tu liquidación de expensas de ${monthName} ${selectedYear} está disponible.`,
-                        type: 'PAYMENT_SUBMITTED',
-                        read: false,
-                    }]).then(({ error }) => {
-                        if (error) console.error('Error sending notification:', error);
-                    });
-                }
-            } catch (err: any) {
-                console.error('Error uploading sheet for', tenant?.name, err);
-                errorCount++;
-            }
-        }
-
-        setIsUploading(false);
-        if (successCount > 0) {
-            toast.success(`${successCount} hoja${successCount > 1 ? 's' : ''} subida${successCount > 1 ? 's' : ''} correctamente.`);
-            setParsedSheets([]);
-            setFileName(null);
-        }
-        if (errorCount > 0) {
-            toast.error(`${errorCount} hoja${errorCount > 1 ? 's' : ''} no se pudieron subir.`);
-        }
-    };
 
     // ── Shared upsert logic for expense sheets ────────────────────────────────
     const upsertExpenseSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData?: ParsedExpenseSheet) => {
@@ -493,136 +390,6 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
             {/* ── Main content ─────────────────────────────────────────── */}
             <main className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
-
-                {/* ── Upload Excel (collapsible) ─────────────────────────── */}
-                <div>
-                    <button
-                        onClick={() => setShowUploadSection(v => !v)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${showUploadSection ? 'bg-violet-600 text-white shadow-lg shadow-violet-200 dark:shadow-none' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:border-violet-300 dark:hover:border-violet-500/40'}`}
-                    >
-                        <Upload className="w-4 h-4" />
-                        Cargar Excel masivo
-                        {showUploadSection ? <ChevronLeft className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4 rotate-90" />}
-                    </button>
-
-                    {showUploadSection && (
-                        <section className="mt-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-6 shadow-sm">
-                            <label className="flex flex-col items-center justify-center w-full min-h-[100px] border-2 border-dashed border-slate-200 dark:border-white/20 rounded-xl cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
-                                <div className="flex flex-col items-center gap-2 p-5 text-center">
-                                    <FileSpreadsheet className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-                                    {fileName ? (
-                                        <>
-                                            <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{fileName}</p>
-                                            <p className="text-xs text-slate-400">Seleccioná otro archivo para reemplazar</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Arrastrá o seleccioná el Excel</p>
-                                            <p className="text-xs text-slate-400">.xlsx o .xls — cada hoja = un inquilino</p>
-                                        </>
-                                    )}
-                                </div>
-                                <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
-                            </label>
-
-                            {parsedSheets.length > 0 && (
-                                <div className="mt-5 space-y-5">
-                                    <div className="flex gap-3 flex-wrap">
-                                        <div className="flex-1 min-w-[140px] space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mes</label>
-                                            <select
-                                                value={selectedMonth}
-                                                onChange={e => setSelectedMonth(Number(e.target.value))}
-                                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
-                                            >
-                                                {MONTH_NAMES.map((m, i) => (
-                                                    <option key={i} value={i + 1}>{m}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="flex-1 min-w-[100px] space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Año</label>
-                                            <input
-                                                type="number"
-                                                value={selectedYear}
-                                                onChange={e => setSelectedYear(Number(e.target.value))}
-                                                min={2020}
-                                                max={2099}
-                                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                            Hojas detectadas ({parsedSheets.length})
-                                        </p>
-                                        <div className="rounded-xl border border-slate-100 dark:border-white/10 overflow-hidden">
-                                            {parsedSheets.map((sheet, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`px-4 py-3 text-sm space-y-2 ${i < parsedSheets.length - 1 ? 'border-b border-slate-100 dark:border-white/5' : ''}`}
-                                                >
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <div className="min-w-0">
-                                                            <span className="font-medium text-slate-700 dark:text-slate-300 block truncate">
-                                                                {sheet.name}
-                                                            </span>
-                                                            <span className="text-xs text-slate-400 dark:text-slate-500 block truncate">
-                                                                {sheet.parsed.items.length} concepto{sheet.parsed.items.length !== 1 ? 's' : ''} · Total ${sheet.parsed.total.toLocaleString('es-AR')}
-                                                            </span>
-                                                        </div>
-                                                        {sheet.tenantId ? (
-                                                            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                                                        ) : (
-                                                            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                                                        )}
-                                                    </div>
-                                                    <select
-                                                        value={sheet.tenantId || ''}
-                                                        onChange={(e) => {
-                                                            const newId = e.target.value || null;
-                                                            setParsedSheets(prev => prev.map((s, idx) => idx === i ? { ...s, tenantId: newId } : s));
-                                                        }}
-                                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
-                                                    >
-                                                        <option value="">— Asignar inquilino —</option>
-                                                        {filteredTenants.map(t => (
-                                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {parsedSheets.some(s => !s.tenantId) && (
-                                            <p className="text-xs text-amber-600 dark:text-amber-400">
-                                                Las hojas sin inquilino asignado no se subirán.
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <button
-                                        onClick={handleUpload}
-                                        disabled={isUploading || parsedSheets.filter(s => s.tenantId).length === 0}
-                                        className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-white disabled:text-slate-400 font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        {isUploading ? (
-                                            <>
-                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Subiendo...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Upload className="w-4 h-4" />
-                                                Subir {parsedSheets.filter(s => s.tenantId).length} hoja{parsedSheets.filter(s => s.tenantId).length !== 1 ? 's' : ''} — {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            )}
-                        </section>
-                    )}
-                </div>
 
                 {/* ── Pending reviews banner ──────────────────────────────── */}
                 {pendingReviews.length > 0 && (
