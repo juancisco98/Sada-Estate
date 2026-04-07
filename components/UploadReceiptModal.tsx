@@ -48,6 +48,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
         return null;
     }, [expenseSheet]);
     const sheetTotal = parsed?.total ?? 0;
+    const isPdfSheet = expenseSheet?.sourceType === 'pdf' && !!expenseSheet?.pdfUrl;
 
     // ── Form state ──────────────────────────────────────────────────────────
     const [expensesFile, setExpensesFile] = useState<File | null>(null);
@@ -322,20 +323,33 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
                                                     <span className="text-sm font-bold text-violet-800 dark:text-violet-300">Liquidación de expensas</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleDownloadPDF}
-                                                        className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-white dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
-                                                    >
-                                                        <Download className="w-3 h-3" /> PDF
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleDownloadExcel}
-                                                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 bg-white dark:bg-white/5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 transition-colors"
-                                                    >
-                                                        <FileSpreadsheet className="w-3 h-3" /> Excel
-                                                    </button>
+                                                    {isPdfSheet ? (
+                                                        <a
+                                                            href={expenseSheet!.pdfUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-white dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
+                                                        >
+                                                            <Download className="w-3 h-3" /> Descargar PDF
+                                                        </a>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleDownloadPDF}
+                                                                className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 bg-white dark:bg-violet-500/10 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/20 transition-colors"
+                                                            >
+                                                                <Download className="w-3 h-3" /> PDF
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleDownloadExcel}
+                                                                className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 bg-white dark:bg-white/5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 transition-colors"
+                                                            >
+                                                                <FileSpreadsheet className="w-3 h-3" /> Excel
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -349,8 +363,17 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
                                                 </div>
                                             )}
 
-                                            {/* Desglose estructurado */}
-                                            {parsed && parsed.items.length > 0 && (
+                                            {/* PDF embed */}
+                                            {isPdfSheet && (
+                                                <iframe
+                                                    src={expenseSheet!.pdfUrl}
+                                                    title="Liquidación PDF"
+                                                    className="w-full h-72 bg-white"
+                                                />
+                                            )}
+
+                                            {/* Desglose estructurado (Excel) */}
+                                            {!isPdfSheet && parsed && parsed.items.length > 0 && (
                                                 <div className="max-h-72 overflow-auto">
                                                     <table className="w-full text-xs">
                                                         <thead className="bg-slate-50 dark:bg-white/5 sticky top-0">

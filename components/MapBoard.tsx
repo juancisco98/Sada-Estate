@@ -299,6 +299,19 @@ const MapBoard: React.FC<MapBoardProps> = ({
     };
   }, [properties]);
 
+  // Cache de iconos para evitar recrear DivIcons en cada render
+  const standaloneIcons = useMemo(() => {
+    const cache = new Map<string, ReturnType<typeof getStandaloneIcon>>();
+    standalone.forEach(p => cache.set(p.id, getStandaloneIcon(p)));
+    return cache;
+  }, [standalone]);
+
+  const buildingIcons = useMemo(() => {
+    const cache = new Map<string, ReturnType<typeof createBuildingIcon>>();
+    buildingGroups.forEach(g => cache.set(g.buildingId, createBuildingIcon(g.units.length)));
+    return cache;
+  }, [buildingGroups]);
+
   return (
     <div className="absolute inset-0 w-full h-full z-0">
       <MapContainer
@@ -320,7 +333,7 @@ const MapBoard: React.FC<MapBoardProps> = ({
           <Marker
             key={prop.id}
             position={prop.displayCoordinates}
-            icon={getStandaloneIcon(prop)}
+            icon={standaloneIcons.get(prop.id)!}
             eventHandlers={{
               click: () => onPropertySelect(prop),
             }}
@@ -332,7 +345,7 @@ const MapBoard: React.FC<MapBoardProps> = ({
           <Marker
             key={`building-${group.buildingId}`}
             position={group.coordinates}
-            icon={createBuildingIcon(group.units.length)}
+            icon={buildingIcons.get(group.buildingId)!}
             eventHandlers={{
               click: () => onBuildingSelect ? onBuildingSelect(group.buildingId) : onPropertySelect(group.units[0]),
             }}

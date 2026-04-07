@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { getPropertyDisplayInfo } from '../utils/property';
@@ -73,7 +73,10 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         notes: ''
     });
 
-    const vacantProperties = properties.filter(p => p.tenantName === 'Vacante' || !p.tenantName);
+    const vacantProperties = useMemo(
+        () => properties.filter(p => p.tenantName === 'Vacante' || !p.tenantName),
+        [properties]
+    );
 
     const handleAddTenant = () => {
         if (!newTenant.name.trim()) return;
@@ -260,7 +263,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         }
     };
 
-    const getPropertyAddress = (propertyId: string | null, short = false) => {
+    const getPropertyAddress = useCallback((propertyId: string | null, short = false) => {
         if (!propertyId) return 'Sin asignar';
         const prop = properties.find(p => p.id === propertyId);
         if (!prop) return 'Desconocido';
@@ -274,15 +277,25 @@ const TenantsView: React.FC<TenantsViewProps> = ({
 
         // For buildings, display.subtitle contains the floor/unit info
         return `${addr} — ${display.subtitle}`;
-    };
+    }, [properties]);
 
-    const filteredTenants = searchQuery.trim()
-        ? tenants.filter(t => {
-            const q = searchQuery.toLowerCase();
+    const filteredTenants = useMemo(() => {
+        if (!searchQuery.trim()) return tenants;
+        const q = searchQuery.toLowerCase();
+        return tenants.filter(t => {
             const propAddr = getPropertyAddress(t.propertyId, false).toLowerCase();
             return t.name.toLowerCase().includes(q) || propAddr.includes(q) || t.email.toLowerCase().includes(q);
-        })
-        : tenants;
+        });
+    }, [tenants, searchQuery, getPropertyAddress]);
+
+    // Cache de métricas: una vez por render, evita el O(n²) dentro del .map()
+    const metricsByTenantId = useMemo(() => {
+        const cache = new Map<string, ReturnType<typeof getTenantMetrics>>();
+        for (const t of filteredTenants) {
+            cache.set(t.id, getTenantMetrics(t.id));
+        }
+        return cache;
+    }, [filteredTenants, getTenantMetrics]);
 
     return (
         <div className="space-y-10 animate-in fade-in duration-500 pb-24">
@@ -430,7 +443,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                         </div>
                     )}
                     {filteredTenants.map(tenant => {
-                        const metrics = getTenantMetrics(tenant.id);
+                        const metrics = metricsByTenantId.get(tenant.id)!;
                         const isExpanded = expandedTenant === tenant.id;
 
                         return (

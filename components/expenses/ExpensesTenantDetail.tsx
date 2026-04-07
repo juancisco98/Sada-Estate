@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Tenant, Property, TenantPayment, ExpenseSheet, User, ParsedExpenseSheet } from '../../types';
 import { MONTH_NAMES } from '../../constants';
 import { parseExpenseSheet } from '../../utils/expenseSheetParser';
+import { uploadFile } from '../../services/storage';
 import {
     ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, Clock, RotateCcw,
     FileSpreadsheet, ExternalLink, Upload, X, AlertCircle, Trash2
@@ -19,7 +20,7 @@ interface ExpensesTenantDetailProps {
     expenseSheets: ExpenseSheet[];
     onApprove: (payment: TenantPayment) => Promise<void>;
     onReturn: (payment: TenantPayment, reason: string) => Promise<void>;
-    onUploadSingleSheet: (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet) => Promise<void>;
+    onUploadSingleSheet: (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet, sourceType: 'excel' | 'pdf', pdfUrl?: string) => Promise<void>;
     onDeleteSheet: (sheetId: string) => Promise<void>;
     currentUser: User;
 }
@@ -38,10 +39,13 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
 
     // Single sheet upload
     const [uploadingMonth, setUploadingMonth] = useState<number | null>(null);
+    const [uploadType, setUploadType] = useState<'excel' | 'pdf' | null>(null);
     const [uploadParsedData, setUploadParsedData] = useState<any[][] | null>(null);
     const [uploadSheetName, setUploadSheetName] = useState('');
     const [uploadParsed, setUploadParsed] = useState<ParsedExpenseSheet | null>(null);
     const [uploadFileName, setUploadFileName] = useState('');
+    const [uploadPdfFile, setUploadPdfFile] = useState<File | null>(null);
+    const [uploadPdfTotal, setUploadPdfTotal] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -103,6 +107,23 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
         if (!file) return;
         setUploadFileName(file.name);
 
+        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+
+        if (isPdf) {
+            // Flujo PDF: guardar el File, total se ingresa manualmente
+            setUploadType('pdf');
+            setUploadPdfFile(file);
+            setUploadPdfTotal('');
+            setUploadParsedData(null);
+            setUploadParsed(null);
+            setUploadSheetName(file.name);
+            e.target.value = '';
+            return;
+        }
+
+        // Flujo Excel
+        setUploadType('excel');
+        setUploadPdfFile(null);
         const reader = new FileReader();
         reader.onload = (ev) => {
             try {
@@ -131,10 +152,27 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
     };
 
     const handleUploadConfirm = async () => {
-        if (!uploadParsedData || uploadingMonth === null || !uploadParsed) return;
+        if (uploadingMonth === null) return;
         setIsUploading(true);
         try {
-            await onUploadSingleSheet(tenant.id, uploadingMonth, year, uploadParsedData, uploadSheetName, uploadParsed);
+            if (uploadType === 'pdf') {
+                if (!uploadPdfFile) { toast.error('Seleccioná un archivo PDF.'); return; }
+                const totalNum = parseFloat(uploadPdfTotal.replace(',', '.'));
+                if (!isFinite(totalNum) || totalNum <= 0) { toast.error('Ingresá un total válido.'); return; }
+                const folder = `expense-sheets/${tenant.id}/${year}-${uploadingMonth}`;
+                const url = await uploadFile(uploadPdfFile, folder);
+                if (!url) throw new Error('No se pudo subir el PDF.');
+                const parsed: ParsedExpenseSheet = {
+                    period: `${MONTH_NAMES[uploadingMonth - 1].toUpperCase()} ${year}`,
+                    items: [],
+                    total: totalNum,
+                    currency: 'ARS',
+                };
+                await onUploadSingleSheet(tenant.id, uploadingMonth, year, [], uploadFileName, parsed, 'pdf', url);
+            } else {
+                if (!uploadParsedData || !uploadParsed) { toast.error('Seleccioná un Excel.'); return; }
+                await onUploadSingleSheet(tenant.id, uploadingMonth, year, uploadParsedData, uploadSheetName, uploadParsed, 'excel');
+            }
             toast.success(`Liquidación de ${MONTH_NAMES[uploadingMonth - 1]} subida correctamente.`);
             resetUpload();
         } catch (err: any) {
@@ -146,10 +184,13 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
 
     const resetUpload = () => {
         setUploadingMonth(null);
+        setUploadType(null);
         setUploadParsedData(null);
         setUploadSheetName('');
         setUploadParsed(null);
         setUploadFileName('');
+        setUploadPdfFile(null);
+        setUploadPdfTotal('');
     };
 
     // ── Render ───────────────────────────────────────────────────────────────
@@ -445,16 +486,47 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                         <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{uploadFileName}</p>
                                     ) : (
                                         <>
-                                            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Seleccioná el Excel</p>
-                                            <p className="text-xs text-slate-400">.xlsx o .xls</p>
+                                            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Seleccioná el archivo</p>
+                                            <p className="text-xs text-slate-400">Excel (.xlsx, .xls) o PDF</p>
                                         </>
                                     )}
                                 </div>
-                                <input ref={fileInputRef} type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileSelect} />
+                                <input ref={fileInputRef} type="file" className="hidden" accept=".xlsx,.xls,.pdf" onChange={handleFileSelect} />
                             </label>
 
-                            {/* Preview estructurado */}
-                            {uploadParsed && (
+                            {/* Preview PDF */}
+                            {uploadType === 'pdf' && uploadPdfFile && (
+                                <div className="space-y-3">
+                                    <div className="rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50/50 dark:bg-rose-500/5 p-4 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center shrink-0">
+                                            <FileSpreadsheet className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{uploadPdfFile.name}</p>
+                                            <p className="text-xs text-slate-400">PDF · {(uploadPdfFile.size / 1024).toFixed(0)} KB</p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+                                            Total a pagar <span className="text-red-400">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-2.5 text-slate-500 dark:text-slate-400 font-bold">$</span>
+                                            <input
+                                                type="number"
+                                                value={uploadPdfTotal}
+                                                onChange={(e) => setUploadPdfTotal(e.target.value)}
+                                                placeholder="Ingresá el total de la liquidación"
+                                                className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none"
+                                            />
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-1">El inquilino verá este monto y podrá descargar el PDF.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Preview estructurado (Excel) */}
+                            {uploadType === 'excel' && uploadParsed && (
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -505,7 +577,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                             </button>
                             <button
                                 onClick={handleUploadConfirm}
-                                disabled={!uploadParsedData || isUploading}
+                                disabled={isUploading || (uploadType === 'excel' ? !uploadParsedData : !(uploadPdfFile && parseFloat(uploadPdfTotal.replace(',', '.')) > 0))}
                                 className="flex items-center gap-1.5 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed px-4 py-2 rounded-xl transition-colors"
                             >
                                 {isUploading ? (
@@ -542,7 +614,28 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                             </button>
                         </div>
                         <div className="overflow-auto p-4">
-                            {(() => {
+                            {viewingSheet.sourceType === 'pdf' && viewingSheet.pdfUrl ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                            Total: <span className="text-violet-600 dark:text-violet-400 tabular-nums">${(viewingSheet.parsedData?.total ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                                        </span>
+                                        <a
+                                            href={viewingSheet.pdfUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" /> Abrir PDF
+                                        </a>
+                                    </div>
+                                    <iframe
+                                        src={viewingSheet.pdfUrl}
+                                        title="Liquidación PDF"
+                                        className="w-full h-[60vh] rounded-xl border border-slate-200 dark:border-white/10"
+                                    />
+                                </div>
+                            ) : (() => {
                                 const parsed = viewingSheet.parsedData ?? parseExpenseSheet(viewingSheet.sheetData);
                                 if (!parsed || (parsed.items.length === 0 && parsed.total === 0)) {
                                     return <p className="text-sm text-slate-400 text-center py-8">Sin datos en esta hoja.</p>;

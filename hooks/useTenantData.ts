@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useDataContext } from '../context/DataContext';
 import { Tenant, TenantPayment, PropertyStatus } from '../types';
 import { tenantToDb, paymentToDb } from '../utils/mappers';
@@ -143,7 +144,7 @@ export const useTenantData = (currentUserId?: string) => {
         }
     };
 
-    const getTenantMetrics = (tenantId: string) => {
+    const getTenantMetrics = useCallback((tenantId: string) => {
         const tenantPayments = payments.filter(p => p.tenantId === tenantId);
         const totalPayments = tenantPayments.length;
         const onTimePayments = tenantPayments.filter(p => p.paidOnTime).length;
@@ -198,7 +199,7 @@ export const useTenantData = (currentUserId?: string) => {
             expenseMonthlyBreakdown,
             currency: tenantPayments[0]?.currency || 'ARS',
         };
-    };
+    }, [payments]);
 
     const handleUpdatePayment = async (payment: TenantPayment) => {
         const prevPayments = [...payments];

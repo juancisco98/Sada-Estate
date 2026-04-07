@@ -214,11 +214,13 @@ export const dbToExpenseSheet = (row: DbExpenseSheetRow): ExpenseSheet => ({
     tenantId: row.tenant_id,
     month: row.month,
     year: row.year,
-    sheetData: row.sheet_data,
+    sheetData: row.sheet_data || [],
     sheetName: row.sheet_name || '',
     uploadedAt: row.uploaded_at || '',
     uploadedBy: row.uploaded_by || '',
     parsedData: row.parsed_data || undefined,
+    sourceType: row.source_type || 'excel',
+    pdfUrl: row.pdf_url || undefined,
 });
 
 export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }): Omit<DbExpenseSheetRow, 'id'> & { id?: string } => ({
@@ -230,6 +232,8 @@ export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }):
     sheet_name: s.sheetName,
     uploaded_by: s.uploadedBy,
     parsed_data: s.parsedData ?? null,
+    source_type: s.sourceType ?? 'excel',
+    pdf_url: s.pdfUrl ?? null,
 });
 
 // ========== REMINDER MAPPERS ==========

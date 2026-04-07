@@ -215,12 +215,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .channel('notifications_realtime')
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'notifications' },
+                { event: '*', schema: 'public', table: 'notifications' },
                 (payload) => {
-                    const notif = dbToNotification(payload.new);
-                    setNotifications(prev => [notif, ...prev]);
+                    if (payload.eventType === 'DELETE') {
+                        const oldId = (payload.old as any)?.id;
+                        if (oldId) setNotifications(prev => prev.filter(n => n.id !== oldId));
+                        return;
+                    }
 
-                    // Show toast based on notification type
+                    const notif = dbToNotification(payload.new);
+                    setNotifications(prev => {
+                        const idx = prev.findIndex(n => n.id === notif.id);
+                        if (idx >= 0) {
+                            // Update / dedupe: reemplaza la fila existente
+                            const next = prev.slice();
+                            next[idx] = notif;
+                            return next;
+                        }
+                        // Insert nuevo al principio
+                        return [notif, ...prev];
+                    });
+
+                    // Toasts solo para INSERT (notificaciones nuevas)
+                    if (payload.eventType !== 'INSERT') return;
+
                     if (notif.type === 'PAYMENT_SUBMITTED') {
                         toast(notif.title, {
                             description: notif.message,
@@ -256,15 +274,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             duration: 6000,
                         });
                     }
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'notifications' },
-                (payload) => {
-                    setNotifications(prev => prev.map(n =>
-                        n.id === payload.new.id ? dbToNotification(payload.new) : n
-                    ));
                 }
             )
             .subscribe();

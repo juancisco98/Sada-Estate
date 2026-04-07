@@ -93,6 +93,8 @@ export interface DbExpenseSheetRow {
     uploaded_at?: string;
     uploaded_by?: string | null;
     parsed_data?: any | null;
+    source_type?: 'excel' | 'pdf' | null;
+    pdf_url?: string | null;
 }
 
 export interface DbTenantPaymentRow {

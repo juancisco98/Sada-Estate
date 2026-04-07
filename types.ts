@@ -158,11 +158,13 @@ export interface ExpenseSheet {
   tenantId: string;
   month: number;
   year: number;
-  sheetData: any[][];   // filas × columnas del Excel (raw, archival)
+  sheetData: any[][];   // filas × columnas del Excel (raw, archival). [] si sourceType=pdf
   sheetName: string;
   uploadedAt: string;
   uploadedBy: string;
   parsedData?: ParsedExpenseSheet; // estructurado prolijo para mostrar al inquilino
+  sourceType?: 'excel' | 'pdf';    // origen de la liquidación
+  pdfUrl?: string;                  // URL del PDF en Storage (solo si sourceType=pdf)
 }
 
 export interface ExpensesAdmin {

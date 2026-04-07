@@ -125,14 +125,16 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     );
 
     // ── Shared upsert logic for expense sheets ────────────────────────────────
-    const upsertExpenseSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData?: ParsedExpenseSheet) => {
+    const upsertExpenseSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet | undefined, sourceType: 'excel' | 'pdf' = 'excel', pdfUrl?: string) => {
         const payload = {
             tenant_id: tenantId,
             month,
             year,
             sheet_data: sheetData,
             sheet_name: sheetName,
-            parsed_data: parsedData ?? parseExpenseSheet(sheetData),
+            parsed_data: parsedData ?? (sourceType === 'excel' ? parseExpenseSheet(sheetData) : { items: [], total: 0, currency: 'ARS' }),
+            source_type: sourceType,
+            pdf_url: pdfUrl ?? null,
             uploaded_by: currentUser.email,
             uploaded_at: new Date().toISOString(),
         };
@@ -167,8 +169,8 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     };
 
     // ── Upload single sheet (from detail view) ────────────────────────────────
-    const handleUploadSingleSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet) => {
-        await upsertExpenseSheet(tenantId, month, year, sheetData, sheetName, parsedData);
+    const handleUploadSingleSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet, sourceType: 'excel' | 'pdf', pdfUrl?: string) => {
+        await upsertExpenseSheet(tenantId, month, year, sheetData, sheetName, parsedData, sourceType, pdfUrl);
 
         // Notify tenant
         const tenant = tenants.find(t => t.id === tenantId);
