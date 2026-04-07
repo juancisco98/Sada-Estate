@@ -4,6 +4,7 @@ import { useDataContext } from '../context/DataContext';
 import { MONTH_NAMES } from '../constants';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
+import { dbToExpenseSheet } from '../utils/mappers';
 import UploadReceiptModal from './UploadReceiptModal';
 import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell, RotateCcw } from 'lucide-react';
 
@@ -23,7 +24,7 @@ interface TenantPortalProps {
 }
 
 const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) => {
-    const { tenants, payments, properties, setPayments, expenseSheets } = useDataContext();
+    const { tenants, payments, properties, setPayments, expenseSheets, setExpenseSheets } = useDataContext();
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -49,6 +50,36 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
         if (!tenantRecord) return [];
         return expenseSheets.filter(s => s.tenantId === tenantRecord.id && s.year === currentYear);
     }, [expenseSheets, tenantRecord, currentYear]);
+
+    // Real-time: nuevas liquidaciones de Nora aparecen sin recargar
+    useEffect(() => {
+        if (!tenantRecord?.id) return;
+        const channel = supabase
+            .channel(`tenant_expense_sheets_${tenantRecord.id}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'expense_sheets', filter: `tenant_id=eq.${tenantRecord.id}` },
+                (payload) => {
+                    if (payload.eventType === 'DELETE') {
+                        const oldId = (payload.old as any)?.id;
+                        if (oldId) setExpenseSheets(prev => prev.filter(s => s.id !== oldId));
+                        return;
+                    }
+                    const sheet = dbToExpenseSheet(payload.new as any);
+                    setExpenseSheets(prev => {
+                        const idx = prev.findIndex(s => s.id === sheet.id);
+                        if (idx >= 0) {
+                            const next = prev.slice();
+                            next[idx] = sheet;
+                            return next;
+                        }
+                        return [sheet, ...prev];
+                    });
+                }
+            )
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [tenantRecord?.id, setExpenseSheets]);
 
     // Load unread notifications for this tenant
     useEffect(() => {

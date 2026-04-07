@@ -630,9 +630,9 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                         </a>
                                     </div>
                                     <iframe
-                                        src={viewingSheet.pdfUrl}
+                                        src={`${viewingSheet.pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
                                         title="Liquidación PDF"
-                                        className="w-full h-[60vh] rounded-xl border border-slate-200 dark:border-white/10"
+                                        className="w-full h-[70vh] rounded-xl border border-slate-200 dark:border-white/10"
                                     />
                                 </div>
                             ) : (() => {

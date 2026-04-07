@@ -363,12 +363,12 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
                                                 </div>
                                             )}
 
-                                            {/* PDF embed */}
+                                            {/* PDF embed: oculta toolbar de Chrome, ajusta al ancho */}
                                             {isPdfSheet && (
                                                 <iframe
-                                                    src={expenseSheet!.pdfUrl}
+                                                    src={`${expenseSheet!.pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
                                                     title="Liquidación PDF"
-                                                    className="w-full h-72 bg-white"
+                                                    className="w-full h-[70vh] bg-white"
                                                 />
                                             )}
 
