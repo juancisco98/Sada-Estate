@@ -6,6 +6,7 @@ import { uploadFile } from '../services/storage';
 import { supabase } from '../services/supabaseClient';
 import { logger } from '../utils/logger';
 import { paymentToDb } from '../utils/mappers';
+import { parseExpenseSheet } from '../utils/expenseSheetParser';
 import { toast } from 'sonner';
 import { MONTH_NAMES, ALLOWED_EMAILS } from '../constants';
 
@@ -40,35 +41,13 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     onSuccess
 }) => {
     // ── Expense sheet data ──────────────────────────────────────────────────
-    const sheetTotal = useMemo(() => {
-        if (!expenseSheet?.sheetData?.length) return 0;
-        // 1. Buscar fila con "TOTAL"
-        for (const row of expenseSheet.sheetData) {
-            const hasTotal = (row as any[]).some((c: any) => String(c ?? '').toUpperCase().includes('TOTAL'));
-            if (hasTotal) {
-                const num = (row as any[])
-                    .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
-                    .filter((n: number) => !isNaN(n) && n > 0)
-                    .sort((a: number, b: number) => b - a)[0];
-                if (num) return num;
-            }
-        }
-        // 2. Fallback: el mayor número de la hoja
-        let max = 0;
-        for (const row of expenseSheet.sheetData) {
-            for (const cell of row as any[]) {
-                const n = typeof cell === 'number' ? cell : parseFloat(String(cell).replace(/[^0-9.,]/g, '').replace(',', '.'));
-                if (!isNaN(n) && n > max) max = n;
-            }
-        }
-        return max;
+    // Usa parsedData si existe; si no, parsea on-the-fly desde sheetData (legacy).
+    const parsed = useMemo(() => {
+        if (expenseSheet?.parsedData) return expenseSheet.parsedData;
+        if (expenseSheet?.sheetData?.length) return parseExpenseSheet(expenseSheet.sheetData);
+        return null;
     }, [expenseSheet]);
-
-    // Todas las filas originales del Excel, sin filtrar
-    const allSheetRows = useMemo(() => {
-        if (!expenseSheet?.sheetData?.length) return [];
-        return expenseSheet.sheetData;
-    }, [expenseSheet]);
+    const sheetTotal = parsed?.total ?? 0;
 
     // ── Form state ──────────────────────────────────────────────────────────
     const [expensesFile, setExpensesFile] = useState<File | null>(null);
@@ -182,27 +161,32 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     };
 
     const handleDownloadPDF = () => {
-        if (!expenseSheet?.sheetData?.length) return;
+        if (!parsed) return;
         const monthName = MONTH_NAMES[month - 1];
-        const rows = expenseSheet.sheetData;
-        // Renderizar TODAS las filas exactamente como vienen del Excel original
-        const tableRows = rows.map((row: any[]) => {
-            const cells = (row as any[]).map((cell: any) => {
-                const val = cell !== null && cell !== undefined ? String(cell) : '';
-                return `<td style="border:1px solid #ddd;padding:6px 10px;white-space:nowrap;">${val}</td>`;
-            }).join('');
-            return `<tr>${cells}</tr>`;
-        }).join('');
+        const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+        const itemsHtml = parsed.items.map(it => `
+            <tr>
+                <td style="border:1px solid #ddd;padding:8px 12px;">${escapeHtml(it.concept)}</td>
+                <td style="border:1px solid #ddd;padding:8px 12px;text-align:right;font-variant-numeric:tabular-nums;">$${it.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+            </tr>`).join('');
 
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Liquidación ${monthName} ${year}</title>
-<style>body{font-family:Arial,sans-serif;margin:20px;color:#333}h1{font-size:18px;margin-bottom:4px}p{font-size:13px;color:#666;margin-bottom:16px}
-table{border-collapse:collapse;width:100%;font-size:12px}td{border:1px solid #ddd;padding:6px 10px}
-.total-box{margin-top:16px;text-align:right;font-size:16px;font-weight:bold}
+<style>body{font-family:Arial,sans-serif;margin:24px;color:#222}
+h1{font-size:20px;margin-bottom:4px;color:#5b21b6}
+p{font-size:13px;color:#666;margin-bottom:20px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{background:#f5f3ff;color:#5b21b6;text-align:left;padding:8px 12px;border:1px solid #ddd;font-weight:600}
+th.right{text-align:right}
+tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padding:10px 12px}
 @media print{body{margin:10px}}</style></head>
 <body><h1>Liquidación de Expensas — ${monthName} ${year}</h1>
-<p>${tenant.name} · ${property?.address || ''}</p>
-<table>${tableRows}</table>
-${sheetTotal > 0 ? `<div class="total-box">Total: $${sheetTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>` : ''}
+<p>${escapeHtml(tenant.name)}${property?.address ? ` · ${escapeHtml(property.address)}` : ''}</p>
+<table>
+    <thead><tr><th>Concepto</th><th class="right">Monto</th></tr></thead>
+    <tbody>${itemsHtml}
+        <tr class="total"><td>TOTAL</td><td style="text-align:right;font-variant-numeric:tabular-nums;">$${parsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td></tr>
+    </tbody>
+</table>
 </body></html>`;
 
         const win = window.open('', '_blank');
@@ -365,38 +349,25 @@ ${sheetTotal > 0 ? `<div class="total-box">Total: $${sheetTotal.toLocaleString('
                                                 </div>
                                             )}
 
-                                            {/* Desglose completo */}
-                                            {allSheetRows.length > 0 && (
-                                                <div className="max-h-64 overflow-auto">
-                                                    <table className="w-full text-[11px]">
+                                            {/* Desglose estructurado */}
+                                            {parsed && parsed.items.length > 0 && (
+                                                <div className="max-h-72 overflow-auto">
+                                                    <table className="w-full text-xs">
+                                                        <thead className="bg-slate-50 dark:bg-white/5 sticky top-0">
+                                                            <tr>
+                                                                <th className="text-left px-3 py-2 font-semibold text-slate-500 dark:text-slate-400">Concepto</th>
+                                                                <th className="text-right px-3 py-2 font-semibold text-slate-500 dark:text-slate-400">Monto</th>
+                                                            </tr>
+                                                        </thead>
                                                         <tbody>
-                                                            {allSheetRows.map((row: any[], ri: number) => {
-                                                                const isTotal = (row as any[]).some((c: any) => String(c ?? '').toUpperCase().includes('TOTAL'));
-                                                                const isFirstRow = ri === 0;
-                                                                return (
-                                                                    <tr
-                                                                        key={ri}
-                                                                        className={
-                                                                            isTotal
-                                                                                ? 'bg-violet-50 dark:bg-violet-500/10 font-bold'
-                                                                                : isFirstRow
-                                                                                    ? 'bg-slate-100 dark:bg-white/5 font-semibold'
-                                                                                    : ri % 2 === 0
-                                                                                        ? 'bg-slate-50/50 dark:bg-white/[0.02]'
-                                                                                        : ''
-                                                                        }
-                                                                    >
-                                                                        {(row as any[]).map((cell, ci) => (
-                                                                            <td
-                                                                                key={ci}
-                                                                                className="border border-slate-100 dark:border-white/10 px-2 py-1 text-slate-700 dark:text-slate-300 whitespace-nowrap"
-                                                                            >
-                                                                                {cell !== null && cell !== undefined ? String(cell) : ''}
-                                                                            </td>
-                                                                        ))}
-                                                                    </tr>
-                                                                );
-                                                            })}
+                                                            {parsed.items.map((it, i) => (
+                                                                <tr key={i} className="border-t border-slate-100 dark:border-white/5">
+                                                                    <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{it.concept}</td>
+                                                                    <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                                                                        ${it.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
                                                         </tbody>
                                                     </table>
                                                 </div>

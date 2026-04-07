@@ -141,15 +141,28 @@ export interface ExpenseLog {
   confirmed: boolean;
 }
 
+export interface ParsedExpenseLineItem {
+  concept: string;
+  amount: number;
+}
+
+export interface ParsedExpenseSheet {
+  period?: string;                  // ej. "ENERO 2026"
+  items: ParsedExpenseLineItem[];   // conceptos + montos (sin la fila TOTAL)
+  total: number;
+  currency?: string;                // "ARS" por defecto
+}
+
 export interface ExpenseSheet {
   id: string;
   tenantId: string;
   month: number;
   year: number;
-  sheetData: any[][];   // filas × columnas del Excel
+  sheetData: any[][];   // filas × columnas del Excel (raw, archival)
   sheetName: string;
   uploadedAt: string;
   uploadedBy: string;
+  parsedData?: ParsedExpenseSheet; // estructurado prolijo para mostrar al inquilino
 }
 
 export interface ExpensesAdmin {

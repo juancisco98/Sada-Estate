@@ -92,6 +92,7 @@ export interface DbExpenseSheetRow {
     sheet_name?: string | null;
     uploaded_at?: string;
     uploaded_by?: string | null;
+    parsed_data?: any | null;
 }
 
 export interface DbTenantPaymentRow {

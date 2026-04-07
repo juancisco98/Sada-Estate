@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { User, Tenant, ExpenseSheet, TenantPayment } from '../types';
+import { User, Tenant, ExpenseSheet, TenantPayment, ParsedExpenseSheet } from '../types';
 import { useDataContext } from '../context/DataContext';
 import { supabase } from '../services/supabaseClient';
 import { dbToExpenseSheet } from '../utils/mappers';
+import { parseExpenseSheet } from '../utils/expenseSheetParser';
 import { MONTH_NAMES } from '../constants';
 import {
     LogOut, Bell, Upload, FileSpreadsheet, CheckCircle,
@@ -26,23 +27,6 @@ const normalizeStr = (s: string) =>
     s.toLowerCase().trim()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '');
-
-const matchSheetToTenant = (identifier: string, tenants: Tenant[]): Tenant | undefined => {
-    const normalized = normalizeStr(identifier);
-    return tenants.find(t => {
-        const tenantNorm = normalizeStr(t.name);
-        const parts = tenantNorm.split(' ');
-        const firstName = parts[0];
-        const lastName = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
-        if (lastName && normalized.includes(lastName)) {
-            if (parts.length === 1) return true;
-            if (firstName && normalized.includes(firstName)) return true;
-        }
-        if (normalized === tenantNorm) return true;
-        if (normalized.includes(tenantNorm)) return true;
-        return false;
-    });
-};
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -94,7 +78,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
     // Excel upload state
     const [fileName, setFileName] = useState<string | null>(null);
-    const [parsedSheets, setParsedSheets] = useState<{ name: string; data: any[][]; tenant: Tenant | undefined; tenantIdentifier: string; expenseTotal: number }[]>([]);
+    const [parsedSheets, setParsedSheets] = useState<{ name: string; data: any[][]; tenantId: string | null; parsed: ParsedExpenseSheet }[]>([]);
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [isUploading, setIsUploading] = useState(false);
@@ -168,30 +152,19 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                         while (rows.length > 0 && rows[rows.length - 1].every((c: any) => c === '' || c === null || c === undefined)) {
                             rows.pop();
                         }
-                        const row7 = rows[7] || [];
-                        const tenantIdentifier = row7
-                            .map((c: any) => String(c ?? '').trim())
-                            .filter(Boolean)
-                            .join(' ');
-                        const tenant = matchSheetToTenant(tenantIdentifier || name, filteredTenants);
-
-                        const row8 = rows[8] || [];
-                        const expenseTotal = row8
-                            .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
-                            .find((n: number) => !isNaN(n) && n > 0) || 0;
-
-                        return { name, data: rows, tenant, tenantIdentifier, expenseTotal };
+                        const parsed = parseExpenseSheet(rows);
+                        return { name, data: rows, tenantId: null as string | null, parsed };
                     });
 
                 setParsedSheets(sheets);
 
-                if (sheets.length > 0) {
-                    const row0Text = (sheets[0].data[0] || [])
-                        .map((c: any) => String(c ?? '')).join(' ').toUpperCase();
+                // Detectar mes/año desde el período parseado de la primera hoja
+                if (sheets.length > 0 && sheets[0].parsed.period) {
                     const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
                         'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-                    const detectedMonth = monthNames.findIndex(m => row0Text.includes(m));
-                    const yearMatch = row0Text.match(/20\d{2}/);
+                    const periodUpper = sheets[0].parsed.period.toUpperCase();
+                    const detectedMonth = monthNames.findIndex(m => periodUpper.includes(m));
+                    const yearMatch = periodUpper.match(/20\d{2}/);
                     if (detectedMonth >= 0) setSelectedMonth(detectedMonth + 1);
                     if (yearMatch) setSelectedYear(parseInt(yearMatch[0]));
                 }
@@ -205,25 +178,30 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
 
     // ── Upload bulk ───────────────────────────────────────────────────────────
     const handleUpload = async () => {
-        const matched = parsedSheets.filter(s => s.tenant);
-        if (matched.length === 0) {
-            toast.error('Ninguna hoja pudo asociarse a un inquilino. Revisá los nombres de las hojas.');
+        const assigned = parsedSheets.filter(s => s.tenantId);
+        const unassigned = parsedSheets.length - assigned.length;
+        if (assigned.length === 0) {
+            toast.error('Asigná un inquilino a cada hoja antes de subir.');
             return;
+        }
+        if (unassigned > 0) {
+            toast.warning(`${unassigned} hoja${unassigned > 1 ? 's' : ''} sin inquilino asignado — no se subirá${unassigned > 1 ? 'n' : ''}.`);
         }
         setIsUploading(true);
         let successCount = 0;
         let errorCount = 0;
 
-        for (const sheet of matched) {
-            if (!sheet.tenant) continue;
+        for (const sheet of assigned) {
+            if (!sheet.tenantId) continue;
+            const tenant = filteredTenants.find(t => t.id === sheet.tenantId);
             try {
-                await upsertExpenseSheet(sheet.tenant.id, selectedMonth, selectedYear, sheet.data, sheet.name);
+                await upsertExpenseSheet(sheet.tenantId, selectedMonth, selectedYear, sheet.data, sheet.name, sheet.parsed);
                 successCount++;
 
-                if (sheet.tenant?.email) {
+                if (tenant?.email) {
                     const monthName = MONTH_NAMES[selectedMonth - 1];
                     await supabase.from('notifications').insert([{
-                        recipient_email: sheet.tenant.email,
+                        recipient_email: tenant.email,
                         title: 'Expensas disponibles',
                         message: `Tu liquidación de expensas de ${monthName} ${selectedYear} está disponible.`,
                         type: 'PAYMENT_SUBMITTED',
@@ -233,7 +211,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                     });
                 }
             } catch (err: any) {
-                console.error('Error uploading sheet for', sheet.tenant?.name, err);
+                console.error('Error uploading sheet for', tenant?.name, err);
                 errorCount++;
             }
         }
@@ -250,13 +228,14 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     };
 
     // ── Shared upsert logic for expense sheets ────────────────────────────────
-    const upsertExpenseSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string) => {
+    const upsertExpenseSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData?: ParsedExpenseSheet) => {
         const payload = {
             tenant_id: tenantId,
             month,
             year,
             sheet_data: sheetData,
             sheet_name: sheetName,
+            parsed_data: parsedData ?? parseExpenseSheet(sheetData),
             uploaded_by: currentUser.email,
             uploaded_at: new Date().toISOString(),
         };
@@ -291,8 +270,8 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     };
 
     // ── Upload single sheet (from detail view) ────────────────────────────────
-    const handleUploadSingleSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, _expenseTotal: number) => {
-        await upsertExpenseSheet(tenantId, month, year, sheetData, sheetName);
+    const handleUploadSingleSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet) => {
+        await upsertExpenseSheet(tenantId, month, year, sheetData, sheetName, parsedData);
 
         // Notify tenant
         const tenant = tenants.find(t => t.id === tenantId);
@@ -582,42 +561,49 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                             {parsedSheets.map((sheet, i) => (
                                                 <div
                                                     key={i}
-                                                    className={`flex items-center justify-between px-4 py-3 text-sm ${i < parsedSheets.length - 1 ? 'border-b border-slate-100 dark:border-white/5' : ''}`}
+                                                    className={`px-4 py-3 text-sm space-y-2 ${i < parsedSheets.length - 1 ? 'border-b border-slate-100 dark:border-white/5' : ''}`}
                                                 >
-                                                    <div className="min-w-0 mr-3">
-                                                        <span className="font-medium text-slate-700 dark:text-slate-300 block truncate">
-                                                            {sheet.name}
-                                                        </span>
-                                                        {sheet.tenantIdentifier && (
-                                                            <span className="text-xs text-slate-400 dark:text-slate-500 block truncate">
-                                                                {sheet.tenantIdentifier}
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <span className="font-medium text-slate-700 dark:text-slate-300 block truncate">
+                                                                {sheet.name}
                                                             </span>
+                                                            <span className="text-xs text-slate-400 dark:text-slate-500 block truncate">
+                                                                {sheet.parsed.items.length} concepto{sheet.parsed.items.length !== 1 ? 's' : ''} · Total ${sheet.parsed.total.toLocaleString('es-AR')}
+                                                            </span>
+                                                        </div>
+                                                        {sheet.tenantId ? (
+                                                            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                                                        ) : (
+                                                            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
                                                         )}
                                                     </div>
-                                                    {sheet.tenant ? (
-                                                        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold shrink-0">
-                                                            <CheckCircle className="w-3.5 h-3.5" />
-                                                            {sheet.tenant.name}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1.5 text-amber-500 text-xs font-semibold shrink-0">
-                                                            <AlertCircle className="w-3.5 h-3.5" />
-                                                            Sin match
-                                                        </span>
-                                                    )}
+                                                    <select
+                                                        value={sheet.tenantId || ''}
+                                                        onChange={(e) => {
+                                                            const newId = e.target.value || null;
+                                                            setParsedSheets(prev => prev.map((s, idx) => idx === i ? { ...s, tenantId: newId } : s));
+                                                        }}
+                                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                                                    >
+                                                        <option value="">— Asignar inquilino —</option>
+                                                        {filteredTenants.map(t => (
+                                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                                        ))}
+                                                    </select>
                                                 </div>
                                             ))}
                                         </div>
-                                        {parsedSheets.some(s => !s.tenant) && (
+                                        {parsedSheets.some(s => !s.tenantId) && (
                                             <p className="text-xs text-amber-600 dark:text-amber-400">
-                                                Las hojas sin match no se subirán. Verificá que el nombre de la hoja contenga el apellido del inquilino.
+                                                Las hojas sin inquilino asignado no se subirán.
                                             </p>
                                         )}
                                     </div>
 
                                     <button
                                         onClick={handleUpload}
-                                        disabled={isUploading || parsedSheets.filter(s => s.tenant).length === 0}
+                                        disabled={isUploading || parsedSheets.filter(s => s.tenantId).length === 0}
                                         className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-white disabled:text-slate-400 font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
                                     >
                                         {isUploading ? (
@@ -628,7 +614,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                         ) : (
                                             <>
                                                 <Upload className="w-4 h-4" />
-                                                Subir {parsedSheets.filter(s => s.tenant).length} hoja{parsedSheets.filter(s => s.tenant).length !== 1 ? 's' : ''} — {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+                                                Subir {parsedSheets.filter(s => s.tenantId).length} hoja{parsedSheets.filter(s => s.tenantId).length !== 1 ? 's' : ''} — {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
                                             </>
                                         )}
                                     </button>

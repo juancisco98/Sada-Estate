@@ -218,6 +218,7 @@ export const dbToExpenseSheet = (row: DbExpenseSheetRow): ExpenseSheet => ({
     sheetName: row.sheet_name || '',
     uploadedAt: row.uploaded_at || '',
     uploadedBy: row.uploaded_by || '',
+    parsedData: row.parsed_data || undefined,
 });
 
 export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }): Omit<DbExpenseSheetRow, 'id'> & { id?: string } => ({
@@ -228,6 +229,7 @@ export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }):
     sheet_data: s.sheetData,
     sheet_name: s.sheetName,
     uploaded_by: s.uploadedBy,
+    parsed_data: s.parsedData ?? null,
 });
 
 // ========== REMINDER MAPPERS ==========

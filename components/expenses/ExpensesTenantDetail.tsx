@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { Tenant, Property, TenantPayment, ExpenseSheet, User } from '../../types';
+import { Tenant, Property, TenantPayment, ExpenseSheet, User, ParsedExpenseSheet } from '../../types';
 import { MONTH_NAMES } from '../../constants';
+import { parseExpenseSheet } from '../../utils/expenseSheetParser';
 import {
     ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, Clock, RotateCcw,
     FileSpreadsheet, ExternalLink, Upload, X, AlertCircle, Trash2
@@ -18,7 +19,7 @@ interface ExpensesTenantDetailProps {
     expenseSheets: ExpenseSheet[];
     onApprove: (payment: TenantPayment) => Promise<void>;
     onReturn: (payment: TenantPayment, reason: string) => Promise<void>;
-    onUploadSingleSheet: (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, expenseTotal: number) => Promise<void>;
+    onUploadSingleSheet: (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet) => Promise<void>;
     onDeleteSheet: (sheetId: string) => Promise<void>;
     currentUser: User;
 }
@@ -39,7 +40,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
     const [uploadingMonth, setUploadingMonth] = useState<number | null>(null);
     const [uploadParsedData, setUploadParsedData] = useState<any[][] | null>(null);
     const [uploadSheetName, setUploadSheetName] = useState('');
-    const [uploadExpenseTotal, setUploadExpenseTotal] = useState(0);
+    const [uploadParsed, setUploadParsed] = useState<ParsedExpenseSheet | null>(null);
     const [uploadFileName, setUploadFileName] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -116,15 +117,10 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                     rows.pop();
                 }
 
-                // Extract total from row 8 (same logic as bulk upload)
-                const row8 = rows[8] || [];
-                const expenseTotal = row8
-                    .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
-                    .find((n: number) => !isNaN(n) && n > 0) || 0;
-
+                const parsed = parseExpenseSheet(rows);
                 setUploadParsedData(rows);
                 setUploadSheetName(firstSheetName);
-                setUploadExpenseTotal(expenseTotal);
+                setUploadParsed(parsed);
             } catch {
                 toast.error('No se pudo leer el archivo Excel.');
                 resetUpload();
@@ -135,10 +131,10 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
     };
 
     const handleUploadConfirm = async () => {
-        if (!uploadParsedData || uploadingMonth === null) return;
+        if (!uploadParsedData || uploadingMonth === null || !uploadParsed) return;
         setIsUploading(true);
         try {
-            await onUploadSingleSheet(tenant.id, uploadingMonth, year, uploadParsedData, uploadSheetName, uploadExpenseTotal);
+            await onUploadSingleSheet(tenant.id, uploadingMonth, year, uploadParsedData, uploadSheetName, uploadParsed);
             toast.success(`Liquidación de ${MONTH_NAMES[uploadingMonth - 1]} subida correctamente.`);
             resetUpload();
         } catch (err: any) {
@@ -152,7 +148,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
         setUploadingMonth(null);
         setUploadParsedData(null);
         setUploadSheetName('');
-        setUploadExpenseTotal(0);
+        setUploadParsed(null);
         setUploadFileName('');
     };
 
@@ -457,42 +453,44 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                 <input ref={fileInputRef} type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileSelect} />
                             </label>
 
-                            {/* Preview */}
-                            {uploadParsedData && (
+                            {/* Preview estructurado */}
+                            {uploadParsed && (
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                            Vista previa — {uploadParsedData.length} filas
+                                            Vista previa{uploadParsed.period ? ` — ${uploadParsed.period}` : ''}
                                         </p>
-                                        {uploadExpenseTotal > 0 && (
-                                            <span className="text-sm font-bold text-violet-600 dark:text-violet-400 tabular-nums">
-                                                Total: ${uploadExpenseTotal.toLocaleString('es-AR')}
-                                            </span>
-                                        )}
+                                        <span className="text-sm font-bold text-violet-600 dark:text-violet-400 tabular-nums">
+                                            Total: ${uploadParsed.total.toLocaleString('es-AR')}
+                                        </span>
                                     </div>
-                                    <div className="max-h-48 overflow-auto rounded-xl border border-slate-100 dark:border-white/10">
-                                        <table className="w-full text-[10px] border-collapse">
+                                    <div className="max-h-56 overflow-auto rounded-xl border border-slate-100 dark:border-white/10">
+                                        <table className="w-full text-xs border-collapse">
+                                            <thead className="bg-slate-50 dark:bg-white/5 sticky top-0">
+                                                <tr>
+                                                    <th className="text-left px-3 py-2 font-semibold text-slate-500 dark:text-slate-400">Concepto</th>
+                                                    <th className="text-right px-3 py-2 font-semibold text-slate-500 dark:text-slate-400">Monto</th>
+                                                </tr>
+                                            </thead>
                                             <tbody>
-                                                {uploadParsedData.slice(0, 15).map((row, ri) => (
-                                                    <tr key={ri} className={ri === 0 ? 'bg-violet-50 dark:bg-violet-500/10 font-semibold' : 'hover:bg-slate-50 dark:hover:bg-white/5'}>
-                                                        {(row as any[]).map((cell, ci) => (
-                                                            <td
-                                                                key={ci}
-                                                                className="border border-slate-100 dark:border-white/10 px-1.5 py-1 text-slate-700 dark:text-slate-300 whitespace-nowrap"
-                                                            >
-                                                                {cell !== null && cell !== undefined ? String(cell) : ''}
-                                                            </td>
-                                                        ))}
+                                                {uploadParsed.items.map((it, i) => (
+                                                    <tr key={i} className="border-t border-slate-100 dark:border-white/5">
+                                                        <td className="px-3 py-1.5 text-slate-700 dark:text-slate-300">{it.concept}</td>
+                                                        <td className="px-3 py-1.5 text-right tabular-nums text-slate-700 dark:text-slate-300">${it.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                                     </tr>
                                                 ))}
+                                                <tr className="border-t-2 border-violet-200 dark:border-violet-500/30 bg-violet-50/60 dark:bg-violet-500/10 font-bold">
+                                                    <td className="px-3 py-2 text-violet-800 dark:text-violet-200">TOTAL</td>
+                                                    <td className="px-3 py-2 text-right tabular-nums text-violet-800 dark:text-violet-200">${uploadParsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                                </tr>
                                             </tbody>
                                         </table>
-                                        {uploadParsedData.length > 15 && (
-                                            <p className="text-center text-[10px] text-slate-400 py-1">
-                                                ... y {uploadParsedData.length - 15} filas más
-                                            </p>
-                                        )}
                                     </div>
+                                    {uploadParsed.items.length === 0 && (
+                                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                                            No se detectaron conceptos. Verificá el formato del Excel — solo se subirá el total.
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -544,26 +542,34 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                             </button>
                         </div>
                         <div className="overflow-auto p-4">
-                            {viewingSheet.sheetData.length === 0 ? (
-                                <p className="text-sm text-slate-400 text-center py-8">Sin datos en esta hoja.</p>
-                            ) : (
-                                <table className="w-full text-xs border-collapse">
-                                    <tbody>
-                                        {viewingSheet.sheetData.map((row, ri) => (
-                                            <tr key={ri} className={ri === 0 ? 'bg-violet-50 dark:bg-violet-500/10 font-semibold' : 'hover:bg-slate-50 dark:hover:bg-white/5'}>
-                                                {(row as any[]).map((cell, ci) => (
-                                                    <td
-                                                        key={ci}
-                                                        className="border border-slate-100 dark:border-white/10 px-2 py-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap"
-                                                    >
-                                                        {cell !== null && cell !== undefined ? String(cell) : ''}
-                                                    </td>
-                                                ))}
+                            {(() => {
+                                const parsed = viewingSheet.parsedData ?? parseExpenseSheet(viewingSheet.sheetData);
+                                if (!parsed || (parsed.items.length === 0 && parsed.total === 0)) {
+                                    return <p className="text-sm text-slate-400 text-center py-8">Sin datos en esta hoja.</p>;
+                                }
+                                return (
+                                    <table className="w-full text-sm border-collapse">
+                                        <thead className="bg-slate-50 dark:bg-white/5">
+                                            <tr>
+                                                <th className="text-left px-3 py-2 font-semibold text-slate-500 dark:text-slate-400">Concepto</th>
+                                                <th className="text-right px-3 py-2 font-semibold text-slate-500 dark:text-slate-400">Monto</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
+                                        </thead>
+                                        <tbody>
+                                            {parsed.items.map((it, i) => (
+                                                <tr key={i} className="border-t border-slate-100 dark:border-white/5">
+                                                    <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{it.concept}</td>
+                                                    <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">${it.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            ))}
+                                            <tr className="border-t-2 border-violet-200 dark:border-violet-500/30 bg-violet-50/60 dark:bg-violet-500/10 font-bold">
+                                                <td className="px-3 py-2 text-violet-800 dark:text-violet-200">TOTAL</td>
+                                                <td className="px-3 py-2 text-right tabular-nums text-violet-800 dark:text-violet-200">${parsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
