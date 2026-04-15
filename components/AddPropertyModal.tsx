@@ -132,6 +132,21 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       const now = new Date();
       const queryEnd = idealEnd > now ? now : idealEnd;
 
+      // Si el mes base mismo es futuro → INDEC no tiene NADA de este período.
+      // Mensaje claro: el contrato todavía no arrancó, el ajuste se calcula cuando
+      // INDEC publique los IPC del período (pasando el primer ajuste).
+      if (baseDate > now) {
+        const adjLabel = contractStart
+          ? new Date(new Date(contractStart + 'T00:00:00').setMonth(new Date(contractStart + 'T00:00:00').getMonth() + months))
+              .toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+          : '';
+        throw new Error(
+          `El período de ajuste (${fmtMonth(baseDate)} → ${fmtMonth(idealEnd)}) aún no ocurrió. ` +
+          `Volvé a calcular después del ${adjLabel} cuando INDEC publique los IPC de esos meses. ` +
+          `Por ahora podés ingresar el % manualmente.`
+        );
+      }
+
       const periodLabel = `${fmtMonth(contractStart ? new Date(contractStart + 'T00:00:00') : baseDate)} → ${fmtMonth(idealEnd)}`;
 
       // Query a wider range to ensure we get enough data points
