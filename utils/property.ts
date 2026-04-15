@@ -65,7 +65,7 @@ export const getPropertyDisplayInfo = (p: DisplayProperty) => {
 
     if (match) {
         const floorInfo = match[1].trim();
-        let cleanName = name.replace(floorRegex, '').trim();
+        const cleanName = name.replace(floorRegex, '').trim();
 
         if (cleanName && cleanName.length > 1) {
             const combinedSubtitle = label && !label.toUpperCase().includes(floorInfo.toUpperCase())

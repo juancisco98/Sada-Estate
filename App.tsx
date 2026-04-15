@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { handleError } from './utils/errorHandler';
 import { logger } from './utils/logger';
@@ -59,7 +59,6 @@ const Dashboard: React.FC = () => {
     saveProperties: savePropertiesData,
     updateNote: updateNoteData,
     deleteProperty: handleDeleteProperty,
-    updatePropertyFields
   } = useProperties(currentUser?.id);
 
   const {
@@ -78,7 +77,6 @@ const Dashboard: React.FC = () => {
   const {
     buildings,
     saveBuilding: handleSaveBuilding,
-    deleteBuilding: handleDeleteBuilding // Note: App.tsx doesn't seem to use this widely but usePropertyData exported it
   } = useBuildings(currentUser?.id);
 
   // Tenant Data
@@ -89,6 +87,7 @@ const Dashboard: React.FC = () => {
     handleDeleteTenant,
     handleRegisterPayment,
     handleUpdatePayment,
+    handleDeletePayment,
     getTenantMetrics,
   } = useTenantData(currentUser?.id);
 
@@ -96,9 +95,6 @@ const Dashboard: React.FC = () => {
   const {
     allReminders,
     activeCount: reminderActiveCount,
-    createReminder,
-    toggleComplete: toggleReminderComplete,
-    deleteReminder,
     analyzeWithAI,
     isAnalyzing,
     lastAnalysis,
@@ -113,20 +109,20 @@ const Dashboard: React.FC = () => {
     actionLoading: smartActionLoading,
   } = useSmartActions();
 
-  // Selection State
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  // Selection State: guardamos solo el id y derivamos el objeto con useMemo.
+  // Así evitamos un useEffect de prop-sync (anti-pattern) y el selectedProperty
+  // siempre refleja la versión más reciente de `properties` automáticamente.
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const selectedProperty = useMemo<Property | null>(
+    () => selectedPropertyId ? properties.find(p => p.id === selectedPropertyId) ?? null : null,
+    [selectedPropertyId, properties]
+  );
+  const setSelectedProperty = useCallback(
+    (propOrNull: Property | null) => setSelectedPropertyId(propOrNull?.id ?? null),
+    []
+  );
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [previousBuilding, setPreviousBuilding] = useState<Building | null>(null);
-
-  // Sync selectedProperty with latest data
-  useEffect(() => {
-    if (selectedProperty) {
-      const updated = properties.find(p => p.id === selectedProperty.id);
-      if (updated && updated !== selectedProperty) {
-        setSelectedProperty(updated);
-      }
-    }
-  }, [properties, selectedProperty]);
 
   // State to handle navigation from Map Card "Ver Métricas" to Finance View Modal
   const [financialPropertyToOpen, setFinancialPropertyToOpen] = useState<Property | null>(null);
@@ -166,7 +162,7 @@ const Dashboard: React.FC = () => {
       }
       isHydrated.current = true;
     }
-  }, [isLoading, properties]);
+  }, [isLoading, properties, setSelectedProperty]);
 
   // Update URL on state change
   useEffect(() => {
@@ -202,9 +198,9 @@ const Dashboard: React.FC = () => {
     performSearch: rawPerformSearch
   } = useSearch();
 
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     rawPerformSearch(query, setCurrentView, setSelectedProperty);
-  };
+  }, [rawPerformSearch, setSelectedProperty]);
 
   // --- Auth Effects ---
   useEffect(() => {
@@ -400,6 +396,9 @@ const Dashboard: React.FC = () => {
         CapacitorApp.removeAllListeners();
       }
     };
+    // Dependencies omitidas a propósito: el subscribe de auth debe correr 1 sola vez.
+    // refreshData se usa adentro pero re-suscribir en cada identity-change causaría leaks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -415,7 +414,7 @@ const Dashboard: React.FC = () => {
     setSelectedBuilding(null);
     setSelectedProperty(property);
     setSearchResult(null);
-  }, [setSearchResult]);
+  }, [setSearchResult, setSelectedProperty]);
 
   const handleBuildingSelect = useCallback((buildingId: string) => {
     // Handle address-based groups (prefixed with "addr:")
@@ -459,7 +458,7 @@ const Dashboard: React.FC = () => {
         setSearchResult(null);
       }
     }
-  }, [buildings, properties, setSearchResult]);
+  }, [buildings, properties, setSearchResult, setSelectedProperty]);
 
   const handleViewMetrics = useCallback(() => {
     if (selectedProperty) {
@@ -467,7 +466,7 @@ const Dashboard: React.FC = () => {
       setCurrentView('FINANCE');
       setSelectedProperty(null);
     }
-  }, [selectedProperty]);
+  }, [selectedProperty, setSelectedProperty]);
 
   const handleOpenAddModal = useCallback(() => {
     setPropertyToEdit(null);
@@ -521,7 +520,7 @@ const Dashboard: React.FC = () => {
         setSelectedProperty(savedPropOrProps);
       }
     }
-  }, [savePropertiesData, savePropertyData, propertyToEdit, setSearchResult, setSearchQuery, handleSaveBuilding]);
+  }, [savePropertiesData, savePropertyData, propertyToEdit, setSearchResult, setSearchQuery, handleSaveBuilding, setSelectedProperty]);
 
   const handleUpdateNote = useCallback((propertyId: string, newNote: string) => {
     updateNoteData(propertyId, newNote);
@@ -536,7 +535,7 @@ const Dashboard: React.FC = () => {
       const updated = properties.find(p => p.id === finishingProperty.id);
       if (updated) setSelectedProperty(updated);
     }
-  }, [finishingProperty, finishMaintenanceData, selectedProperty, properties]);
+  }, [finishingProperty, finishMaintenanceData, selectedProperty, properties, setSelectedProperty]);
 
   const handleSaveProfessional = useCallback((newPro: Professional) => {
     saveProfessionalData(newPro);
@@ -593,7 +592,7 @@ const Dashboard: React.FC = () => {
     } else if (entityType === 'maintenance_task') {
       setCurrentView('PROFESSIONALS');
     }
-  }, [properties, tenants]);
+  }, [properties, tenants, setSelectedProperty]);
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -666,6 +665,7 @@ const Dashboard: React.FC = () => {
                   onDeleteTenant={handleDeleteTenant}
                   onRegisterPayment={handleRegisterPayment}
                   onUpdatePayment={handleUpdatePayment}
+                  onDeletePayment={handleDeletePayment}
                   getTenantMetrics={getTenantMetrics}
                   maintenanceTasks={maintenanceTasks}
                   refreshData={refreshData}

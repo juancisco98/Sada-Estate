@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { getPropertyDisplayInfo } from '../utils/property';
-import { UserPlus, Trash2, DollarSign, Phone, Home, CheckCircle, XCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader, Clock, Edit2, Users, Search, RefreshCw } from 'lucide-react';
+import { UserPlus, Trash2, DollarSign, Home, CheckCircle, X, ChevronDown, ChevronUp, Upload, FileText, Loader, Clock, Edit2, Users, Search, RefreshCw } from 'lucide-react';
 import { uploadFile } from '../services/storage';
 import { supabase } from '../services/supabaseClient';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ interface TenantsViewProps {
     onDeleteTenant: (tenantId: string) => void;
     onRegisterPayment: (payment: TenantPayment) => void;
     onUpdatePayment: (payment: TenantPayment) => void;
+    onDeletePayment: (payment: TenantPayment) => Promise<void>;
     maintenanceTasks: MaintenanceTask[];
     refreshData: () => Promise<void>;
     getTenantMetrics: (tenantId: string) => {
@@ -48,6 +49,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
     onDeleteTenant,
     onRegisterPayment,
     onUpdatePayment,
+    onDeletePayment,
     maintenanceTasks,
     refreshData,
     getTenantMetrics,
@@ -78,8 +80,26 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         [properties]
     );
 
+    // Opciones del dropdown "Asignar a Inmueble": propiedades vacantes +
+    // (si estoy editando) la propiedad actualmente asignada a ese inquilino,
+    // para no perderla si ya no aparece como vacante.
+    const assignableProperties = useMemo(() => {
+        if (!editingTenantId) return vacantProperties;
+        const editing = tenants.find(t => t.id === editingTenantId);
+        if (!editing?.propertyId) return vacantProperties;
+        const current = properties.find(p => p.id === editing.propertyId);
+        if (!current) return vacantProperties;
+        if (vacantProperties.some(p => p.id === current.id)) return vacantProperties;
+        return [current, ...vacantProperties];
+    }, [vacantProperties, editingTenantId, tenants, properties]);
+
     const handleAddTenant = () => {
         if (!newTenant.name.trim()) return;
+        // Validar que la propiedad seleccionada exista en state local (protección contra FK stale).
+        if (newTenant.propertyId && !properties.some(p => p.id === newTenant.propertyId)) {
+            toast.error('La propiedad seleccionada ya no existe. Refrescá los datos y volvé a intentar.');
+            return;
+        }
         const tenant: Tenant = {
             id: editingTenantId || generateUUID(),
             name: newTenant.name.trim(),
@@ -115,14 +135,18 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             const tenant = tenants.find(t => t.id === tenantId);
             const prop = tenant?.propertyId ? properties.find(p => p.id === tenant.propertyId) : null;
 
-            // Find last payment to get previous amount
+            // Prioridad para el monto por defecto:
+            // 1) monthlyRent de la propiedad (fuente de verdad, actualizado por IPC / edición).
+            // 2) Monto del último pago (fallback histórico si la propiedad aún no tiene monthlyRent).
             const tenantPayments = payments.filter(p => p.tenantId === tenantId);
             const lastPayment = tenantPayments.sort((a, b) => {
                 if (a.year !== b.year) return b.year - a.year;
                 return b.month - a.month;
             })[0];
 
-            const defaultAmount = lastPayment ? lastPayment.amount.toString() : (prop?.monthlyRent?.toString() || '');
+            const defaultAmount = prop?.monthlyRent
+                ? prop.monthlyRent.toString()
+                : (lastPayment?.amount?.toString() || '');
 
             setNewPayment({
                 amount: defaultAmount,
@@ -230,15 +254,14 @@ const TenantsView: React.FC<TenantsViewProps> = ({
 
     const handleDeletePayment = async (payment: TenantPayment) => {
         if (!confirm(`¿Eliminar el pago de ${MONTH_NAMES[payment.month - 1]} ${payment.year}? Esta acción no se puede deshacer.`)) return;
-        const { error } = await supabase.from('tenant_payments').delete().eq('id', payment.id);
-        if (error) {
-            toast.error(`Error al eliminar: ${error.message}`);
-            return;
+        try {
+            await onDeletePayment(payment);
+            toast.success('Pago eliminado correctamente');
+            setShowPaymentModal(null);
+            setEditingPayment(null);
+        } catch {
+            // onDeletePayment ya muestra toast con mensaje amigable; mantenemos modal abierto para reintentar.
         }
-        toast.success('Pago eliminado correctamente');
-        setShowPaymentModal(null);
-        setEditingPayment(null);
-        await refreshData();
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'proofOfPayment' | 'proofOfExpenses') => {
@@ -824,7 +847,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
                                 >
                                     <option value="">Sin asignar</option>
-                                    {properties.map(p => (
+                                    {assignableProperties.map(p => (
                                         <option key={p.id} value={p.id}>
                                             {p.unitLabel ? `${p.address} - ${p.unitLabel}` : p.address}
                                         </option>

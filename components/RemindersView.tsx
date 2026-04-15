@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
     Bell, Sparkles, FileText, TrendingUp, Wrench, Clock, DollarSign,
-    ChevronRight, Loader, Bot, AlertTriangle
+    ChevronRight, Loader, Bot
 } from 'lucide-react';
 import { SmartReminder, Property, Tenant, Professional, MaintenanceTask, AutomationHistoryEntry } from '../types';
 import SmartActionsPanel from './SmartActionsPanel';
@@ -64,17 +64,18 @@ function formatLastAnalysis(date: Date | null): string {
     return `Hace ${diffHrs}h`;
 }
 
+const URGENCY_ORDER: Record<string, number> = { overdue: 0, urgent: 1, upcoming: 2, done: 3 };
+
 const RemindersView: React.FC<RemindersViewProps> = ({
     smartReminders, onAnalyzeAI, isAnalyzing, lastAnalysis,
     onNavigateToEntity,
     smartActions, executedActions, onExecuteSmartAction, onDismissSmartAction, smartActionLoading,
 }) => {
     // Only show non-completed reminders, sorted by urgency priority
-    const urgencyOrder: Record<string, number> = { overdue: 0, urgent: 1, upcoming: 2, done: 3 };
     const activeReminders = useMemo(() =>
         smartReminders
             .filter(r => !r.completed && r.urgency !== 'done')
-            .sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9)),
+            .sort((a, b) => (URGENCY_ORDER[a.urgency] ?? 9) - (URGENCY_ORDER[b.urgency] ?? 9)),
         [smartReminders]
     );
 

@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+// Context + Provider + useDataContext conviven a propósito en este archivo.
+// Separarlos obligaría a refactor masivo de todos los consumidores sin ganancia real.
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { Property, Professional, MaintenanceTask, Building, Tenant, TenantPayment, AppNotification, ExpenseSheet, ManualReminder, AutomationRule, AutomationHistoryEntry } from '../types';
-import { DbTenantPaymentRow, DbExpenseSheetRow, DbReminderRow, DbAutomationRuleRow, DbAutomationHistoryRow } from '../types/dbRows';
+import { DbTenantPaymentRow, DbExpenseSheetRow, DbReminderRow, DbAutomationRuleRow, DbAutomationHistoryRow, DbPropertyRow, DbTenantRow } from '../types/dbRows';
 import { supabase } from '../services/supabaseClient';
 import {
     dbToBuilding, dbToProperty,
@@ -46,6 +49,7 @@ interface DataContextType {
     markAllNotificationsRead: () => Promise<void>;
     isLoading: boolean;
     refreshData: () => Promise<void>;
+    loadExpenseSheetData: (id: string) => Promise<any[][] | null>;
 }
 
 const dbToNotification = (row: any): AppNotification => ({
@@ -89,6 +93,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await supabase.from('notifications').update({ read: true }).in('id', unreadIds);
     }, [notifications]);
 
+    const loadExpenseSheetData = useCallback(async (id: string): Promise<any[][] | null> => {
+        const { data, error } = await supabase
+            .from('expense_sheets')
+            .select('sheet_data')
+            .eq('id', id)
+            .limit(1)
+            .maybeSingle();
+        if (error) {
+            console.error('[DataContext] loadExpenseSheetData error:', error);
+            return null;
+        }
+        const sheetData = (data?.sheet_data as any[][]) ?? [];
+        setExpenseSheets(prev => prev.map(s => s.id === id ? { ...s, sheetData } : s));
+        return sheetData;
+    }, []);
+
     const loadData = async () => {
         setIsLoading(true);
         try {
@@ -108,9 +128,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 supabase.from('maintenance_tasks').select('*').order('created_at', { ascending: true }),
                 supabase.from('buildings').select('*').order('created_at', { ascending: true }),
                 supabase.from('tenants').select('*').order('created_at', { ascending: true }),
-                supabase.from('tenant_payments').select('*').order('created_at', { ascending: true }),
+                (() => {
+                    // Solo trae pagos de los últimos 24 meses para mantener el payload chico.
+                    // Pagos más viejos se cargan bajo demanda si es necesario.
+                    const cutoff = new Date();
+                    cutoff.setMonth(cutoff.getMonth() - 24);
+                    const cutoffIso = cutoff.toISOString();
+                    return supabase.from('tenant_payments')
+                        .select('*')
+                        .gte('created_at', cutoffIso)
+                        .order('created_at', { ascending: true });
+                })(),
                 supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
-                supabase.from('expense_sheets').select('*').order('uploaded_at', { ascending: false }),
+                supabase.from('expense_sheets').select('id, tenant_id, month, year, sheet_name, uploaded_at, uploaded_by, parsed_data, source_type, pdf_url').order('uploaded_at', { ascending: false }),
             ]);
 
             if (prosResult.error) throw prosResult.error;
@@ -189,8 +219,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         loadData();
 
-        const paymentsChannel = supabase
-            .channel('tenant_payments_realtime')
+        // Un solo canal con múltiples .on(): Supabase multiplexa internamente sobre una
+        // única WebSocket. Menos channels = menos overhead de heartbeat y menos reconexiones.
+        const realtimeChannel = supabase
+            .channel('sada_estate_realtime')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'tenant_payments' },
@@ -209,10 +241,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                 }
             )
-            .subscribe();
-
-        const notificationsChannel = supabase
-            .channel('notifications_realtime')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'notifications' },
@@ -276,17 +304,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                 }
             )
-            .subscribe();
-
-        const expenseSheetsChannel = supabase
-            .channel('expense_sheets_realtime')
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'expense_sheets' },
                 (payload) => {
+                    const { sheet_data: _omit, ...rest } = payload.new as DbExpenseSheetRow;
                     setExpenseSheets(prev => {
-                        if (prev.some(s => s.id === payload.new.id)) return prev;
-                        return [dbToExpenseSheet(payload.new as DbExpenseSheetRow), ...prev];
+                        if (prev.some(s => s.id === rest.id)) return prev;
+                        return [dbToExpenseSheet(rest as DbExpenseSheetRow), ...prev];
                     });
                 }
             )
@@ -294,15 +319,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: 'expense_sheets' },
                 (payload) => {
+                    const { sheet_data: _omit, ...rest } = payload.new as DbExpenseSheetRow;
                     setExpenseSheets(prev => prev.map(s =>
-                        s.id === payload.new.id ? dbToExpenseSheet(payload.new as DbExpenseSheetRow) : s
+                        s.id === rest.id ? { ...dbToExpenseSheet(rest as DbExpenseSheetRow), sheetData: s.sheetData } : s
                     ));
                 }
             )
-            .subscribe();
-
-        const remindersChannel = supabase
-            .channel('reminders_realtime')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'reminders' },
@@ -321,10 +343,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                 }
             )
-            .subscribe();
-
-        const automationHistoryChannel = supabase
-            .channel('automation_history_realtime')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'automation_history' },
@@ -343,55 +361,86 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                 }
             )
-            .subscribe();
-
-        const automationRulesChannel = supabase
-            .channel('automation_rules_realtime')
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'automation_rules' },
+                { event: 'UPDATE', schema: 'public', table: 'automation_rules' },
                 (payload) => {
-                    if (payload.eventType === 'UPDATE') {
-                        setAutomationRules(prev => prev.map(r =>
-                            r.id === payload.new.id ? dbToAutomationRule(payload.new as DbAutomationRuleRow) : r
+                    setAutomationRules(prev => prev.map(r =>
+                        r.id === payload.new.id ? dbToAutomationRule(payload.new as DbAutomationRuleRow) : r
+                    ));
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'properties' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setProperties(prev => {
+                            if (prev.some(p => p.id === payload.new.id)) return prev;
+                            return [...prev, dbToProperty(payload.new as DbPropertyRow)];
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        setProperties(prev => prev.map(p =>
+                            p.id === payload.new.id ? dbToProperty(payload.new as DbPropertyRow) : p
                         ));
+                    } else if (payload.eventType === 'DELETE') {
+                        const oldId = (payload.old as any)?.id;
+                        if (oldId) setProperties(prev => prev.filter(p => p.id !== oldId));
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'tenants' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setTenants(prev => {
+                            if (prev.some(t => t.id === payload.new.id)) return prev;
+                            return [...prev, dbToTenant(payload.new as DbTenantRow)];
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        setTenants(prev => prev.map(t =>
+                            t.id === payload.new.id ? dbToTenant(payload.new as DbTenantRow) : t
+                        ));
+                    } else if (payload.eventType === 'DELETE') {
+                        const oldId = (payload.old as any)?.id;
+                        if (oldId) setTenants(prev => prev.filter(t => t.id !== oldId));
                     }
                 }
             )
             .subscribe();
 
         return () => {
-            supabase.removeChannel(paymentsChannel);
-            supabase.removeChannel(notificationsChannel);
-            supabase.removeChannel(expenseSheetsChannel);
-            supabase.removeChannel(remindersChannel);
-            supabase.removeChannel(automationHistoryChannel);
-            supabase.removeChannel(automationRulesChannel);
+            supabase.removeChannel(realtimeChannel);
         };
     }, []);
 
-    return (
-        <DataContext.Provider value={{
-            properties, setProperties,
-            professionals, setProfessionals,
-            maintenanceTasks, setMaintenanceTasks,
-            buildings, setBuildings,
-            tenants, setTenants,
-            payments, setPayments,
-            expenseSheets, setExpenseSheets,
-            reminders, setReminders,
-            automationRules, setAutomationRules,
-            automationHistory, setAutomationHistory,
-            notifications,
-            unreadCount,
-            markNotificationRead,
-            markAllNotificationsRead,
-            isLoading,
-            refreshData: loadData
-        }}>
-            {children}
-        </DataContext.Provider>
-    );
+    const value = useMemo(() => ({
+        properties, setProperties,
+        professionals, setProfessionals,
+        maintenanceTasks, setMaintenanceTasks,
+        buildings, setBuildings,
+        tenants, setTenants,
+        payments, setPayments,
+        expenseSheets, setExpenseSheets,
+        reminders, setReminders,
+        automationRules, setAutomationRules,
+        automationHistory, setAutomationHistory,
+        notifications,
+        unreadCount,
+        markNotificationRead,
+        markAllNotificationsRead,
+        isLoading,
+        refreshData: loadData,
+        loadExpenseSheetData,
+    }), [
+        properties, professionals, maintenanceTasks, buildings, tenants,
+        payments, expenseSheets, reminders, automationRules, automationHistory,
+        notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
+        isLoading, loadExpenseSheetData,
+    ]);
+
+    return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
 
 export const useDataContext = () => {

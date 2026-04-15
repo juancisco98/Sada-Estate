@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, TenantPayment, Tenant } from '../types';
+import { User, TenantPayment } from '../types';
 import { useDataContext } from '../context/DataContext';
 import { MONTH_NAMES } from '../constants';
-import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import { dbToExpenseSheet } from '../utils/mappers';
 import UploadReceiptModal from './UploadReceiptModal';
@@ -65,12 +64,14 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         if (oldId) setExpenseSheets(prev => prev.filter(s => s.id !== oldId));
                         return;
                     }
-                    const sheet = dbToExpenseSheet(payload.new as any);
+                    // Strip sheet_data del payload; se carga lazy al abrir el detalle.
+                    const { sheet_data: _omit, ...rest } = (payload.new as any) ?? {};
+                    const sheet = dbToExpenseSheet(rest);
                     setExpenseSheets(prev => {
                         const idx = prev.findIndex(s => s.id === sheet.id);
                         if (idx >= 0) {
                             const next = prev.slice();
-                            next[idx] = sheet;
+                            next[idx] = { ...sheet, sheetData: prev[idx].sheetData };
                             return next;
                         }
                         return [sheet, ...prev];
@@ -292,29 +293,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         const status = getMonthStatus(index);
                         const payment = tenantPaymentsThisYear.find(p => p.month === index + 1);
                         const sheet = tenantExpenseSheetsThisYear.find(s => s.month === index + 1);
-                        const sheetTotal = (() => {
-                            if (!sheet?.sheetData?.length) return 0;
-                            // Buscar fila con "TOTAL"
-                            for (const row of sheet.sheetData) {
-                                const hasTotal = (row as any[]).some((c: any) => String(c ?? '').toUpperCase().includes('TOTAL'));
-                                if (hasTotal) {
-                                    const num = (row as any[])
-                                        .map((c: any) => typeof c === 'number' ? c : parseFloat(String(c).replace(/[^0-9.,]/g, '').replace(',', '.')))
-                                        .filter((n: number) => !isNaN(n) && n > 0)
-                                        .sort((a: number, b: number) => b - a)[0];
-                                    if (num) return num;
-                                }
-                            }
-                            // Fallback: mayor número
-                            let max = 0;
-                            for (const row of sheet.sheetData) {
-                                for (const cell of row as any[]) {
-                                    const n = typeof cell === 'number' ? cell : parseFloat(String(cell).replace(/[^0-9.,]/g, '').replace(',', '.'));
-                                    if (!isNaN(n) && n > max) max = n;
-                                }
-                            }
-                            return max;
-                        })();
+                        const sheetTotal = sheet?.parsedData?.total ?? 0;
 
                         return (
                             <button

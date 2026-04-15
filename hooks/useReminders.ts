@@ -3,7 +3,7 @@ import { useDataContext } from '../context/DataContext';
 import { ManualReminder, SmartReminder, SmartReminderType, Property, TenantPayment, MaintenanceTask, ReminderEntityType, TaskStatus } from '../types';
 import { reminderToDb } from '../utils/mappers';
 import { supabase } from '../services/supabaseClient';
-import { generateAIReminders, AIReminderRequest, AIReminderResponse } from '../services/aiService';
+import { generateAIReminders, AIReminderRequest } from '../services/aiService';
 import { logAdminAction } from '../services/actionLogger';
 import { toast } from 'sonner';
 import {
@@ -162,7 +162,7 @@ function computeRuleBasedReminders(
 // ── Hook ──
 
 export const useReminders = (currentUserId?: string) => {
-    const { reminders, setReminders, properties, payments, maintenanceTasks, professionals, tenants } = useDataContext();
+    const { reminders, setReminders, properties, payments, maintenanceTasks, professionals } = useDataContext();
 
     // AI state
     const [aiReminders, setAiReminders] = useState<SmartReminder[]>([]);
@@ -270,7 +270,7 @@ export const useReminders = (currentUserId?: string) => {
             const aiResults = await generateAIReminders(snapshot);
 
             // Convert AI results to SmartReminder
-            const newAiReminders: SmartReminder[] = aiResults.map((r, i) => ({
+            const newAiReminders: SmartReminder[] = aiResults.map((r) => ({
                 id: generateUUID(),
                 title: r.title,
                 description: r.description,
@@ -286,11 +286,12 @@ export const useReminders = (currentUserId?: string) => {
             setAiReminders(newAiReminders);
             setLastAnalysis(new Date());
             toast.success(`IA generó ${newAiReminders.length} recordatorios`);
-        } catch (error: any) {
-            if (error?.message === 'EDGE_FUNCTION_NOT_CONFIGURED') {
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            if (msg === 'EDGE_FUNCTION_NOT_CONFIGURED') {
                 toast.error('La función de IA no está configurada. Configurá la Edge Function en Supabase.');
             } else {
-                toast.error(`Error de IA: ${error?.message || 'Error desconocido'}`);
+                toast.error(`Error de IA: ${msg || 'Error desconocido'}`);
             }
         } finally {
             setIsAnalyzing(false);

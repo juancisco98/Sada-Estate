@@ -1,6 +1,6 @@
 import React from 'react';
 import { MaintenanceTask, Property, Professional } from '../types';
-import { X, Receipt, Calendar, Hammer, Building2, Home, ExternalLink } from 'lucide-react';
+import { X, Receipt, Calendar, Hammer, Home, ExternalLink } from 'lucide-react';
 import { formatCurrency } from '../utils/currency';
 
 const MONTH_NAMES_FULL = [

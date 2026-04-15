@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Minus, Plus, User, Phone, LayoutGrid, Ruler, DollarSign, Building2 } from 'lucide-react';
-import { PropertyStatus } from '../../types';
 
 export interface BuildingUnit {
     label: string;

@@ -1,6 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
-import * as fs from 'fs';
 
 dotenv.config({ path: '.env.local' });
 

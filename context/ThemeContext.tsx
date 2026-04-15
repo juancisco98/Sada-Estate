@@ -1,3 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
+// Context + Provider + hook conviven a propósito en este archivo.
+// Separarlos complicaría la API sin aportar ganancia real; fast-refresh igual funciona en dev.
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark';

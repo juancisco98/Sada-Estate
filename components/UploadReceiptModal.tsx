@@ -9,6 +9,7 @@ import { paymentToDb } from '../utils/mappers';
 import { parseExpenseSheet } from '../utils/expenseSheetParser';
 import { toast } from 'sonner';
 import { MONTH_NAMES, ALLOWED_EMAILS } from '../constants';
+import { useDataContext } from '../context/DataContext';
 
 // UUID v4 generator that works on HTTP (crypto.randomUUID requires HTTPS)
 const generateUUID = (): string => {
@@ -153,9 +154,20 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
         setShowConfirm(true);
     };
 
-    const handleDownloadExcel = () => {
+    const { loadExpenseSheetData } = useDataContext();
+
+    const handleDownloadExcel = async () => {
         if (!expenseSheet) return;
-        const ws = XLSX.utils.aoa_to_sheet(expenseSheet.sheetData || []);
+        let data = expenseSheet.sheetData;
+        if (!data || data.length === 0) {
+            const loaded = await loadExpenseSheetData(expenseSheet.id);
+            if (!loaded || loaded.length === 0) {
+                toast.error('No hay datos de Excel para descargar.');
+                return;
+            }
+            data = loaded;
+        }
+        const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, expenseSheet.sheetName || 'Expensas');
         XLSX.writeFile(wb, `Expensas_${MONTH_NAMES[month - 1]}_${year}.xlsx`);

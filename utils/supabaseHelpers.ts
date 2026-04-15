@@ -1,11 +1,10 @@
 import { supabase } from '../services/supabaseClient';
 import { logger } from './logger';
-import { handleError } from './errorHandler';
 
 /**
  * Generic wrapper for Supabase upsert operations with optimistic updates.
  */
-export async function supabaseUpsert<T>(
+export async function supabaseUpsert(
     table: string,
     dbRow: Record<string, unknown> | Record<string, unknown>[],
     label: string

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Property, MaintenanceTask, PartialExpense } from '../types';
+import { Property, MaintenanceTask } from '../types';
 import { X, Plus, DollarSign, Calendar, Upload, CheckCircle, ExternalLink, Loader } from 'lucide-react';
 import { formatCurrency } from '../utils/currency';
 import { uploadFile } from '../services/storage';

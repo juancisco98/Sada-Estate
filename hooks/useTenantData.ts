@@ -1,7 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useDataContext } from '../context/DataContext';
 import { Tenant, TenantPayment, PropertyStatus } from '../types';
+import { errorMessage } from '../utils/errorHandler';
 import { tenantToDb, paymentToDb } from '../utils/mappers';
+import { supabase } from '../services/supabaseClient';
 import { supabaseUpsert, supabaseDelete, supabaseInsert, supabaseUpdate } from '../utils/supabaseHelpers';
 import { logAdminAction } from '../services/actionLogger';
 import { toast } from 'sonner';
@@ -11,7 +13,8 @@ export const useTenantData = (currentUserId?: string) => {
         tenants, setTenants,
         payments, setPayments,
         properties, setProperties,
-        isLoading: isLoadingTenants
+        isLoading: isLoadingTenants,
+        refreshData,
     } = useDataContext();
 
     const handleSaveTenant = async (tenant: Tenant) => {
@@ -28,7 +31,7 @@ export const useTenantData = (currentUserId?: string) => {
         });
 
         // Sync with properties table
-        const propertyUpdates: Promise<any>[] = [];
+        const propertyUpdates: Promise<unknown>[] = [];
 
         // 1. If property changed, clear the old one
         if (oldTenant && oldTenant.propertyId && oldTenant.propertyId !== tenant.propertyId) {
@@ -77,10 +80,19 @@ export const useTenantData = (currentUserId?: string) => {
                 entityId: tenant.id,
                 actionPayload: { name: tenant.name, phone: tenant.phone, email: tenant.email, propertyId: tenant.propertyId },
             });
-        } catch (error: any) {
+        } catch (error) {
             setTenants(prevTenants);
             setProperties(prevProperties);
-            toast.error(`Error guardando inquilino: ${error?.message || 'Error desconocido'}`);
+            const errObj = error as { message?: string; code?: string } | null | undefined;
+            const msg = String(errObj?.message || '');
+            const code = String(errObj?.code || '');
+            const isFkViolation = code === '23503' || /foreign key constraint/i.test(msg);
+            if (isFkViolation && /property_id/i.test(msg)) {
+                toast.error('La propiedad seleccionada ya no existe. Refrescamos los datos — volvé a intentar.');
+                refreshData().catch(() => { /* silencioso: el toast ya avisó */ });
+            } else {
+                toast.error(`Error guardando inquilino: ${msg || 'Error desconocido'}`);
+            }
             throw error;
         }
     };
@@ -94,7 +106,7 @@ export const useTenantData = (currentUserId?: string) => {
         setTenants(prev => prev.filter(t => t.id !== tenantId));
         setPayments(prev => prev.filter(p => p.tenantId !== tenantId));
 
-        const propertyUpdates: Promise<any>[] = [];
+        const propertyUpdates: Promise<unknown>[] = [];
         if (tenant?.propertyId) {
             setProperties(prev => prev.map(p => p.id === tenant.propertyId ? {
                 ...p,
@@ -114,11 +126,11 @@ export const useTenantData = (currentUserId?: string) => {
                 supabaseDelete('tenants', tenantId, 'tenant'),
                 ...propertyUpdates
             ]);
-        } catch (error: any) {
+        } catch (error) {
             setTenants(prevTenants);
             setPayments(prevPayments);
             setProperties(prevProperties);
-            toast.error(`Error al eliminar inquilino: ${error?.message || 'Error desconocido'}`);
+            toast.error(`Error al eliminar inquilino: ${errorMessage(error) || 'Error desconocido'}`);
             throw error;
         }
     };
@@ -137,69 +149,163 @@ export const useTenantData = (currentUserId?: string) => {
                 entityId: payment.id,
                 actionPayload: { tenantId: payment.tenantId, amount: payment.amount, month: payment.month, year: payment.year, status: payment.status },
             });
-        } catch (error: any) {
+        } catch (error) {
             setPayments(prevPayments);
-            toast.error(`Error registrando el pago: ${error?.message || 'Error desconocido'}`);
+            toast.error(`Error registrando el pago: ${errorMessage(error) || 'Error desconocido'}`);
             throw error;
         }
     };
 
-    const getTenantMetrics = useCallback((tenantId: string) => {
-        const tenantPayments = payments.filter(p => p.tenantId === tenantId);
-        const totalPayments = tenantPayments.length;
-        const onTimePayments = tenantPayments.filter(p => p.paidOnTime).length;
-        const onTimeRate = totalPayments > 0 ? (onTimePayments / totalPayments) * 100 : 0;
-
-        // Deduplicate by month/year: one record per month (the first found)
-        const uniqueByMonth = new Map<string, TenantPayment>();
-        tenantPayments.forEach(p => {
-            const key = `${p.year}-${p.month}`;
-            if (!uniqueByMonth.has(key)) uniqueByMonth.set(key, p);
-        });
-        const uniquePayments = Array.from(uniqueByMonth.values());
-        const totalPaid = uniquePayments
-            .filter(p => p.status === 'APPROVED')
-            .reduce((sum, p) => sum + p.amount, 0);
-        const totalExpenses = uniquePayments
-            .filter(p => p.status === 'APPROVED')
-            .reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
-
-        const currentYear = new Date().getFullYear();
-        const monthlyBreakdown = Array.from({ length: 12 }, (_, i) => {
-            const monthPayments = tenantPayments.filter(p => p.month === i + 1 && p.year === currentYear);
-            const latestPayment = monthPayments[0];
-            return {
-                month: i + 1,
-                amount: latestPayment?.amount || 0,
-                paid: monthPayments.some(p => p.status === 'APPROVED'),
-                status: latestPayment?.status,
-                proofUrl: latestPayment?.proofOfPayment,
-            };
-        });
-
-        const expenseMonthlyBreakdown = Array.from({ length: 12 }, (_, i) => {
-            const monthPayments = tenantPayments.filter(p => p.month === i + 1 && p.year === currentYear);
-            const withExpenses = monthPayments.find(p => p.proofOfExpenses || (p.expenseAmount ?? 0) > 0);
-            return {
-                month: i + 1,
-                amount: withExpenses?.expenseAmount || 0,
-                paid: monthPayments.some(p => p.proofOfExpenses || (p.expenseAmount ?? 0) > 0),
-                status: withExpenses?.status,
-                proofUrl: withExpenses?.proofOfExpenses,
-            };
-        });
-
-        return {
-            totalPaid,
-            totalExpenses,
-            totalPayments,
-            onTimePayments,
-            onTimeRate: Math.round(onTimeRate),
-            monthlyBreakdown,
-            expenseMonthlyBreakdown,
-            currency: tenantPayments[0]?.currency || 'ARS',
-        };
+    const paymentsByTenant = useMemo(() => {
+        const map = new Map<string, TenantPayment[]>();
+        for (const p of payments) {
+            if (!p.tenantId) continue;
+            const arr = map.get(p.tenantId);
+            if (arr) arr.push(p);
+            else map.set(p.tenantId, [p]);
+        }
+        return map;
     }, [payments]);
+
+    const tenantMetricsCache = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const cache = new Map<string, {
+            totalPaid: number;
+            totalExpenses: number;
+            totalPayments: number;
+            onTimePayments: number;
+            onTimeRate: number;
+            monthlyBreakdown: Array<{ month: number; amount: number; paid: boolean; status?: TenantPayment['status']; proofUrl?: string }>;
+            expenseMonthlyBreakdown: Array<{ month: number; amount: number; paid: boolean; status?: TenantPayment['status']; proofUrl?: string }>;
+            currency: string;
+        }>();
+
+        for (const [tenantId, tenantPayments] of paymentsByTenant) {
+            const totalPayments = tenantPayments.length;
+            let onTimePayments = 0;
+            const uniqueByMonth = new Map<string, TenantPayment>();
+            const byMonthCurrentYear: TenantPayment[][] = Array.from({ length: 12 }, () => []);
+
+            for (const p of tenantPayments) {
+                if (p.paidOnTime) onTimePayments++;
+                const key = `${p.year}-${p.month}`;
+                if (!uniqueByMonth.has(key)) uniqueByMonth.set(key, p);
+                if (p.year === currentYear && p.month >= 1 && p.month <= 12) {
+                    byMonthCurrentYear[p.month - 1].push(p);
+                }
+            }
+
+            let totalPaid = 0;
+            let totalExpenses = 0;
+            for (const p of uniqueByMonth.values()) {
+                if (p.status === 'APPROVED') {
+                    totalPaid += p.amount;
+                    totalExpenses += p.expenseAmount ?? 0;
+                }
+            }
+
+            const monthlyBreakdown = byMonthCurrentYear.map((monthPayments, i) => {
+                const latestPayment = monthPayments[0];
+                let paid = false;
+                for (const p of monthPayments) {
+                    if (p.status === 'APPROVED') { paid = true; break; }
+                }
+                return {
+                    month: i + 1,
+                    amount: latestPayment?.amount || 0,
+                    paid,
+                    status: latestPayment?.status,
+                    proofUrl: latestPayment?.proofOfPayment,
+                };
+            });
+
+            const expenseMonthlyBreakdown = byMonthCurrentYear.map((monthPayments, i) => {
+                let withExpenses: TenantPayment | undefined;
+                let paid = false;
+                for (const p of monthPayments) {
+                    const has = !!p.proofOfExpenses || (p.expenseAmount ?? 0) > 0;
+                    if (has) {
+                        paid = true;
+                        if (!withExpenses) withExpenses = p;
+                    }
+                }
+                return {
+                    month: i + 1,
+                    amount: withExpenses?.expenseAmount || 0,
+                    paid,
+                    status: withExpenses?.status,
+                    proofUrl: withExpenses?.proofOfExpenses,
+                };
+            });
+
+            cache.set(tenantId, {
+                totalPaid,
+                totalExpenses,
+                totalPayments,
+                onTimePayments,
+                onTimeRate: totalPayments > 0 ? Math.round((onTimePayments / totalPayments) * 100) : 0,
+                monthlyBreakdown,
+                expenseMonthlyBreakdown,
+                currency: tenantPayments[0]?.currency || 'ARS',
+            });
+        }
+        return cache;
+    }, [paymentsByTenant]);
+
+    const emptyMetrics = useMemo(() => ({
+        totalPaid: 0,
+        totalExpenses: 0,
+        totalPayments: 0,
+        onTimePayments: 0,
+        onTimeRate: 0,
+        monthlyBreakdown: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, amount: 0, paid: false })),
+        expenseMonthlyBreakdown: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, amount: 0, paid: false })),
+        currency: 'ARS',
+    }), []);
+
+    const getTenantMetrics = useCallback((tenantId: string) => {
+        return tenantMetricsCache.get(tenantId) ?? emptyMetrics;
+    }, [tenantMetricsCache, emptyMetrics]);
+
+    const handleDeletePayment = async (payment: TenantPayment): Promise<void> => {
+        const prevPayments = [...payments];
+        // Optimistic: sacar del state local primero
+        setPayments(prev => prev.filter(p => p.id !== payment.id));
+
+        const isNetworkError = (err: unknown) => {
+            const msg = errorMessage(err);
+            return err instanceof TypeError || /failed to fetch|network|load failed/i.test(msg);
+        };
+
+        const attemptDelete = async () => {
+            const { error } = await supabase.from('tenant_payments').delete().eq('id', payment.id);
+            if (error) throw error;
+        };
+
+        try {
+            try {
+                await attemptDelete();
+            } catch (err) {
+                if (!isNetworkError(err)) throw err;
+                // Reintento único tras 1.2s (suele cubrir cortes momentáneos de red / service worker)
+                await new Promise(r => setTimeout(r, 1200));
+                await attemptDelete();
+            }
+            logAdminAction({
+                actionType: 'PAYMENT_DELETED',
+                entityTable: 'tenant_payments',
+                entityId: payment.id,
+                actionPayload: { tenantId: payment.tenantId, month: payment.month, year: payment.year, amount: payment.amount },
+            });
+        } catch (error) {
+            setPayments(prevPayments);
+            const friendly = isNetworkError(error)
+                ? 'No se pudo conectar al servidor. Revisá tu conexión y volvé a intentar.'
+                : `Error al eliminar el pago: ${errorMessage(error) || 'Error desconocido'}`;
+            toast.error(friendly);
+            throw error;
+        }
+    };
 
     const handleUpdatePayment = async (payment: TenantPayment) => {
         const prevPayments = [...payments];
@@ -216,9 +322,9 @@ export const useTenantData = (currentUserId?: string) => {
                     actionPayload: { tenantId: payment.tenantId, amount: payment.amount, month: payment.month, year: payment.year, previousStatus: oldPayment?.status },
                 });
             }
-        } catch (error: any) {
+        } catch (error) {
             setPayments(prevPayments);
-            toast.error(`Error actualizando el pago: ${error?.message || 'Error desconocido'}`);
+            toast.error(`Error actualizando el pago: ${errorMessage(error) || 'Error desconocido'}`);
             throw error;
         }
     };
@@ -231,6 +337,7 @@ export const useTenantData = (currentUserId?: string) => {
         handleDeleteTenant,
         handleRegisterPayment,
         handleUpdatePayment,
+        handleDeletePayment,
         getTenantMetrics,
     };
 };

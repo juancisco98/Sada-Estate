@@ -323,6 +323,60 @@ Esta sección se actualiza automáticamente cuando Claude comete un error que el
 
 ---
 
+### Lección 13 — Lag por queries/subscripciones/re-renders en DataContext
+**Qué pasó:** La app se sentía con lag al navegar entre vistas y cuando llegaban eventos realtime. Origen combinado: (1) `getTenantMetrics` recalculaba O(tenants × payments × 12) en cada render, (2) 6 canales realtime independientes triggerean cascadas de re-render global, (3) `select('*')` de `expense_sheets` traía `sheet_data` JSONB pesado de todas las hojas (decenas-cientos de KB), (4) payments se traían sin límite temporal.
+
+**Causa raíz:** El DataContext era la "fuente única de verdad" y el patrón por defecto (traer todo, subscribirse a todo, recalcular en cada render) no escala con el volumen de datos y la granularidad de eventos realtime.
+
+**Regla derivada:**
+- Índices por FK (ej: `paymentsByTenant: Map<tenantId, TenantPayment[]>`) antes de `.filter()` N veces dentro de un map.
+- Columnas JSONB pesadas NO van en el `select('*')` inicial: exponer un `loadXxxData(id)` lazy-load.
+- Realtime: 1 solo `.channel()` con múltiples `.on()` por tabla; N channels = N WebSockets = N heartbeats.
+- Toda tabla histórica (pagos, notificaciones, automation_history) debe tener `.gte(created_at, cutoff)` o `.limit()`.
+- `value` del Context SIEMPRE en `useMemo` con deps explícitas.
+- `React.memo` en componentes de card/leaf que reciben props estables.
+
+**Archivos afectados:** `context/DataContext.tsx`, `hooks/useTenantData.ts`, `components/ExpensesAdminPortal.tsx`, `components/PropertyCard.tsx`, `components/BuildingCard.tsx`, `components/FinancialDetailsCard.tsx`, `components/TenantPortal.tsx`, `components/UploadReceiptModal.tsx`, `components/expenses/ExpensesTenantDetail.tsx`, `utils/mappers.ts`, `types.ts`
+
+---
+
+### Lección 14 — FK violation por state local desincronizado con DB
+**Qué pasó:** Al agregar un inquilino aparecía `insert or update on table "tenants" violates foreign key constraint "tenants_property_id_fkey"`. La propiedad elegida en el dropdown existía en state local, pero no en DB (otro admin la borró, o quedó huérfana).
+
+**Causa raíz:** (1) El `<select>` mostraba **todas** las propiedades del state local sin filtrar. (2) El DataContext NO tenía realtime subscription para `properties` ni `tenants`, así que borrados hechos desde otra sesión nunca se propagaban. (3) El catch de `handleSaveTenant` mostraba el error crudo de Postgres en vez de traducirlo y auto-recuperar.
+
+**Regla derivada:**
+- Todo dropdown que ofrece FKs (propiedades, profesionales, etc.) debe filtrar a entidades válidas y relevantes al flujo (ej: solo vacantes + la asignada al editar).
+- Validación pre-save: antes de enviar un FK a DB, verificar que el target existe en state local. Si no, toast y abortar.
+- Tablas que otros usuarios pueden modificar (properties, tenants, professionals) DEBEN tener realtime subscription para evitar stale state.
+- En catch blocks: detectar código Postgres `23503` / string "foreign key constraint" y mostrar mensaje amigable + `refreshData()` automático.
+
+**Archivos afectados:** `components/TenantsView.tsx`, `hooks/useTenantData.ts`, `context/DataContext.tsx`
+
+---
+
+### Lección 15 — Monto default de pago usa último pago en vez de monthlyRent actual
+**Qué pasó:** Tras ajustar el alquiler con la calculadora IPC en "Editar Propiedad" ($4.000.000 → $4.357.099), al abrir "Registrar Pago" en Inquilinos para el mes siguiente el default seguía siendo $4.000.000. El nuevo alquiler quedaba guardado en `properties.monthlyRent` pero la UI lo ignoraba.
+
+**Causa raíz:** [TenantsView.tsx:145](components/TenantsView.tsx#L145) tenía `defaultAmount = lastPayment ? lastPayment.amount : prop.monthlyRent`. Prioridad invertida: el histórico ganaba siempre, invalidando cualquier ajuste posterior.
+
+**Regla derivada:** Para montos recurrentes (alquiler, expensas) la fuente de verdad es el campo en la entidad padre (`property.monthlyRent`), no el último registro histórico. El histórico solo aplica como fallback si el padre no tiene valor. Cuando se agrega una calculadora/ajuste que modifica un campo, verificar que los formularios downstream lean de ese campo actualizado.
+
+**Archivos afectados:** `components/TenantsView.tsx`
+
+---
+
+### Lección 16 — PDFs de liquidación: total lo completa el inquilino, no el admin
+**Qué pasó:** Al cargar una liquidación en PDF, el admin de expensas (Nora) tenía que escribir el "Total a pagar" manualmente. El requerimiento real del negocio es que el inquilino lea el monto directamente del PDF y lo complete cuando suba el comprobante de pago.
+
+**Regla derivada:** Para sheets de `sourceType === 'pdf'`, `parsedData.total = 0` al subir. El inquilino ve el PDF embebido en `UploadReceiptModal` y completa `expenseAmount` manualmente al cargar el comprobante. El grid del tenant portal ya oculta el "Total" si es 0 ([TenantPortal.tsx:345](components/TenantPortal.tsx#L345)).
+
+Para Excel: el flujo se mantiene — el parser extrae el total automáticamente. Solo PDFs delegan al inquilino.
+
+**Archivos afectados:** `components/expenses/ExpensesTenantDetail.tsx`
+
+---
+
 ## Self-Improvement Loop — Instrucción para Claude
 
 Cada vez que el usuario deba corregirte un error:

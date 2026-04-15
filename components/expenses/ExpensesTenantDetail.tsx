@@ -5,9 +5,10 @@ import { Tenant, Property, TenantPayment, ExpenseSheet, User, ParsedExpenseSheet
 import { MONTH_NAMES } from '../../constants';
 import { parseExpenseSheet } from '../../utils/expenseSheetParser';
 import { uploadFile } from '../../services/storage';
+import { useDataContext } from '../../context/DataContext';
 import {
     ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, Clock, RotateCcw,
-    FileSpreadsheet, ExternalLink, Upload, X, AlertCircle, Trash2
+    FileSpreadsheet, ExternalLink, Upload, X, Trash2
 } from 'lucide-react';
 
 interface ExpensesTenantDetailProps {
@@ -20,14 +21,14 @@ interface ExpensesTenantDetailProps {
     expenseSheets: ExpenseSheet[];
     onApprove: (payment: TenantPayment) => Promise<void>;
     onReturn: (payment: TenantPayment, reason: string) => Promise<void>;
-    onUploadSingleSheet: (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet, sourceType: 'excel' | 'pdf', pdfUrl?: string) => Promise<void>;
+    onUploadSingleSheet: (tenantId: string, month: number, year: number, sheetData: unknown[][], sheetName: string, parsedData: ParsedExpenseSheet, sourceType: 'excel' | 'pdf', pdfUrl?: string) => Promise<void>;
     onDeleteSheet: (sheetId: string) => Promise<void>;
     currentUser: User;
 }
 
 const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
     tenant, property, year, onYearChange, onBack,
-    payments, expenseSheets, onApprove, onReturn, onUploadSingleSheet, onDeleteSheet, currentUser,
+    payments, expenseSheets, onApprove, onReturn, onUploadSingleSheet, onDeleteSheet, currentUser: _currentUser,
 }) => {
     // ── State ────────────────────────────────────────────────────────────────
     const [returningId, setReturningId] = useState<string | null>(null);
@@ -36,6 +37,16 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
 
     // Sheet viewer
     const [viewingSheet, setViewingSheet] = useState<ExpenseSheet | null>(null);
+    const { loadExpenseSheetData } = useDataContext();
+
+    const openSheetViewer = async (sheet: ExpenseSheet) => {
+        setViewingSheet(sheet);
+        // Si no es PDF y no tenemos parsedData ni sheetData, lazy-load.
+        if (sheet.sourceType !== 'pdf' && !sheet.parsedData && (!sheet.sheetData || sheet.sheetData.length === 0)) {
+            const loaded = await loadExpenseSheetData(sheet.id);
+            if (loaded) setViewingSheet({ ...sheet, sheetData: loaded });
+        }
+    };
 
     // Single sheet upload
     const [uploadingMonth, setUploadingMonth] = useState<number | null>(null);
@@ -45,7 +56,6 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
     const [uploadParsed, setUploadParsed] = useState<ParsedExpenseSheet | null>(null);
     const [uploadFileName, setUploadFileName] = useState('');
     const [uploadPdfFile, setUploadPdfFile] = useState<File | null>(null);
-    const [uploadPdfTotal, setUploadPdfTotal] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,10 +120,9 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
         const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 
         if (isPdf) {
-            // Flujo PDF: guardar el File, total se ingresa manualmente
+            // Flujo PDF: el inquilino ve el PDF y completa el monto al cargar el comprobante.
             setUploadType('pdf');
             setUploadPdfFile(file);
-            setUploadPdfTotal('');
             setUploadParsedData(null);
             setUploadParsed(null);
             setUploadSheetName(file.name);
@@ -157,15 +166,15 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
         try {
             if (uploadType === 'pdf') {
                 if (!uploadPdfFile) { toast.error('Seleccioná un archivo PDF.'); return; }
-                const totalNum = parseFloat(uploadPdfTotal.replace(',', '.'));
-                if (!isFinite(totalNum) || totalNum <= 0) { toast.error('Ingresá un total válido.'); return; }
                 const folder = `expense-sheets/${tenant.id}/${year}-${uploadingMonth}`;
                 const url = await uploadFile(uploadPdfFile, folder);
                 if (!url) throw new Error('No se pudo subir el PDF.');
+                // Total se deja en 0: el inquilino lee el monto directamente del PDF y
+                // lo completa al cargar su comprobante.
                 const parsed: ParsedExpenseSheet = {
                     period: `${MONTH_NAMES[uploadingMonth - 1].toUpperCase()} ${year}`,
                     items: [],
-                    total: totalNum,
+                    total: 0,
                     currency: 'ARS',
                 };
                 await onUploadSingleSheet(tenant.id, uploadingMonth, year, [], uploadFileName, parsed, 'pdf', url);
@@ -190,7 +199,6 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
         setUploadParsed(null);
         setUploadFileName('');
         setUploadPdfFile(null);
-        setUploadPdfTotal('');
     };
 
     // ── Render ───────────────────────────────────────────────────────────────
@@ -318,7 +326,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                     {/* Admin's liquidación sheet */}
                                     {sheet ? (
                                         <button
-                                            onClick={() => setViewingSheet(sheet)}
+                                            onClick={() => openSheetViewer(sheet)}
                                             className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
                                         >
                                             <FileSpreadsheet size={12} />
@@ -506,22 +514,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                             <p className="text-xs text-slate-400">PDF · {(uploadPdfFile.size / 1024).toFixed(0)} KB</p>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
-                                            Total a pagar <span className="text-red-400">*</span>
-                                        </label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-slate-500 dark:text-slate-400 font-bold">$</span>
-                                            <input
-                                                type="number"
-                                                value={uploadPdfTotal}
-                                                onChange={(e) => setUploadPdfTotal(e.target.value)}
-                                                placeholder="Ingresá el total de la liquidación"
-                                                className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none"
-                                            />
-                                        </div>
-                                        <p className="text-[11px] text-slate-400 mt-1">El inquilino verá este monto y podrá descargar el PDF.</p>
-                                    </div>
+                                    <p className="text-[11px] text-slate-400">El inquilino va a ver el PDF y completar el monto al subir su comprobante.</p>
                                 </div>
                             )}
 
@@ -577,7 +570,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                             </button>
                             <button
                                 onClick={handleUploadConfirm}
-                                disabled={isUploading || (uploadType === 'excel' ? !uploadParsedData : !(uploadPdfFile && parseFloat(uploadPdfTotal.replace(',', '.')) > 0))}
+                                disabled={isUploading || (uploadType === 'excel' ? !uploadParsedData : !uploadPdfFile)}
                                 className="flex items-center gap-1.5 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed px-4 py-2 rounded-xl transition-colors"
                             >
                                 {isUploading ? (
@@ -636,7 +629,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                     />
                                 </div>
                             ) : (() => {
-                                const parsed = viewingSheet.parsedData ?? parseExpenseSheet(viewingSheet.sheetData);
+                                const parsed = viewingSheet.parsedData ?? parseExpenseSheet(viewingSheet.sheetData || []);
                                 if (!parsed || (parsed.items.length === 0 && parsed.total === 0)) {
                                     return <p className="text-sm text-slate-400 text-center py-8">Sin datos en esta hoja.</p>;
                                 }

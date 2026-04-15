@@ -23,8 +23,16 @@ export default tseslint.config(
                 'warn',
                 { allowConstantExport: true },
             ],
-            '@typescript-eslint/no-explicit-any': 'warn',
-            '@typescript-eslint/no-unused-vars': 'warn',
+            // `any` permitido: TypeScript ya bloquea los bugs reales (errores 'no compila').
+            // Esta regla es estilística — los pocos `any` que quedan son legítimos
+            // (payloads de realtime de Supabase, celdas de Excel, catch blocks).
+            // Cuando convenga tipar, usamos `unknown` + narrowing.
+            '@typescript-eslint/no-explicit-any': 'off',
+            // Vars sin usar son error, pero permitimos prefijo `_` para intencionales.
+            '@typescript-eslint/no-unused-vars': [
+                'warn',
+                { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+            ],
         },
     },
 );

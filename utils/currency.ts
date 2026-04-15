@@ -33,7 +33,7 @@ export const fetchLiveArsRate = async (): Promise<number> => {
         cacheTimestamp = now;
         logger.log(`[Currency] Live ARS rate fetched: ${rate}`);
         return rate;
-    } catch (error) {
+    } catch {
         logger.warn('[Currency] Failed to fetch live rate, using fallback:', EXCHANGE_RATES.ARS);
         return EXCHANGE_RATES.ARS;
     }

@@ -23,7 +23,7 @@ interface MapBoardProps {
 }
 
 const createCustomIcon = (property: Property) => {
-  let colorClass = '';
+  let colorClass: string;
 
   // Logic: If under maintenance (professional assigned), it MUST be Orange, overriding other statuses visually on map
   if (property.assignedProfessionalId) {
@@ -169,13 +169,16 @@ const MapController = ({ center, properties }: { center?: [number, number]; prop
     }, MAP_RESIZE_DELAY_MS);
   }, [map]);
 
-  // On mount, fit to property bounds
+  // On mount, fit to property bounds.
+  // Deps restringidas a propósito: solo queremos re-encuadrar al cambiar la cantidad de
+  // propiedades, NO cada vez que cambia `center` o se mutan las coordenadas internamente.
   useEffect(() => {
     if (!center && properties.length > 0) {
       const bounds = L.latLngBounds(properties.map(p => p.coordinates));
       map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
     }
-  }, [map, properties.length]); // only on mount / property count change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, properties.length]);
 
   useEffect(() => {
     if (center) {
@@ -380,7 +383,7 @@ const MapBoard: React.FC<MapBoardProps> = ({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          onAddProperty && onAddProperty();
+          if (onAddProperty) onAddProperty();
         }}
         className="fixed bottom-6 right-5 z-[1000] w-14 h-14 bg-gray-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-gray-800 hover:scale-110 active:scale-95 transition-all"
         title="Crear Nueva Propiedad"

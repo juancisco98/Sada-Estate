@@ -88,11 +88,11 @@ export interface DbExpenseSheetRow {
     tenant_id: string;
     month: number;
     year: number;
-    sheet_data: any[][];
+    sheet_data: unknown[][];
     sheet_name?: string | null;
     uploaded_at?: string;
     uploaded_by?: string | null;
-    parsed_data?: any | null;
+    parsed_data?: import('../types').ParsedExpenseSheet | null;
     source_type?: 'excel' | 'pdf' | null;
     pdf_url?: string | null;
 }

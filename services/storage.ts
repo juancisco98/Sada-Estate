@@ -14,7 +14,7 @@ export const uploadFile = async (file: File, folder: string = 'general'): Promis
         const fileExt = file.name.split('.').pop();
         const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
 
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
             .from(BUCKET_NAME)
             .upload(fileName, file, {
                 cacheControl: '3600',
@@ -31,9 +31,10 @@ export const uploadFile = async (file: File, folder: string = 'general'): Promis
             .getPublicUrl(fileName);
 
         return publicUrlData.publicUrl;
-    } catch (error: any) {
+    } catch (error) {
         logger.error('Upload failed:', error);
-        throw new Error(error?.message || 'Error al subir el archivo');
+        const msg = error instanceof Error ? error.message : 'Error al subir el archivo';
+        throw new Error(msg, { cause: error });
     }
 };
 

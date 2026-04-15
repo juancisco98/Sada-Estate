@@ -251,7 +251,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       }));
     } else if (address) {
       const initialCountry = detectedCountry || 'Argentina';
-      const config = getTaxConfig(initialCountry);
 
       setFormData(prev => ({
         ...prev,
@@ -266,7 +265,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCountry = e.target.value;
-    const config = getTaxConfig(newCountry);
 
     setFormData(prev => ({
       ...prev,
@@ -428,7 +426,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
       const buildingProperties: Property[] = [];
 
-      for (const [idx, unit] of validUnits.entries()) {
+      for (const unit of validUnits) {
         const unitStatus = unit.tenantName ? PropertyStatus.CURRENT : PropertyStatus.WARNING;
         const unitProp: Property = {
           id: generateUUID(),
@@ -491,16 +489,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     };
     onSave(propertyToSave);
     toast.success(isEditing ? 'Propiedad actualizada' : 'Propiedad creada');
-  };
-
-  // Currency symbol helper
-  const getCurrencySymbol = (currency: string) => {
-    switch (currency) {
-      case 'USD': return 'US$';
-      case 'ARS': return '$';
-      case 'UYU': return '$U';
-      default: return '$';
-    }
   };
 
   return (

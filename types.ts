@@ -158,7 +158,7 @@ export interface ExpenseSheet {
   tenantId: string;
   month: number;
   year: number;
-  sheetData: any[][];   // filas × columnas del Excel (raw, archival). [] si sourceType=pdf
+  sheetData?: unknown[][];  // filas × columnas del Excel (raw, archival). Lazy-loaded con loadExpenseSheetData(id). [] si sourceType=pdf
   sheetName: string;
   uploadedAt: string;
   uploadedBy: string;
@@ -233,6 +233,7 @@ export type AutomationActionType =
   | 'PAYMENT_REGISTERED'
   | 'PAYMENT_APPROVED'
   | 'PAYMENT_RETURNED'
+  | 'PAYMENT_DELETED'
   | 'MAINTENANCE_COMPLETED'
   | 'RENT_UPDATED'
   | 'REMINDER_COMPLETED'

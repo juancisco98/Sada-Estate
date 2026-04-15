@@ -201,7 +201,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
 
                     return items;
                   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((item, idx) => (
+                    .map((item) => (
                       <div
                         key={item.id}
                         className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-6 rounded-[2.2rem] border border-white dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] hover:border-indigo-100 dark:hover:border-indigo-500/30 transition-all group flex items-start justify-between gap-6"
@@ -278,4 +278,4 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
   );
 };
 
-export default FinancialDetailsCard;
+export default React.memo(FinancialDetailsCard);

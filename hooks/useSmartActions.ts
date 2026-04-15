@@ -1,11 +1,10 @@
 import { useMemo, useCallback, useState } from 'react';
 import { useDataContext } from '../context/DataContext';
-import { TenantPayment, AutomationHistoryEntry, AutomationStatus } from '../types';
+import { TenantPayment, AutomationHistoryEntry } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { supabaseUpdate } from '../utils/supabaseHelpers';
 import { logAdminAction } from '../services/actionLogger';
 import { toast } from 'sonner';
-import { MONTH_NAMES, ALLOWED_EMAILS } from '../constants';
+import { MONTH_NAMES } from '../constants';
 
 const generateUUID = (): string =>
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -69,7 +68,7 @@ function countConsecutiveApproved(tenantId: string, beforeMonth: number, beforeY
 }
 
 export const useSmartActions = () => {
-    const { payments, setPayments, tenants, automationHistory, setAutomationHistory } = useDataContext();
+    const { payments, setPayments, tenants, automationHistory } = useDataContext();
     const [dismissed, setDismissedState] = useState<Set<string>>(getDismissed);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -186,8 +185,9 @@ export const useSmartActions = () => {
             }
 
             toast.success(`Pago de ${action.monthLabel} aprobado`);
-        } catch (error: any) {
-            toast.error(`Error: ${error?.message || 'Error desconocido'}`);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            toast.error(`Error: ${msg || 'Error desconocido'}`);
         } finally {
             setActionLoading(null);
         }

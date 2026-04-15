@@ -1,12 +1,11 @@
 // Force update
 import React, { useState, useEffect, useMemo } from 'react';
-import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Building, TenantPayment, PropertyType } from '../types';
+import { PropertyStatus, Professional, TaskStatus, Property, MaintenanceTask, Building, PropertyType } from '../types';
 import { toast } from 'sonner';
 import { useDataContext } from '../context/DataContext';
 import {
   TrendingUp,
   TrendingDown,
-  AlertTriangle,
   Clock,
   Hammer,
   DollarSign,
@@ -18,14 +17,12 @@ import {
   UserPlus,
   Phone,
   MapPin,
-  Calendar,
   User,
   Home,
   CheckCircle,
   AlertCircle,
   Timer,
   Trash2,
-  Briefcase,
   Loader,
   Edit
 } from 'lucide-react';
@@ -41,7 +38,7 @@ import { MAINTENANCE_BUDGET_RATIO } from '../constants';
 import { useMaintenanceTimer } from '../hooks/useMaintenanceTimer';
 
 // --- Sub-component for Active Maintenance Label in Professionals View ---
-const ActiveJobIndicator: React.FC<{ property: Property, onFinish?: (p: Property) => void }> = ({ property, onFinish }) => {
+const ActiveJobIndicator: React.FC<{ property: Property, onFinish?: (p: Property) => void }> = ({ property }) => {
   const timer = useMaintenanceTimer(property.professionalAssignedDate);
 
   return (
@@ -279,7 +276,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       {units
                         .sort((a, b) => (a.unitLabel || '').localeCompare(b.unitLabel || ''))
                         .map(unit => {
-                          const hasPro = !!unit.assignedProfessionalId;
                           return (
                             <div
                               key={unit.id}
@@ -316,7 +312,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      onEditProperty && onEditProperty(unit);
+                                      if (onEditProperty) onEditProperty(unit);
                                     }}
                                     className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-indigo-100 dark:border-white/5 flex items-center gap-1.5 text-[10px] font-bold whitespace-nowrap"
                                   >
@@ -349,8 +345,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       if (onDeleteProperty && window.confirm(`¿⚠️ Estás seguro que deseas ELIMINAR definitivamente la propiedad en "${property.address}"?`)) {
                         onDeleteProperty(property.id);
                       }
-                    } else {
-                      onEditProperty && onEditProperty(property);
+                    } else if (onEditProperty) {
+                      onEditProperty(property);
                     }
                   }}
                   className={`
@@ -694,12 +690,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   const [expandedSection, setExpandedSection] = useState<'ARS' | 'USD' | null>(null);
   const [selectedExpenseMonth, setSelectedExpenseMonth] = useState<number | null>(null);
 
-  // Auto-select property if passed from parent
-  useEffect(() => {
-    if (preSelectedProperty) {
-      setSelectedFinancialProperty(preSelectedProperty);
-    }
-  }, [preSelectedProperty]);
+  // Auto-select property if passed from parent.
+  // Prop-sync intencional: cuando el padre pasa una nueva prop, el detalle local debe reflejarla.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (preSelectedProperty) setSelectedFinancialProperty(preSelectedProperty); }, [preSelectedProperty]);
 
   const handleCloseDetail = () => {
     setSelectedFinancialProperty(null);
@@ -1554,7 +1548,7 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    !isBusy && onAssignProfessional && onAssignProfessional(pro);
+                    if (!isBusy && onAssignProfessional) onAssignProfessional(pro);
                   }}
                   disabled={isBusy}
                   className={`flex-1 py-2 rounded-xl font-semibold text-sm transition-all ${

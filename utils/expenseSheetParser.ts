@@ -9,10 +9,10 @@ const MONTH_NAMES_ES = [
  * Convierte una celda en número si tiene sentido como monto.
  * Acepta números nativos, strings con $/comas/puntos, etc.
  */
-const toNumber = (cell: any): number | null => {
+const toNumber = (cell: unknown): number | null => {
     if (cell === null || cell === undefined || cell === '') return null;
     if (typeof cell === 'number') return isFinite(cell) ? cell : null;
-    const cleaned = String(cell).replace(/[^0-9.,\-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+    const cleaned = String(cell).replace(/[^0-9.,-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
     if (!cleaned) return null;
     const n = parseFloat(cleaned);
     return isNaN(n) ? null : n;
@@ -30,7 +30,7 @@ const isLikelyYear = (n: number) => Number.isInteger(n) && n >= 1900 && n <= 210
  *  - Filtra ruido (filas vacías, encabezados sin monto, etc.).
  *  - Detecta el período (mes + año) en las primeras filas.
  */
-export const parseExpenseSheet = (rows: any[][]): ParsedExpenseSheet => {
+export const parseExpenseSheet = (rows: unknown[][]): ParsedExpenseSheet => {
     const items: ParsedExpenseLineItem[] = [];
     let total = 0;
     let totalFromRow = false;
@@ -52,7 +52,7 @@ export const parseExpenseSheet = (rows: any[][]): ParsedExpenseSheet => {
 
     for (const rawRow of rows) {
         if (!rawRow || rawRow.length === 0) continue;
-        const cells = rawRow as any[];
+        const cells = rawRow as unknown[];
 
         // Concept = primera celda con texto no-numérico
         let concept = '';

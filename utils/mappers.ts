@@ -209,12 +209,12 @@ export const paymentToDb = (p: TenantPayment): Record<string, unknown> => ({
 
 // ========== EXPENSE SHEET MAPPERS ==========
 
-export const dbToExpenseSheet = (row: DbExpenseSheetRow): ExpenseSheet => ({
+export const dbToExpenseSheet = (row: Partial<DbExpenseSheetRow> & Pick<DbExpenseSheetRow, 'id' | 'tenant_id' | 'month' | 'year'>): ExpenseSheet => ({
     id: row.id,
     tenantId: row.tenant_id,
     month: row.month,
     year: row.year,
-    sheetData: row.sheet_data || [],
+    sheetData: row.sheet_data, // lazy: undefined si no fue seleccionado
     sheetName: row.sheet_name || '',
     uploadedAt: row.uploaded_at || '',
     uploadedBy: row.uploaded_by || '',

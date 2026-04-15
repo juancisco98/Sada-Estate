@@ -2,7 +2,7 @@ import React from 'react';
 import { Building, Property, PropertyStatus } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { getPropertyDisplayInfo } from '../utils/property';
-import { Home, ChevronRight, Building2, Users, DollarSign, Plus } from 'lucide-react';
+import { ChevronRight, Building2, Users, DollarSign, Plus } from 'lucide-react';
 
 interface BuildingCardProps {
   building: Building;
@@ -155,4 +155,4 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
   );
 };
 
-export default BuildingCard;
+export default React.memo(BuildingCard);

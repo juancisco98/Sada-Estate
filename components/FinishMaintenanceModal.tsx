@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Star, MessageSquare, CheckCircle, X, DollarSign } from 'lucide-react';
-import { Property, Professional, MaintenanceTask } from '../types';
+import { Property, MaintenanceTask } from '../types';
 import { toast } from 'sonner';
 
 interface FinishMaintenanceModalProps {

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Zap, CheckCircle, X, Clock, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { SmartAction } from '../hooks/useSmartActions';
 import { AutomationHistoryEntry } from '../types';
-import { MONTH_NAMES } from '../constants';
 
 interface SmartActionsPanelProps {
     actions: SmartAction[];

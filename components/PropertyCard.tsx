@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Property, PropertyStatus, Professional, TenantPayment } from '../types';
 
 import { formatCurrency } from '../utils/currency';
-import { Home, AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2, ArrowLeft, Users, User } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Pencil, StickyNote, Save, Hammer, Timer, CheckSquare, DollarSign, Trash2, ArrowLeft, User } from 'lucide-react';
 
 interface PropertyCardProps {
   property: Property;
@@ -54,10 +54,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     };
   }, [property.buildingId, allProperties]);
 
-  useEffect(() => {
-    setNoteText(property.notes || '');
-    setIsDirty(false);
-  }, [property.id, property.notes]);
+  // Reset del textarea cuando cambia la propiedad o sus notas externas.
+  // Prop-sync intencional: si cambia property.id o .notes, el borrador local se descarta.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setNoteText(property.notes || ''); setIsDirty(false); }, [property.id, property.notes]);
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNoteText(e.target.value);
@@ -395,4 +395,4 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   );
 };
 
-export default PropertyCard;
+export default React.memo(PropertyCard);

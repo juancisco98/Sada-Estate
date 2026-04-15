@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { User, ExpenseSheet, TenantPayment, ParsedExpenseSheet } from '../types';
+import { User, TenantPayment, ParsedExpenseSheet } from '../types';
 import { useDataContext } from '../context/DataContext';
 import { supabase } from '../services/supabaseClient';
 import { dbToExpenseSheet } from '../utils/mappers';
 import { parseExpenseSheet } from '../utils/expenseSheetParser';
 import { MONTH_NAMES } from '../constants';
 import {
-    LogOut, Bell, FileSpreadsheet, CheckCircle,
+    LogOut, Bell, FileSpreadsheet,
     AlertCircle, Users, Clock, ArrowLeftRight,
     Home, Sun, Moon
 } from 'lucide-react';
@@ -101,17 +101,30 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         [filteredPayments]
     );
 
-    // Tenant monthly status for the grid cards
+    // Tenant monthly status for the grid cards.
+    // Una sola pasada sobre filteredPayments: O(payments + tenants) en vez de O(tenants × payments × 3).
     const currentYear = new Date().getFullYear();
     const tenantMonthlyStatus = useMemo(() => {
-        return filteredTenants.map(tenant => {
-            const tenantPayments = filteredPayments.filter(p => p.tenantId === tenant.id && p.year === currentYear);
-            const pendingCount = tenantPayments.filter(p => p.status === 'REVISION' && ((p.expenseAmount ?? 0) > 0 || !!p.proofOfExpenses)).length;
-            const approvedExpenses = tenantPayments.filter(p => p.status === 'APPROVED' && (p.expenseAmount ?? 0) > 0);
-            const totalExpenses = approvedExpenses.reduce((sum, p) => sum + (p.expenseAmount ?? 0), 0);
-            const approvedCount = approvedExpenses.length;
-            return { tenant, pendingCount, totalExpenses, approvedCount };
-        });
+        const statsById = new Map<string, { pendingCount: number; totalExpenses: number; approvedCount: number }>();
+        for (const t of filteredTenants) {
+            statsById.set(t.id, { pendingCount: 0, totalExpenses: 0, approvedCount: 0 });
+        }
+        for (const p of filteredPayments) {
+            if (p.year !== currentYear || !p.tenantId) continue;
+            const s = statsById.get(p.tenantId);
+            if (!s) continue;
+            const hasExpense = (p.expenseAmount ?? 0) > 0 || !!p.proofOfExpenses;
+            if (p.status === 'REVISION' && hasExpense) {
+                s.pendingCount++;
+            } else if (p.status === 'APPROVED' && (p.expenseAmount ?? 0) > 0) {
+                s.approvedCount++;
+                s.totalExpenses += p.expenseAmount ?? 0;
+            }
+        }
+        return filteredTenants.map(tenant => ({
+            tenant,
+            ...statsById.get(tenant.id)!,
+        }));
     }, [filteredTenants, filteredPayments, currentYear]);
 
     // Selected tenant data for full-screen detail
@@ -125,7 +138,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     );
 
     // ── Shared upsert logic for expense sheets ────────────────────────────────
-    const upsertExpenseSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet | undefined, sourceType: 'excel' | 'pdf' = 'excel', pdfUrl?: string) => {
+    const upsertExpenseSheet = async (tenantId: string, month: number, year: number, sheetData: unknown[][], sheetName: string, parsedData: ParsedExpenseSheet | undefined, sourceType: 'excel' | 'pdf' = 'excel', pdfUrl?: string) => {
         const payload = {
             tenant_id: tenantId,
             month,
@@ -169,7 +182,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     };
 
     // ── Upload single sheet (from detail view) ────────────────────────────────
-    const handleUploadSingleSheet = async (tenantId: string, month: number, year: number, sheetData: any[][], sheetName: string, parsedData: ParsedExpenseSheet, sourceType: 'excel' | 'pdf', pdfUrl?: string) => {
+    const handleUploadSingleSheet = async (tenantId: string, month: number, year: number, sheetData: unknown[][], sheetName: string, parsedData: ParsedExpenseSheet, sourceType: 'excel' | 'pdf', pdfUrl?: string) => {
         await upsertExpenseSheet(tenantId, month, year, sheetData, sheetName, parsedData, sourceType, pdfUrl);
 
         // Notify tenant

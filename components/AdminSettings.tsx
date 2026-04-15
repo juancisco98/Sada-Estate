@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import { ExpensesAdmin } from '../types';
-import { UserPlus, UserMinus, Shield, Clock, Mail, User, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { UserPlus, UserMinus, Shield, Clock, Mail, User, AlertTriangle, Loader2 } from 'lucide-react';
 
 // UUID v4 generator (HTTP-safe)
 const generateUUID = (): string =>
