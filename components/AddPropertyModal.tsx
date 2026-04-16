@@ -415,7 +415,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         adjustmentMonths: formData.adjustmentMonths ? Number(formData.adjustmentMonths) : undefined,
       };
       onSave(unitProp);
-      toast.success(`Unidad "${unitLabel.trim()}" agregada al edificio`);
       return;
     }
 
@@ -466,7 +465,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         buildingProperties.push(unitProp);
       }
       onSave(buildingProperties);
-      toast.success('Edificio y unidades creados correctamente');
       return;
     }
 
@@ -503,7 +501,6 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       adjustmentMonths: formData.adjustmentMonths ? Number(formData.adjustmentMonths) : undefined,
     };
     onSave(propertyToSave);
-    toast.success(isEditing ? 'Propiedad actualizada' : 'Propiedad creada');
   };
 
   return (

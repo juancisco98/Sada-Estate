@@ -488,37 +488,47 @@ const Dashboard: React.FC = () => {
     setShowPropertyModal(true);
   }, []);
 
-  const handleSaveProperty = useCallback((savedPropOrProps: Property | Property[]) => {
-    if (Array.isArray(savedPropOrProps)) {
-      // Building mode: save all units + create building record
-      savePropertiesData(savedPropOrProps);
-      if (savedPropOrProps.length > 0 && savedPropOrProps[0].buildingId) {
-        const first = savedPropOrProps[0];
-        handleSaveBuilding({
-          id: first.buildingId!,
-          address: first.address,
-          coordinates: first.coordinates,
-          country: first.country,
-          currency: first.currency,
-          imageUrl: first.imageUrl,
-        });
+  const handleSaveProperty = useCallback(async (savedPropOrProps: Property | Property[]) => {
+    try {
+      if (Array.isArray(savedPropOrProps)) {
+        // Building mode: save all units + create building record
+        await savePropertiesData(savedPropOrProps);
+        if (savedPropOrProps.length > 0 && savedPropOrProps[0].buildingId) {
+          const first = savedPropOrProps[0];
+          await handleSaveBuilding({
+            id: first.buildingId!,
+            address: first.address,
+            coordinates: first.coordinates,
+            country: first.country,
+            currency: first.currency,
+            imageUrl: first.imageUrl,
+          });
+        }
+        toast.success('Edificio y unidades creados correctamente');
+      } else {
+        await savePropertyData(savedPropOrProps);
+        const isUnitAdd = !!savedPropOrProps.buildingId && !propertyToEdit;
+        if (isUnitAdd) {
+          toast.success(`Unidad "${savedPropOrProps.unitLabel}" agregada al edificio`);
+          // No abrir PropertyCard → BuildingCard se mantiene visible con la nueva unidad
+        } else {
+          toast.success(propertyToEdit ? 'Propiedad actualizada' : 'Propiedad creada');
+          if (!propertyToEdit) {
+            setSelectedProperty(savedPropOrProps);
+          }
+        }
       }
+      // Cerrar modal solo si el save fue exitoso
       setShowPropertyModal(false);
       setPropertyToEdit(null);
       setTargetBuilding(null);
       setSearchResult(null);
       setSearchQuery('');
-    } else {
-      savePropertyData(savedPropOrProps);
-      setShowPropertyModal(false);
-      setPropertyToEdit(null);
-      setTargetBuilding(null);
-      setSearchResult(null);
-      setSearchQuery('');
-
-      if (!propertyToEdit) {
-        setSelectedProperty(savedPropOrProps);
-      }
+    } catch (error: unknown) {
+      console.error('[SaveProperty] Error:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`Error al guardar: ${msg}`);
+      // No cerrar modal → usuario puede reintentar
     }
   }, [savePropertiesData, savePropertyData, propertyToEdit, setSearchResult, setSearchQuery, handleSaveBuilding, setSelectedProperty]);
 
