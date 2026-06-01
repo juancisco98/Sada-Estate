@@ -47,22 +47,17 @@ function setDismissed(ids: Set<string>) {
     }));
 }
 
-function countConsecutiveApproved(tenantId: string, beforeMonth: number, beforeYear: number, payments: TenantPayment[]): number {
-    const tenantPayments = payments
-        .filter(p => p.tenantId === tenantId && p.status === 'APPROVED')
-        .map(p => ({ key: p.year * 12 + p.month, month: p.month, year: p.year }))
-        .sort((a, b) => b.key - a.key);
-
+// Cuenta meses consecutivos aprobados hacia atrás desde (beforeMonth, beforeYear).
+// `approvedKeys` es el set de claves `year*12 + month` ya aprobadas del inquilino,
+// precomputado una sola vez (ver `approvedKeysByTenant`) para evitar el O(n²) de
+// filtrar+ordenar todos los pagos por cada pago en revisión. Ver Lección 13.
+function countConsecutiveApproved(approvedKeys: Set<number> | undefined, beforeMonth: number, beforeYear: number): number {
+    if (!approvedKeys || approvedKeys.size === 0) return 0;
     let count = 0;
     let expectedKey = beforeYear * 12 + beforeMonth - 1; // month before the current one
-
-    for (const p of tenantPayments) {
-        if (p.key === expectedKey) {
-            count++;
-            expectedKey--;
-        } else if (p.key < expectedKey) {
-            break;
-        }
+    while (approvedKeys.has(expectedKey)) {
+        count++;
+        expectedKey--;
     }
     return count;
 }
@@ -75,6 +70,16 @@ export const useSmartActions = () => {
     const smartActions: SmartAction[] = useMemo(() => {
         const actions: SmartAction[] = [];
 
+        // Índice de claves de meses aprobados por inquilino — una sola pasada sobre
+        // todos los pagos en vez de filtrar+ordenar dentro del loop (Lección 13).
+        const approvedKeysByTenant = new Map<string, Set<number>>();
+        for (const p of payments) {
+            if (p.status !== 'APPROVED') continue;
+            let set = approvedKeysByTenant.get(p.tenantId);
+            if (!set) { set = new Set<number>(); approvedKeysByTenant.set(p.tenantId, set); }
+            set.add(p.year * 12 + p.month);
+        }
+
         const revisionPayments = payments.filter(p =>
             p.status === 'REVISION' &&
             ((p.expenseAmount ?? 0) > 0 || !!p.proofOfExpenses)
@@ -84,7 +89,7 @@ export const useSmartActions = () => {
             const actionId = `auto-approve-${payment.id}`;
             if (dismissed.has(actionId)) continue;
 
-            const consecutive = countConsecutiveApproved(payment.tenantId, payment.month, payment.year, payments);
+            const consecutive = countConsecutiveApproved(approvedKeysByTenant.get(payment.tenantId), payment.month, payment.year);
             const tenant = tenants.find(t => t.id === payment.tenantId);
             const monthLabel = `${MONTH_NAMES[payment.month - 1]} ${payment.year}`;
 

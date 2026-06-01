@@ -320,6 +320,20 @@ const TenantsView: React.FC<TenantsViewProps> = ({
         return cache;
     }, [filteredTenants, getTenantMetrics]);
 
+    // Índice de pagos por (inquilino, mes) del año actual: lookup O(1) en las grillas
+    // mensuales, evita el `payments.find()` por celda (12 celdas × N inquilinos). Lección 13.
+    // Preserva el primer match (orden de carga), idéntico al `.find()` que reemplaza.
+    const currentYear = new Date().getFullYear();
+    const paymentByTenantMonth = useMemo(() => {
+        const map = new Map<string, TenantPayment>();
+        for (const p of payments) {
+            if (p.year !== currentYear) continue;
+            const key = `${p.tenantId}-${p.month}`;
+            if (!map.has(key)) map.set(key, p);
+        }
+        return map;
+    }, [payments, currentYear]);
+
     return (
         <div className="space-y-10 animate-in fade-in duration-500 pb-24">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
@@ -572,7 +586,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             </p>
                                             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
                                                 {metrics.monthlyBreakdown.map((m) => {
-                                                    const paymentForMonth = payments.find(p => p.tenantId === tenant.id && p.month === m.month && p.year === new Date().getFullYear());
+                                                    const paymentForMonth = paymentByTenantMonth.get(`${tenant.id}-${m.month}`);
                                                     const cellStatus = paymentForMonth?.status;
                                                     const isRevision = cellStatus === 'REVISION' || cellStatus === 'PENDING';
                                                     const cellClass = isRevision
@@ -636,7 +650,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             </p>
                                             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
                                                 {metrics.expenseMonthlyBreakdown.map((m) => {
-                                                    const paymentForMonth = payments.find(p => p.tenantId === tenant.id && p.month === m.month && p.year === new Date().getFullYear());
+                                                    const paymentForMonth = paymentByTenantMonth.get(`${tenant.id}-${m.month}`);
                                                     const isRevision = m.status === 'REVISION' || m.status === 'PENDING';
                                                     const cellClass = isRevision
                                                         ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-500/30'
