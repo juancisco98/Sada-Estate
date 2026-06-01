@@ -26,3 +26,23 @@ if (!window.matchMedia) {
 if (!window.scrollTo) {
   window.scrollTo = (() => {}) as typeof window.scrollTo;
 }
+
+// localStorage no siempre está disponible/funcional en jsdom bajo Node.
+// Lo usa ThemeContext (dark mode). Stub in-memory.
+if (typeof window.localStorage?.getItem !== 'function') {
+  const store = new Map<string, string>();
+  const localStorageMock: Storage = {
+    getItem: (k) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k, v) => void store.set(k, String(v)),
+    removeItem: (k) => void store.delete(k),
+    clear: () => store.clear(),
+    key: (i) => Array.from(store.keys())[i] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+    configurable: true,
+  });
+}
