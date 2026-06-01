@@ -209,6 +209,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                 <div className="flex items-center gap-3 min-w-0">
                     <button
                         onClick={onBack}
+                        aria-label="Volver a la lista de inquilinos"
                         className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors shrink-0"
                     >
                         <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -227,6 +228,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                 <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-1 py-1 shrink-0">
                     <button
                         onClick={() => onYearChange(year - 1)}
+                        aria-label="Año anterior"
                         className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
                     >
                         <ChevronLeft className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -236,6 +238,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                     </span>
                     <button
                         onClick={() => onYearChange(year + 1)}
+                        aria-label="Año siguiente"
                         className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
                     >
                         <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -431,6 +434,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                         <textarea
                                             value={returnReason}
                                             onChange={e => setReturnReason(e.target.value)}
+                                            aria-label="Motivo de devolución"
                                             placeholder="Motivo de devolución (ej: El comprobante está borroso, subí uno más claro)"
                                             rows={2}
                                             className="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-amber-400 outline-hidden resize-none"
@@ -479,7 +483,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                     {tenant.name} · {MONTH_NAMES[uploadingMonth - 1]} {year}
                                 </p>
                             </div>
-                            <button onClick={resetUpload} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                            <button onClick={resetUpload} aria-label="Cerrar" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                                 <X className="w-5 h-5 text-slate-400" />
                             </button>
                         </div>
@@ -602,7 +606,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                 </h3>
                                 <p className="text-xs text-slate-400">{MONTH_NAMES[viewingSheet.month - 1]} {viewingSheet.year} · Hoja: {viewingSheet.sheetName}</p>
                             </div>
-                            <button onClick={() => setViewingSheet(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                            <button onClick={() => setViewingSheet(null)} aria-label="Cerrar" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                                 <X className="w-5 h-5 text-slate-400" />
                             </button>
                         </div>
