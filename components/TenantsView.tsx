@@ -457,7 +457,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                             placeholder="Buscar por nombre, propiedad o email..."
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-800 dark:text-white placeholder-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                            className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-800 dark:text-white placeholder-slate-400 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition-all"
                         />
                     </div>
                     {filteredTenants.length === 0 && (
@@ -525,7 +525,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     <div className="border-t border-gray-100 dark:border-white/5 p-5 bg-gray-50/50 dark:bg-slate-800/50 space-y-5 animate-in slide-in-from-top-2 duration-200">
 
                                         {/* Owner View: Financial Summary */}
-                                        <div className="bg-white dark:bg-slate-900/80 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-white/10 shadow-sm">
+                                        <div className="bg-white dark:bg-slate-900/80 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-white/10 shadow-xs">
                                             <p className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase mb-2 sm:mb-3">
                                                 Balance de la Propiedad
                                             </p>
@@ -817,7 +817,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     value={newTenant.name}
                                     onChange={e => setNewTenant(p => ({ ...p, name: e.target.value }))}
                                     placeholder="Nombre completo"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-hidden transition-all"
                                 />
                             </div>
                             <div className="space-y-1">
@@ -826,7 +826,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     value={newTenant.phone}
                                     onChange={e => setNewTenant(p => ({ ...p, phone: e.target.value }))}
                                     placeholder="11-1234-5678"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-hidden transition-all"
                                 />
                             </div>
                             <div className="space-y-1">
@@ -836,7 +836,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     onChange={e => setNewTenant(p => ({ ...p, email: e.target.value }))}
                                     placeholder="email@ejemplo.com"
                                     type="email"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-hidden transition-all"
                                 />
                             </div>
                             <div className="space-y-1">
@@ -844,7 +844,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                 <select
                                     value={newTenant.propertyId}
                                     onChange={e => setNewTenant(p => ({ ...p, propertyId: e.target.value }))}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500 outline-hidden transition-all bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
                                 >
                                     <option value="">Sin asignar</option>
                                     {assignableProperties.map(p => (
@@ -900,7 +900,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             onChange={e => setNewPayment(p => ({ ...p, amount: e.target.value }))}
                                             placeholder="0"
                                             type="number"
-                                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold"
+                                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-green-500 outline-hidden transition-all font-bold"
                                         />
                                     </div>
                                 </div>
@@ -913,7 +913,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                             onChange={e => setNewPayment(p => ({ ...p, expenseAmount: e.target.value }))}
                                             placeholder="0"
                                             type="number"
-                                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-violet-500 outline-none transition-all font-bold"
+                                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-violet-500 outline-hidden transition-all font-bold"
                                         />
                                     </div>
                                 </div>
@@ -924,7 +924,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     <select
                                         value={newPayment.month}
                                         onChange={e => setNewPayment(p => ({ ...p, month: parseInt(e.target.value) }))}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-green-500 outline-none transition-all bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-green-500 outline-hidden transition-all bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
                                     >
                                         {MONTH_NAMES.map((name, i) => (
                                             <option key={i} value={i + 1}>{name}</option>
@@ -937,7 +937,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                         value={newPayment.year}
                                         onChange={e => setNewPayment(p => ({ ...p, year: parseInt(e.target.value) }))}
                                         type="number"
-                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-green-500 outline-none transition-all bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-green-500 outline-hidden transition-all bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
                                     />
                                 </div>
                             </div>
@@ -981,7 +981,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                         </a>
                                         <button
                                             onClick={() => setNewPayment(p => ({ ...p, proofOfPayment: '' }))}
-                                            className="p-1 hover:bg-green-100 dark:hover:bg-emerald-500/20 rounded text-red-400 dark:text-rose-400"
+                                            className="p-1 hover:bg-green-100 dark:hover:bg-emerald-500/20 rounded-sm text-red-400 dark:text-rose-400"
                                         >
                                             <X size={14} />
                                         </button>
@@ -1018,7 +1018,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                         </a>
                                         <button
                                             onClick={() => setNewPayment(p => ({ ...p, proofOfExpenses: '' }))}
-                                            className="p-1 hover:bg-green-100 dark:hover:bg-emerald-500/20 rounded text-red-400 dark:text-rose-400"
+                                            className="p-1 hover:bg-green-100 dark:hover:bg-emerald-500/20 rounded-sm text-red-400 dark:text-rose-400"
                                         >
                                             <X size={14} />
                                         </button>
@@ -1080,7 +1080,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
                                     onChange={e => setNewPayment(p => ({ ...p, notes: e.target.value }))}
                                     placeholder="Detalles adicionales..."
                                     rows={2}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-green-500 outline-none transition-all resize-none bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-green-500 outline-hidden transition-all resize-none bg-white dark:bg-slate-800 text-gray-800 dark:text-white"
                                 />
                             </div>
                         </div>

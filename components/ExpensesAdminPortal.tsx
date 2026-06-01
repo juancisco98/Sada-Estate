@@ -260,7 +260,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     if (!velezBuilding && velezPropertyIds.size === 0) {
         return (
             <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
-                <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-sm">
+                <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-xs">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
                             <FileSpreadsheet className="w-5 h-5 text-white" />
@@ -318,7 +318,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     return (
         <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
             {/* ── Header ─────────────────────────────────────────────────── */}
-            <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-sm">
+            <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-xs">
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
                         <FileSpreadsheet className="w-5 h-5 text-white" />
@@ -436,7 +436,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                     <button
                                         key={tenant.id}
                                         onClick={() => { setSelectedTenantId(tenant.id); setViewYear(currentYear); }}
-                                        className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-4 shadow-sm hover:shadow-lg hover:shadow-violet-500/10 dark:hover:border-violet-500/40 hover:scale-[1.02] transition-all duration-200 group"
+                                        className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-4 shadow-xs hover:shadow-lg hover:shadow-violet-500/10 dark:hover:border-violet-500/40 hover:scale-[1.02] transition-all duration-200 group"
                                     >
                                         <div className="flex items-start gap-2.5 mb-2">
                                             <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : approvedCount > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-200 dark:bg-slate-700'}`} />

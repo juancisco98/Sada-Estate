@@ -67,7 +67,7 @@ const FinishMaintenanceModal: React.FC<FinishMaintenanceModalProps> = ({
                 <button
                   key={`q-${star}`}
                   onClick={() => setRating(star)}
-                  className="transition-transform hover:scale-110 focus:outline-none"
+                  className="transition-transform hover:scale-110 focus:outline-hidden"
                 >
                   <Star
                     className={`w-8 h-8 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-200 dark:text-slate-700'}`}
@@ -85,7 +85,7 @@ const FinishMaintenanceModal: React.FC<FinishMaintenanceModalProps> = ({
                 <button
                   key={`s-${star}`}
                   onClick={() => setSpeedRating(star)}
-                  className="transition-transform hover:scale-110 focus:outline-none"
+                  className="transition-transform hover:scale-110 focus:outline-hidden"
                 >
                   <Star
                     className={`w-8 h-8 ${star <= speedRating ? 'fill-indigo-400 text-indigo-400' : 'text-slate-200 dark:text-slate-700'}`}
@@ -103,7 +103,7 @@ const FinishMaintenanceModal: React.FC<FinishMaintenanceModalProps> = ({
               <input
                 type="number"
                 placeholder="0.00"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-900 dark:text-white text-lg placeholder-slate-400 dark:placeholder-slate-500"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500 outline-hidden font-bold text-slate-900 dark:text-white text-lg placeholder-slate-400 dark:placeholder-slate-500"
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
               />
@@ -123,7 +123,7 @@ const FinishMaintenanceModal: React.FC<FinishMaintenanceModalProps> = ({
               <span className="text-xs font-bold uppercase">Comentario Privado</span>
             </div>
             <textarea
-              className="w-full bg-transparent border-none outline-none text-sm text-slate-700 dark:text-slate-300 resize-none h-20 placeholder-slate-400 dark:placeholder-slate-500"
+              className="w-full bg-transparent border-none outline-hidden text-sm text-slate-700 dark:text-slate-300 resize-none h-20 placeholder-slate-400 dark:placeholder-slate-500"
               placeholder="Escribí detalles para recordar en el futuro..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}

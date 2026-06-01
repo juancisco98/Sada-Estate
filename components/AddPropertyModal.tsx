@@ -534,7 +534,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 type="text"
                 placeholder="Ej: Piso 3B, Dpto. 4, PB A"
                 required
-                className="w-full px-4 py-3 rounded-xl border-2 border-violet-200 bg-violet-50/50 text-gray-900 text-sm font-bold focus:ring-2 focus:ring-violet-500 focus:border-violet-400 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border-2 border-violet-200 bg-violet-50/50 text-gray-900 text-sm font-bold focus:ring-2 focus:ring-violet-500 focus:border-violet-400 outline-hidden transition-all"
                 value={unitLabel}
                 onChange={e => setUnitLabel(e.target.value)}
                 aria-label="Nombre de la unidad"
@@ -584,7 +584,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                       <LayoutGrid className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                       <input
                         type="number" min="1" max="20" placeholder="Ej: 3" required={!isEditing}
-                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-semibold"
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-hidden font-semibold"
                         value={formData.rooms} onChange={e => setFormData({ ...formData, rooms: e.target.value })} aria-label="Cantidad de ambientes"
                       />
                     </div>
@@ -595,7 +595,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                       <Ruler className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                       <input
                         type="number" min="1" placeholder="Ej: 72" required={!isEditing}
-                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-semibold"
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-hidden font-semibold"
                         value={formData.squareMeters} onChange={e => setFormData({ ...formData, squareMeters: e.target.value })} aria-label="Metros cuadrados"
                       />
                     </div>
@@ -605,7 +605,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 <div className="space-y-1 pt-1">
                   <label className="text-xs font-medium text-gray-600">País {taxConfig.flag}</label>
                   <select
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
                     value={formData.country} onChange={handleCountryChange} aria-label="Seleccionar país"
                   >
                     <option value="Argentina">AR Argentina</option>
@@ -631,7 +631,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                     <input
                       type="date"
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
                       value={formData.contractStart}
                       onChange={e => setFormData({ ...formData, contractStart: e.target.value })}
                       aria-label="Fecha de inicio del contrato"
@@ -644,7 +644,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     <RefreshCw className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                     <input
                       type="number" min="1" max="24" placeholder="Ej: 3"
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-semibold"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden font-semibold"
                       value={formData.adjustmentMonths}
                       onChange={e => setFormData({ ...formData, adjustmentMonths: e.target.value })}
                       aria-label="Cada cuántos meses se ajusta el alquiler"
@@ -744,7 +744,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                       <div className="flex gap-2">
                         <input
                           type="number" min="0" step="0.1" placeholder="Ej: 4.5"
-                          className="flex-1 text-sm px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                          className="flex-1 text-sm px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 outline-hidden focus:ring-2 focus:ring-indigo-400"
                           value={ipcCalc.manualPct}
                           onChange={e => setIpcCalc(prev => ({ ...prev, manualPct: e.target.value }))}
                         />
@@ -772,7 +772,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
               <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
               <input
                 type="text" placeholder="Dirección completa de la propiedad" required
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-hidden transition-all"
                 value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} aria-label="Dirección de la propiedad"
               />
             </div>
@@ -789,7 +789,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     <User className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                     <input
                       type="text" placeholder="Nombre o Vacante"
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-hidden"
                       value={formData.tenantName} onChange={e => setFormData({ ...formData, tenantName: e.target.value })} aria-label="Nombre del inquilino"
                     />
                   </div>
@@ -800,7 +800,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     <Phone className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                     <input
                       type="tel" placeholder="11-XXXX-XXXX"
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-hidden"
                       value={formData.tenantPhone} onChange={e => setFormData({ ...formData, tenantPhone: e.target.value })} aria-label="Teléfono del inquilino"
                     />
                   </div>
@@ -811,7 +811,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     <DollarSign className={`absolute left-3 top-2.5 w-4 h-4 ${formData.currency === 'USD' ? 'text-green-600' : 'text-blue-600'}`} />
                     <input
                       type="text" placeholder="0" required
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-semibold"
+                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-hidden font-semibold"
                       value={formatNumberWithDots(formData.monthlyRent)} onChange={e => handleNumberChange('monthlyRent', e.target.value)} aria-label="Valor del alquiler mensual"
                     />
                   </div>
@@ -878,7 +878,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                   <Briefcase className="w-3.5 h-3.5" /> Profesional Asignado
                 </label>
                 <select
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-hidden appearance-none"
                   value={formData.assignedProfessionalId} onChange={e => setFormData({ ...formData, assignedProfessionalId: e.target.value })} aria-label="Seleccionar profesional asignado"
                 >
                   <option value="">Ninguno (Opcional)</option>
@@ -894,7 +894,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     </label>
                     <input
                       type="text" placeholder="Ej: Reparación de cañería..." required
-                      className="w-full px-3 py-2 rounded-lg border border-orange-200 bg-orange-50 text-gray-900 text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                      className="w-full px-3 py-2 rounded-lg border border-orange-200 bg-orange-50 text-gray-900 text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-hidden"
                       value={formData.maintenanceTaskDescription} onChange={e => setFormData({ ...formData, maintenanceTaskDescription: e.target.value })} aria-label="Descripción de la tarea"
                     />
                   </div>
@@ -929,7 +929,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
               </h3>
               <textarea
                 placeholder="Ej: El portero se llama Jose. Recordar pedir comprobante..."
-                className="w-full p-3 rounded-lg border border-amber-200 bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-amber-400 outline-none resize-none h-20 text-sm"
+                className="w-full p-3 rounded-lg border border-amber-200 bg-white text-gray-900 shadow-xs focus:ring-2 focus:ring-amber-400 outline-hidden resize-none h-20 text-sm"
                 value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} aria-label="Notas y recordatorios"
               />
             </div>

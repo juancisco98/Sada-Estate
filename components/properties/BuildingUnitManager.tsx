@@ -64,7 +64,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                     className={`relative w-12 h-6 rounded-full transition-colors ${isBuilding ? 'bg-violet-600' : 'bg-gray-300'}`}
                     aria-label={isBuilding ? "Desactivar modo edificio" : "Activar modo edificio"}
                 >
-                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBuilding ? 'translate-x-6' : 'translate-x-0.5'}`}></span>
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${isBuilding ? 'translate-x-6' : 'translate-x-0.5'}`}></span>
                 </button>
               </div>
             )}
@@ -76,7 +76,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                     {units.map((unit, idx) => {
                         const isExpanded = expandedUnit === idx;
                         return (
-                            <div key={idx} className="bg-white rounded-xl border border-violet-200 overflow-hidden shadow-sm">
+                            <div key={idx} className="bg-white rounded-xl border border-violet-200 overflow-hidden shadow-xs">
                                 {/* Unit header */}
                                 <div className="flex items-center gap-2 p-3">
                                     <button
@@ -89,7 +89,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                                     <input
                                         type="text"
                                         placeholder={`Ej: Piso ${idx + 1}A`}
-                                        className="flex-1 px-3 py-1.5 rounded-lg border border-violet-100 bg-violet-50/50 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                                        className="flex-1 px-3 py-1.5 rounded-lg border border-violet-100 bg-violet-50/50 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-hidden"
                                         value={unit.label}
                                         onChange={e => updateUnitField(idx, 'label', e.target.value)}
                                     />
@@ -115,7 +115,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                                                     <input
                                                         type="text"
                                                         placeholder="Nombre o Vacante"
-                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-hidden"
                                                         value={unit.tenantName}
                                                         onChange={e => updateUnitField(idx, 'tenantName', e.target.value)}
                                                     />
@@ -128,7 +128,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                                                     <input
                                                         type="tel"
                                                         placeholder="11-XXXX-XXXX"
-                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-none"
+                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-violet-400 outline-hidden"
                                                         value={unit.tenantPhone}
                                                         onChange={e => updateUnitField(idx, 'tenantPhone', e.target.value)}
                                                     />
@@ -147,7 +147,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                                                         min="1"
                                                         max="20"
                                                         placeholder="Ej: 3"
-                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-hidden"
                                                         value={unit.rooms}
                                                         onChange={e => updateUnitField(idx, 'rooms', e.target.value)}
                                                     />
@@ -161,7 +161,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                                                         type="number"
                                                         min="1"
                                                         placeholder="Ej: 72"
-                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                                                        className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-hidden"
                                                         value={unit.squareMeters}
                                                         onChange={e => updateUnitField(idx, 'squareMeters', e.target.value)}
                                                     />
@@ -177,7 +177,7 @@ export const BuildingUnitManager: React.FC<BuildingUnitManagerProps> = ({
                                                 <input
                                                     type="text"
                                                     placeholder="0"
-                                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-none"
+                                                    className="w-full pl-8 pr-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:ring-2 focus:ring-violet-400 outline-hidden"
                                                     value={formatNumber(unit.monthlyRent)}
                                                     onChange={e => {
                                                         const clean = e.target.value.replace(/[^0-9]/g, '');

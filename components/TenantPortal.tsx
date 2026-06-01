@@ -205,7 +205,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         >
                             <Bell className="w-6 h-6" />
                             {notifications.length > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center px-1 shadow">
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center px-1 shadow-sm">
                                     {notifications.length > 9 ? '9+' : notifications.length}
                                 </span>
                             )}
@@ -299,7 +299,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                             <button
                                 key={monthName}
                                 onClick={() => setSelectedMonth(index + 1)}
-                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl cursor-pointer shadow-sm
+                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl cursor-pointer shadow-xs
                   ${status === 'PAID' ? 'border-emerald-200 dark:border-emerald-500/30 bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-500/10 dark:to-emerald-500/5 shadow-emerald-100 dark:shadow-none' : ''}
                   ${status === 'REVISION' ? 'border-amber-200 dark:border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-500/10 dark:to-amber-500/5 shadow-amber-100 dark:shadow-none' : ''}
                   ${status === 'RETURNED' ? 'border-amber-300 dark:border-amber-400/40 bg-gradient-to-br from-amber-50 to-amber-100/60 dark:from-amber-500/15 dark:to-amber-500/5 shadow-amber-100 dark:shadow-none' : ''}

@@ -435,7 +435,7 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
                                                     value={expenseAmount}
                                                     onChange={(e) => setExpenseAmount(e.target.value)}
                                                     placeholder="Ingresá el monto abonado"
-                                                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800"
+                                                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-hidden transition-all text-slate-800 dark:text-white font-bold bg-white dark:bg-slate-800"
                                                 />
                                             </div>
                                         </div>

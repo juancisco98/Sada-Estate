@@ -155,7 +155,7 @@ const AdminSettings: React.FC = () => {
             </div>
 
             {/* ── Admin de Expensas ──────────────────────────────────────── */}
-            <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 overflow-hidden shadow-sm">
+            <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 overflow-hidden shadow-xs">
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-white/10 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-500/15 flex items-center justify-center">
                         <Shield className="w-5 h-5 text-violet-600 dark:text-violet-400" />
@@ -248,7 +248,7 @@ const AdminSettings: React.FC = () => {
                                             value={newName}
                                             onChange={e => setNewName(e.target.value)}
                                             placeholder="Nombre del empleado"
-                                            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-hidden"
                                         />
                                     </div>
                                 </div>
@@ -261,7 +261,7 @@ const AdminSettings: React.FC = () => {
                                             value={newEmail}
                                             onChange={e => setNewEmail(e.target.value)}
                                             placeholder="email@gmail.com"
-                                            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-violet-500 outline-hidden"
                                         />
                                     </div>
                                 </div>

@@ -59,7 +59,7 @@ const FinancialDetailsCard: React.FC<FinancialDetailsCardProps> = ({
 
             <button
               onClick={onClose}
-              className="absolute -top-2 -right-2 p-2 hover:bg-white/80 rounded-2xl text-slate-400 hover:text-slate-600 transition-all active:scale-95 md:hidden shadow-sm"
+              className="absolute -top-2 -right-2 p-2 hover:bg-white/80 rounded-2xl text-slate-400 hover:text-slate-600 transition-all active:scale-95 md:hidden shadow-xs"
             >
               <X className="w-6 h-6" />
             </button>

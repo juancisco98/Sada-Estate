@@ -102,7 +102,7 @@ const IncomeBreakdownPanel: React.FC<IncomeBreakdownPanelProps> = ({
 
             {/* Buildings Breakdown */}
             {buildingGroups.map(group => (
-                <div key={group.building.id} className="mb-4 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
+                <div key={group.building.id} className="mb-4 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-xs">
                     <div className="p-3 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-white/5 flex justify-between items-center">
                         <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-slate-400" />
@@ -139,7 +139,7 @@ const IncomeBreakdownPanel: React.FC<IncomeBreakdownPanelProps> = ({
 
             {/* Individual Properties */}
             {individualProperties.length > 0 && (
-                <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm divide-y divide-slate-100 dark:divide-white/5">
+                <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-xs divide-y divide-slate-100 dark:divide-white/5">
                     {individualProperties.map((prop) => (
                         <div key={prop.id} className="p-4 flex justify-between items-start hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group/prop">
                             <div className="flex items-center gap-4 min-w-0">
