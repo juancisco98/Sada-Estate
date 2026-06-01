@@ -85,9 +85,6 @@ export default defineConfig(() => {
         }
       })
     ],
-    define: {
-      // 'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY), // Removed
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
