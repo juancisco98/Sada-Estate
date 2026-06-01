@@ -4,6 +4,7 @@ import App from './App';
 import { registerSW } from 'virtual:pwa-register';
 
 import { ThemeProvider } from './context/ThemeContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 if ('serviceWorker' in navigator) {
   registerSW({ immediate: true });
@@ -17,8 +18,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>
+    <ErrorBoundary label="app">
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

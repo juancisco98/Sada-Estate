@@ -1,70 +1,34 @@
-\# Agent Instructions
+# Agent Instructions — Sada Estate
 
-\> This file is mirrored across CLAUDE.md, AGENTS.md, and GEMINI.md so the same instructions load in any AI environment.
+> Punto de entrada para cualquier agente de IA (Claude, Codex, Gemini, etc.) que trabaje en este repo.
 
-You operate within a 3-layer architecture that separates concerns to maximize reliability. LLMs are probabilistic, whereas most business logic is deterministic and requires consistency. This system fixes that mismatch.
+Este proyecto es una **app React 19 + TypeScript + Vite + Supabase** de gestión de propiedades en alquiler (no un sistema de scripts Python). Las instrucciones reales viven en:
 
-\#\# The 3-Layer Architecture
+- **[CLAUDE.md](CLAUDE.md)** — convenciones técnicas, arquitectura y "Lecciones Aprendidas" (reglas derivadas de bugs reales). **Léelo siempre al iniciar.**
+- **[CONTEXT.md](CONTEXT.md)** — lenguaje de dominio canónico (roles, entidades, máquina de estados de pago).
+- **[docs/adr/](docs/adr/)** — decisiones arquitectónicas (Architecture Decision Records).
+- **[docs/PRD-hardening.md](docs/PRD-hardening.md)** — PRD del esfuerzo de profesionalización en curso.
 
-\*\*Layer 1: Directive (What to do)\*\*  
-\- Basically just SOPs written in Markdown, live in \`directives/\`  
-\- Define the goals, inputs, tools/scripts to use, outputs, and edge cases  
-\- Natural language instructions, like you'd give a mid-level employee
+## Reglas no negociables (resumen — el detalle está en CLAUDE.md)
 
-\*\*Layer 2: Orchestration (Decision making)\*\*  
-\- This is you. Your job: intelligent routing.  
-\- Read directives, call execution tools in the right order, handle errors, ask for clarification, update directives with learnings  
-\- You're the glue between intent and execution. E.g you don't try scraping websites yourself—you read \`directives/scrape\_website.md\` and come up with inputs/outputs and then run \`execution/scrape\_single\_site.py\`
+- **IDs de Supabase:** siempre `generateUUID()` manual. Nunca `Date.now()` ni `crypto.randomUUID()`.
+- **Emails:** guardar `email.trim().toLowerCase()`; comparar con `.ilike()` + `.limit(1).maybeSingle()`.
+- **Nombre de inquilino:** `property.tenantName`, nunca `getPropertyDisplayInfo().title`.
+- **Logs de flujos críticos** (auth/pagos): `console.*` directo, nunca `logger` (silenciado en producción).
+- **Mes "pagado"** solo si un pago tiene `status === 'APPROVED'`.
+- **Modales largos:** patrón `flex flex-col max-h-[90vh]` + body `overflow-y-auto`.
+- **Dark mode:** prefijo `dark:` en todos los componentes.
 
-\*\*Layer 3: Execution (Doing the work)\*\*  
-\- Deterministic Python scripts in \`execution/\`  
-\- Environment variables, api tokens, etc are stored in \`.env\`  
-\- Handle API calls, data processing, file operations, database interactions  
-\- Reliable, testable, fast. Use scripts instead of manual work. Commented well.
+## Comandos
 
-\*\*Why this works:\*\* if you do everything yourself, errors compound. 90% accuracy per step \= 59% success over 5 steps. The solution is push complexity into deterministic code. That way you just focus on decision-making.
+```bash
+npm run dev        # servidor de desarrollo (Vite, puerto 3000)
+npm run build      # build de producción
+npm run lint       # ESLint
+npm run typecheck  # tsc --noEmit
+npm test           # Vitest (suite en construcción — ver docs/adr/0002)
+```
 
-\#\# Operating Principles
+## Self-improvement loop
 
-\*\*1. Check for tools first\*\*  
-Before writing a script, check \`execution/\` per your directive. Only create new scripts if none exist.
-
-\*\*2. Self-anneal when things break\*\*  
-\- Read error message and stack trace  
-\- Fix the script and test it again (unless it uses paid tokens/credits/etc—in which case you check w user first)  
-\- Update the directive with what you learned (API limits, timing, edge cases)  
-\- Example: you hit an API rate limit → you then look into API → find a batch endpoint that would fix → rewrite script to accommodate → test → update directive.
-
-\*\*3. Update directives as you learn\*\*  
-Directives are living documents. When you discover API constraints, better approaches, common errors, or timing expectations—update the directive. But don't create or overwrite directives without asking unless explicitly told to. Directives are your instruction set and must be preserved (and improved upon over time, not extemporaneously used and then discarded).
-
-\#\# Self-annealing loop
-
-Errors are learning opportunities. When something breaks:  
-1\. Fix it  
-2\. Update the tool  
-3\. Test tool, make sure it works  
-4\. Update directive to include new flow  
-5\. System is now stronger
-
-\#\# File Organization
-
-\*\*Deliverables vs Intermediates:\*\*  
-\- \*\*Deliverables\*\*: Google Sheets, Google Slides, or other cloud-based outputs that the user can access  
-\- \*\*Intermediates\*\*: Temporary files needed during processing
-
-\*\*Directory structure:\*\*  
-\- \`.tmp/\` \- All intermediate files (dossiers, scraped data, temp exports). Never commit, always regenerated.  
-\- \`execution/\` \- Python scripts (the deterministic tools)  
-\- \`directives/\` \- SOPs in Markdown (the instruction set)  
-\- \`.env\` \- Environment variables and API keys  
-\- \`credentials.json\`, \`token.json\` \- Google OAuth credentials (required files, in \`.gitignore\`)
-
-\*\*Key principle:\*\* Local files are only for processing. Deliverables live in cloud services (Google Sheets, Slides, etc.) where the user can access them. Everything in \`.tmp/\` can be deleted and regenerated.
-
-\#\# Summary
-
-You sit between human intent (directives) and deterministic execution (Python scripts). Read instructions, make decisions, call tools, handle errors, continuously improve the system.
-
-Be pragmatic. Be reliable. Self-anneal.
-
+Cuando el usuario corrija un error, agrega una "Lección Aprendida" en **CLAUDE.md** (causa raíz + regla derivada + archivos afectados). No esperes a que te lo pidan.

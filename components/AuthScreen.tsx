@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { logger } from '../utils/logger';
 
 const AUTO_CLEAR_ERROR_MS = 5000;
 
@@ -22,7 +21,7 @@ const AuthScreen: React.FC = () => {
     const { error: authError } = await signInWithGoogle();
 
     if (authError) {
-      logger.error("Google Login Error:", authError);
+      console.error("Google Login Error:", authError);
       setError('Error al iniciar sesión con Google. Verifica tu conexión.');
       setIsLoading(false);
     }

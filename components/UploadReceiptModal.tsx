@@ -4,7 +4,6 @@ import { X, UploadCloud, FileText, AlertTriangle, Loader2, CheckCircle, Clock, D
 import { Tenant, TenantPayment, Property, ExpenseSheet } from '../types';
 import { uploadFile } from '../services/storage';
 import { supabase } from '../services/supabaseClient';
-import { logger } from '../utils/logger';
 import { paymentToDb } from '../utils/mappers';
 import { parseExpenseSheet } from '../utils/expenseSheetParser';
 import { toast } from 'sonner';
@@ -112,7 +111,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 .upsert(paymentToDb(paymentRecord));
 
             if (error) {
-                logger.error('Supabase error:', error);
+                console.error('Supabase error:', error);
                 throw new Error(error.message || 'Error al guardar el pago en la base de datos.');
             }
 
@@ -127,13 +126,13 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
                 }));
                 await supabase.from('notifications').insert(notifInserts);
             } catch (notifError: any) {
-                logger.error('Notifications insert failed (non-blocking):', notifError);
+                console.error('Notifications insert failed (non-blocking):', notifError);
             }
 
             toast.success('Comprobantes enviados correctamente.');
             onSuccess(paymentRecord);
         } catch (error: any) {
-            logger.error('Upload receipt error:', error);
+            console.error('Upload receipt error:', error);
             toast.error(error?.message || 'Ocurrió un error al guardar los comprobantes.');
             setShowConfirm(false);
         } finally {

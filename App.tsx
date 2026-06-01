@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { handleError } from './utils/errorHandler';
-import { logger } from './utils/logger';
 
 import { LayoutDashboard, FileSpreadsheet } from 'lucide-react';
 import MapBoard from './components/MapBoard';
@@ -14,6 +13,7 @@ import FinishMaintenanceModal from './components/FinishMaintenanceModal';
 import AddProfessionalModal from './components/AddProfessionalModal';
 import AssignProfessionalModal from './components/AssignProfessionalModal';
 import BuildingCard from './components/BuildingCard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Property, Professional, User, Building } from './types';
 import { DataProvider, useDataContext } from './context/DataContext';
 import { supabase, signOut } from './services/supabaseClient';
@@ -344,7 +344,7 @@ const Dashboard: React.FC = () => {
     });
 
     const handleAppUrlOpen = (data: any) => {
-      logger.log('[Auth] App opened with URL:', data.url);
+      console.log('[Auth] App opened with URL:', data.url);
       if (data.url.includes('com.svpropiedades.app://login-callback')) {
         // The URL could be parsed like a normal URL
         // However, iOS/Android URLs might need manual extracting if it contains hash or search
@@ -353,10 +353,10 @@ const Dashboard: React.FC = () => {
           const url = new URL(urlStr);
           const code = url.searchParams.get('code');
           if (code) {
-            logger.log('[Auth] Exchanging code from native deep link');
+            console.log('[Auth] Exchanging code from native deep link');
             supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
               if (error) {
-                logger.error('[Auth] PKCE code exchange failed on native:', error);
+                console.error('[Auth] PKCE code exchange failed on native:', error);
               }
             });
           } else {
@@ -368,7 +368,7 @@ const Dashboard: React.FC = () => {
             }
           }
         } catch (e) {
-          logger.error('Error parsing deep link url', e);
+          console.error('Error parsing deep link url', e);
         }
       }
     };
@@ -382,7 +382,7 @@ const Dashboard: React.FC = () => {
     // Just restore any existing session on load.
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        logger.error('[Auth] Error getting session:', error);
+        console.error('[Auth] Error getting session:', error);
         return;
       }
       if (session) {
@@ -906,7 +906,9 @@ const Dashboard: React.FC = () => {
       />
 
       <div className="w-full h-full relative">
-        {renderCurrentView()}
+        <ErrorBoundary label={`view:${currentView}`} resetKey={currentView}>
+          {renderCurrentView()}
+        </ErrorBoundary>
       </div>
 
       {showPropertyModal && (
