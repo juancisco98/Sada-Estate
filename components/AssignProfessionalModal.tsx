@@ -60,7 +60,7 @@ const AssignProfessionalModal: React.FC<AssignProfessionalModalProps> = ({
                   <Home className="w-4 h-4" /> Seleccionar Propiedad
                 </label>
                 <select
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden appearance-none"
                   value={selectedPropertyId}
                   onChange={(e) => setSelectedPropertyId(e.target.value)}
                 >
@@ -76,7 +76,7 @@ const AssignProfessionalModal: React.FC<AssignProfessionalModalProps> = ({
                   <Hammer className="w-4 h-4" /> Descripción de la Tarea
                 </label>
                 <textarea
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-24 placeholder-slate-400 dark:placeholder-slate-500"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden resize-none h-24 placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="Ej: Revisión de estufa y calefón por pérdida..."
                   value={taskDescription}
                   onChange={(e) => setTaskDescription(e.target.value)}

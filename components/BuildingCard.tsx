@@ -128,13 +128,13 @@ const BuildingCard: React.FC<BuildingCardProps> = ({
                   onClick={() => onSelectUnit(unit)}
                   className="w-full flex items-center gap-3 p-3 rounded-[24px] bg-gray-50/50 hover:bg-white border border-gray-100 hover:shadow-md active:bg-gray-50 transition-all group text-left"
                 >
-                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusDot(unit.status, !!unit.assignedProfessionalId)} ring-4 ring-white shadow-sm`} />
+                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusDot(unit.status, !!unit.assignedProfessionalId)} ring-4 ring-white shadow-xs`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-extrabold text-gray-900 group-hover:text-violet-600 transition-colors">
                         {getPropertyDisplayInfo(unit).title}
                       </p>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-sm ${statusInfo.cls}`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-xs ${statusInfo.cls}`}>
                         {statusInfo.text}
                       </span>
                     </div>

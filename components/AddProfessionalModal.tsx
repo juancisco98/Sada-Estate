@@ -67,7 +67,7 @@ const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({ onClose, on
               <input
                 type="text"
                 placeholder="Ej: Mario Gomez"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
               />
@@ -81,7 +81,7 @@ const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({ onClose, on
               <input
                 type="text"
                 placeholder="Ej: Gasista Matriculado"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden placeholder-slate-400 dark:placeholder-slate-500"
                 value={formData.profession}
                 onChange={e => setFormData({ ...formData, profession: e.target.value })}
               />
@@ -96,7 +96,7 @@ const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({ onClose, on
                 <input
                   type="tel"
                   placeholder="11-XXXX..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden placeholder-slate-400 dark:placeholder-slate-500"
                   value={formData.phone}
                   onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 />
@@ -109,7 +109,7 @@ const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({ onClose, on
                 <input
                   type="text"
                   placeholder="Ej: Palermo"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden placeholder-slate-400 dark:placeholder-slate-500"
                   value={formData.zone}
                   onChange={e => setFormData({ ...formData, zone: e.target.value })}
                 />

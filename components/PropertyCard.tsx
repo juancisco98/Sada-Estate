@@ -213,7 +213,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* Address & Status Badges */}
       <div className="px-4 pt-5 pb-2">
         <div className="flex flex-wrap gap-2 mb-3">
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${isRevision ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border shadow-xs ${isRevision ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
             isPaid ? 'bg-green-100 text-green-700 border-green-200' :
               getStatusColor(property.status)
             }`}>
@@ -350,14 +350,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             {isDirty && (
               <button
                 onClick={saveNote}
-                className="bg-yellow-400 dark:bg-amber-500 text-yellow-900 dark:text-amber-950 text-[10px] px-2.5 py-1 rounded-full font-black shadow-sm flex items-center gap-1 transform hover:scale-105 active:scale-95 transition-all"
+                className="bg-yellow-400 dark:bg-amber-500 text-yellow-900 dark:text-amber-950 text-[10px] px-2.5 py-1 rounded-full font-black shadow-xs flex items-center gap-1 transform hover:scale-105 active:scale-95 transition-all"
               >
                 <Save className="w-3 h-3" /> Guardar
               </button>
             )}
           </div>
           <textarea
-            className="w-full bg-transparent border-none outline-none text-sm text-yellow-900 dark:text-amber-100 italic p-1 h-16 resize-none placeholder-yellow-800/40 dark:placeholder-amber-400/30"
+            className="w-full bg-transparent border-none outline-hidden text-sm text-yellow-900 dark:text-amber-100 italic p-1 h-16 resize-none placeholder-yellow-800/40 dark:placeholder-amber-400/30"
             placeholder="Escribí aquí una nota recordatoria..."
             title="Nota de la propiedad"
             aria-label="Nota de la propiedad"
@@ -383,7 +383,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         {onEdit && (
           <button
             onClick={() => onEdit(property, !!property.buildingId)}
-            className="w-[56px] h-[56px] rounded-2xl bg-slate-50 dark:bg-white/5 text-slate-400 dark:text-slate-500 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all border border-slate-100 dark:border-white/5 shadow-sm active:scale-95 group"
+            className="w-[56px] h-[56px] rounded-2xl bg-slate-50 dark:bg-white/5 text-slate-400 dark:text-slate-500 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all border border-slate-100 dark:border-white/5 shadow-xs active:scale-95 group"
             aria-label="Editar"
           >
             <Pencil className="w-5 h-5 group-hover:rotate-12 transition-transform" />

@@ -803,7 +803,7 @@ const Dashboard: React.FC = () => {
           </div>
           <button
             onClick={() => setAdminMode('admin')}
-            className="w-full p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all text-left group"
+            className="w-full p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all text-left group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition-colors">
@@ -817,7 +817,7 @@ const Dashboard: React.FC = () => {
           </button>
           <button
             onClick={() => setAdminMode('expenses')}
-            className="w-full p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md hover:border-violet-300 dark:hover:border-violet-500/50 transition-all text-left group"
+            className="w-full p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs hover:shadow-md hover:border-violet-300 dark:hover:border-violet-500/50 transition-all text-left group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-violet-100 dark:bg-violet-500/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-violet-600 transition-colors">

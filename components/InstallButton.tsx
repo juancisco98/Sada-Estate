@@ -47,7 +47,7 @@ const InstallButton: React.FC = () => {
     return (
         <button
             onClick={handleInstallClick}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-xs"
             title="Instalar aplicación"
         >
             <Download size={16} />

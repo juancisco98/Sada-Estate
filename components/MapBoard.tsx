@@ -71,7 +71,7 @@ const createBuildingIcon = (unitCount: number) => {
   });
 };
 
-// House icon — rounded square with house emoji, status-colored
+// House icon — rounded-sm square with house emoji, status-colored
 const createHouseIcon = (property: Property) => {
   let borderColor = 'border-teal-200';
   let bgColor = 'bg-teal-600';
@@ -101,7 +101,7 @@ const createHouseIcon = (property: Property) => {
   });
 };
 
-// Local/shop icon — rounded square with shop emoji, status-colored
+// Local/shop icon — rounded-sm square with shop emoji, status-colored
 const createLocalIcon = (property: Property) => {
   let borderColor = 'border-amber-200';
   let bgColor = 'bg-amber-600';

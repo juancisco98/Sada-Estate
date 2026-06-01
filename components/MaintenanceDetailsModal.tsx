@@ -144,7 +144,7 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
                             <input
                                 type="text"
                                 placeholder="Descripción (ej. Materiales, Adelanto)"
-                                className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                                className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden placeholder-slate-400 dark:placeholder-slate-500"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 autoFocus
@@ -155,7 +155,7 @@ const MaintenanceDetailsModal: React.FC<MaintenanceDetailsModalProps> = ({
                                     <input
                                         type="number"
                                         placeholder="Monto"
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold placeholder-slate-400 dark:placeholder-slate-500"
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden font-bold placeholder-slate-400 dark:placeholder-slate-500"
                                         value={amount}
                                         onChange={e => setAmount(e.target.value)}
                                     />

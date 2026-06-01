@@ -69,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="flex items-center gap-2 sm:gap-4 ml-1">
                     <button
                         onClick={onMenuClick}
-                        className="p-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-full text-gray-800 dark:text-white transition-all active:scale-95 w-11 h-11 flex items-center justify-center border border-gray-200/80 dark:border-white/10 shadow-sm"
+                        className="p-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-full text-gray-800 dark:text-white transition-all active:scale-95 w-11 h-11 flex items-center justify-center border border-gray-200/80 dark:border-white/10 shadow-xs"
                         aria-label="Abrir menú"
                     >
                         <Menu className="w-5 h-5 sm:w-5 sm:h-5" />
@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({
                             <h1 className="text-xl md:text-2xl font-extrabold text-[#1f2937] dark:text-white leading-none tracking-tight">SV Propiedades</h1>
                             {currentUser?.color && (
                                 <div
-                                    className="w-3 h-3 rounded-full border border-gray-300 dark:border-white/20 shadow-sm"
+                                    className="w-3 h-3 rounded-full border border-gray-300 dark:border-white/20 shadow-xs"
                                     style={{ backgroundColor: currentUser.color }}
                                     title={`Sesión activa: ${currentUser.name}`}
                                 ></div>
@@ -93,14 +93,14 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="flex items-center gap-2 sm:gap-3 mr-1">
                     <button
                         onClick={toggleTheme}
-                        className="p-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-full text-gray-700 dark:text-gray-200 transition-all shadow-sm active:scale-95 w-11 h-11 flex items-center justify-center border border-gray-200/80 dark:border-white/10"
+                        className="p-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-full text-gray-700 dark:text-gray-200 transition-all shadow-xs active:scale-95 w-11 h-11 flex items-center justify-center border border-gray-200/80 dark:border-white/10"
                         aria-label="Cambiar tema"
                     >
                         {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                     </button>
                     <InstallButton />
                     {currentView === 'MAP' && (
-                        <div className="flex items-center bg-white/50 dark:bg-slate-800/50 border border-gray-200/80 dark:border-white/10 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-200 rounded-full px-3 py-1.5 min-h-[44px] transition-all focus-within:ring-4 focus-within:ring-blue-100 dark:focus-within:ring-blue-900 shadow-sm">
+                        <div className="flex items-center bg-white/50 dark:bg-slate-800/50 border border-gray-200/80 dark:border-white/10 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-200 rounded-full px-3 py-1.5 min-h-[44px] transition-all focus-within:ring-4 focus-within:ring-blue-100 dark:focus-within:ring-blue-900 shadow-xs">
                             {isSearching ? (
                                 <Loader2 className="w-5 h-5 text-blue-500 animate-spin mr-2" />
                             ) : (
@@ -112,7 +112,7 @@ const Header: React.FC<HeaderProps> = ({
                                 type="text"
                                 placeholder="Buscar dirección..."
                                 aria-label="Buscar dirección"
-                                className="bg-transparent border-none outline-none text-sm sm:text-base text-gray-800 dark:text-white w-28 sm:w-40 md:w-72 placeholder-gray-400 dark:placeholder-gray-500 font-medium"
+                                className="bg-transparent border-none outline-hidden text-sm sm:text-base text-gray-800 dark:text-white w-28 sm:w-40 md:w-72 placeholder-gray-400 dark:placeholder-gray-500 font-medium"
                                 value={searchQuery}
                                 onChange={(e) => onSearchChange(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && onSearchSubmit()}
@@ -123,7 +123,7 @@ const Header: React.FC<HeaderProps> = ({
                     {/* Notifications Bell */}
                     <div className="relative" ref={dropdownRef}>
                         <button
-                            className="p-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-full text-gray-700 dark:text-gray-200 relative transition-all shadow-sm active:scale-95 w-11 h-11 flex items-center justify-center border border-gray-200/80 dark:border-white/10"
+                            className="p-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-full text-gray-700 dark:text-gray-200 relative transition-all shadow-xs active:scale-95 w-11 h-11 flex items-center justify-center border border-gray-200/80 dark:border-white/10"
                             onClick={() => setShowNotifications(v => !v)}
                             aria-label="Notificaciones"
                         >

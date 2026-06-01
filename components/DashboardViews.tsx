@@ -175,7 +175,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           {onDeleteProperty && (
             <button
               onClick={() => setIsDeleteMode(!isDeleteMode)}
-              className={`p-3 rounded-2xl shadow-sm flex items-center gap-2 px-5 sm:px-7 transition-all min-h-[52px] font-bold ${isDeleteMode
+              className={`p-3 rounded-2xl shadow-xs flex items-center gap-2 px-5 sm:px-7 transition-all min-h-[52px] font-bold ${isDeleteMode
                 ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200 shadow-lg scale-105'
                 : 'bg-white dark:bg-slate-800 text-rose-600 border border-rose-100 dark:border-rose-500/20 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:border-rose-200'
                 }`}
@@ -238,7 +238,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               const lateCount = units.filter(u => u.status === PropertyStatus.LATE).length;
 
               return (
-                <div key={groupKey} className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border-2 border-violet-200 dark:border-violet-500/20 overflow-hidden">
+                <div key={groupKey} className="bg-white dark:bg-slate-900 rounded-3xl shadow-xs border-2 border-violet-200 dark:border-violet-500/20 overflow-hidden">
                   {/* Building header with image */}
                   <div className="h-36 w-full relative">
                     {firstUnit.imageUrl ? (
@@ -280,7 +280,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                             <div
                               key={unit.id}
                               onClick={() => onEditProperty && onEditProperty(unit)}
-                              className="flex items-center gap-4 p-4 rounded-[2rem] hover:bg-indigo-500/10 dark:hover:bg-indigo-500/20 cursor-pointer group transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/40 hover:translate-x-2 active:scale-95 shadow-sm hover:shadow-indigo-500/10 overflow-hidden"
+                              className="flex items-center gap-4 p-4 rounded-[2rem] hover:bg-indigo-500/10 dark:hover:bg-indigo-500/20 cursor-pointer group transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/40 hover:translate-x-2 active:scale-95 shadow-xs hover:shadow-indigo-500/10 overflow-hidden"
                             >
                               {/* Status dot indicator */}
                               <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${unit.status === PropertyStatus.CURRENT ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' :
@@ -314,7 +314,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                                       e.stopPropagation();
                                       if (onEditProperty) onEditProperty(unit);
                                     }}
-                                    className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-indigo-100 dark:border-white/5 flex items-center gap-1.5 text-[10px] font-bold whitespace-nowrap"
+                                    className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-xs border border-indigo-100 dark:border-white/5 flex items-center gap-1.5 text-[10px] font-bold whitespace-nowrap"
                                   >
                                     <Edit className="w-3.5 h-3.5" />
                                     <span className="hidden xs:inline">EDITAR</span>
@@ -350,7 +350,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     }
                   }}
                   className={`
-                  bg-white dark:bg-slate-900 rounded-3xl shadow-sm overflow-hidden transition-all duration-300 cursor-pointer relative group
+                  bg-white dark:bg-slate-900 rounded-3xl shadow-xs overflow-hidden transition-all duration-300 cursor-pointer relative group
                   ${isDeleteMode
                       ? 'border-4 border-red-500 ring-4 ring-red-100 scale-95 opacity-90 hover:opacity-100 hover:scale-100 animate-pulse'
                       : (isMaintenance ? 'border-4 border-orange-400 dark:border-orange-500/50 ring-4 ring-orange-100/30 dark:ring-orange-900/20' : 'border border-gray-100 dark:border-white/10 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.01] hover:translate-x-1')
@@ -426,20 +426,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         // Fallback to static status if no payment current month
                         if (property.status === PropertyStatus.LATE) {
                           return (
-                            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
+                            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold shadow-xs flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" /> Moroso
                             </span>
                           );
                         }
                         if (property.status === PropertyStatus.WARNING) {
                           return (
-                            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
+                            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold shadow-xs flex items-center gap-1">
                               <Clock className="w-3 h-3" /> Revisar
                             </span>
                           );
                         }
                         return (
-                          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
+                          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-xs flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" /> Al día
                           </span>
                         );
@@ -476,7 +476,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           </div>
                         </div>
                         {maintenance.task && (
-                          <div className="text-xs text-orange-800 bg-white/50 rounded px-2 py-1 italic border-l-2 border-orange-300">
+                          <div className="text-xs text-orange-800 bg-white/50 rounded-sm px-2 py-1 italic border-l-2 border-orange-300">
                             "{maintenance.task}"
                           </div>
                         )}
@@ -513,7 +513,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       {/* Tenant & Phone */}
                       <div className="flex items-center justify-between p-2.5 bg-slate-50/80 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-full flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 dark:border-white/10">
+                          <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-full flex items-center justify-center text-slate-400 shadow-xs border border-slate-100 dark:border-white/10">
                             <User className="w-4 h-4" />
                           </div>
                           <div>
@@ -529,7 +529,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                               e.stopPropagation();
                               window.location.href = `tel:${property.tenantPhone}`;
                             }}
-                            className="w-8 h-8 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-sm border border-indigo-100 dark:border-indigo-500/20"
+                            className="w-8 h-8 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all cursor-pointer shadow-xs border border-indigo-100 dark:border-indigo-500/20"
                           >
                             <Phone className="w-4 h-4" />
                           </div>
@@ -562,7 +562,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
       {/* Budget & Maintenance Summary Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-100 dark:border-white/10 shadow-sm relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-50/20 transition-all duration-500">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-100 dark:border-white/10 shadow-xs relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-50/20 transition-all duration-500">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 dark:bg-indigo-500/10 rounded-bl-[100px] -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
 
           <div className="relative">
@@ -594,7 +594,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               </div>
               <div className="h-3 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden border border-slate-100 dark:border-white/10 flex p-0.5">
                 <div
-                  className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${progress > 90 ? 'bg-gradient-to-r from-rose-400 to-rose-600' :
+                  className={`h-full rounded-full transition-all duration-1000 ease-out shadow-xs ${progress > 90 ? 'bg-gradient-to-r from-rose-400 to-rose-600' :
                     progress > 60 ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
                       'bg-gradient-to-r from-indigo-400 to-indigo-600'
                     }`}
@@ -788,7 +788,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md p-2 rounded-[2rem] border border-white/60 dark:border-white/10 shadow-sm">
+        <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md p-2 rounded-[2rem] border border-white/60 dark:border-white/10 shadow-xs">
           <div className="flex items-center gap-1 bg-slate-900 dark:bg-indigo-600 text-white rounded-[1.5rem] p-1 shadow-lg">
             <button
               onClick={() => setSelectedYear(y => y - 1)}
@@ -810,7 +810,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
           <button
             onClick={() => window.location.reload()}
-            className="p-3.5 bg-white dark:bg-slate-800 rounded-full hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 transition-all shadow-sm dark:shadow-none border border-indigo-100 dark:border-white/10 group active:scale-95"
+            className="p-3.5 bg-white dark:bg-slate-800 rounded-full hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 transition-all shadow-xs dark:shadow-none border border-indigo-100 dark:border-white/10 group active:scale-95"
             title="Sincronizar Datos"
           >
             <Loader className="w-5 h-5 group-hover:rotate-180 transition-transform duration-700" />
@@ -842,7 +842,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         </div>
 
         {/* Expenses - Rose Glass */}
-        <div className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-white/10 flex flex-col justify-between group hover:shadow-xl hover:shadow-rose-100/50 dark:hover:shadow-none transition-all duration-500">
+        <div className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl p-6 rounded-3xl shadow-xs border border-slate-100 dark:border-white/10 flex flex-col justify-between group hover:shadow-xl hover:shadow-rose-100/50 dark:hover:shadow-none transition-all duration-500">
           <div className="relative">
             <div className="flex justify-between items-start mb-3">
               <div className="w-10 h-10 bg-rose-50 dark:bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-500 border border-rose-100 dark:border-rose-500/20 group-hover:bg-rose-500 group-hover:text-white transition-all duration-500 group-hover:rotate-6">
@@ -907,13 +907,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
       {/* === MONTHLY GRIDS: HARMONIOUS DESIGN === */}
       <div className="space-y-6">
         {/* Income Grid */}
-        <section className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-sm border border-white/40 dark:border-white/10 overflow-hidden group hover:shadow-xl hover:shadow-indigo-50/50 dark:hover:shadow-none transition-all duration-500">
+        <section className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-xs border border-white/40 dark:border-white/10 overflow-hidden group hover:shadow-xl hover:shadow-indigo-50/50 dark:hover:shadow-none transition-all duration-500">
           <div
             onClick={() => setExpandedSection(expandedSection === 'ARS' ? null : 'ARS')}
             className="p-6 border-b border-indigo-50/50 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-white/50 dark:hover:bg-white/5 transition-all gap-4"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/10 shadow-sm">
+              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/10 shadow-xs">
                 <TrendingUp className="w-6 h-6" />
               </div>
               <div>
@@ -964,13 +964,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         </section >
 
         {/* Expenses Grid */}
-        < section className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-sm border border-white/40 dark:border-white/10 overflow-hidden group hover:shadow-xl hover:shadow-rose-50/50 dark:hover:shadow-none transition-all duration-500" >
+        < section className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-xs border border-white/40 dark:border-white/10 overflow-hidden group hover:shadow-xl hover:shadow-rose-50/50 dark:hover:shadow-none transition-all duration-500" >
           <div
             onClick={() => setExpandedSection(expandedSection === 'maintenance' ? null : 'maintenance')}
             className="p-6 border-b border-rose-50/50 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-white/50 dark:hover:bg-white/5 transition-all gap-4"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-500/10 shadow-sm transition-transform group-hover:rotate-6">
+              <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-500/10 shadow-xs transition-transform group-hover:rotate-6">
                 <Hammer className="w-6 h-6" />
               </div>
               <div>
@@ -1086,7 +1086,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         </div>
 
         {/* Desktop: Premium Table */}
-        <div className="hidden md:block overflow-hidden rounded-[2rem] border border-slate-100 dark:border-white/10 shadow-sm bg-white/50 dark:bg-slate-900/50">
+        <div className="hidden md:block overflow-hidden rounded-[2rem] border border-slate-100 dark:border-white/10 shadow-xs bg-white/50 dark:bg-slate-900/50">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-white/5 text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-[0.2em]">
@@ -1367,7 +1367,7 @@ const ProfessionalDetailsView: React.FC<ProfessionalDetailsViewProps> = ({
                         e.stopPropagation();
                         onFinishMaintenance(prop);
                       }}
-                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
                     >
                       Finalizar
                     </button>

@@ -182,7 +182,7 @@ const ExpenseBreakdownModal: React.FC<ExpenseBreakdownModalProps> = ({
           {propertyGroups.length > 0 ? (
             <div className="space-y-6">
               {propertyGroups.map(([propertyId, group]) => (
-                <div key={propertyId} className="bg-white dark:bg-slate-800 rounded-[1.8rem] border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
+                <div key={propertyId} className="bg-white dark:bg-slate-800 rounded-[1.8rem] border border-slate-100 dark:border-white/5 shadow-xs overflow-hidden">
                   {/* Property Header */}
                   <div className="p-5 bg-slate-50 dark:bg-slate-700 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">

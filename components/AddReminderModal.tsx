@@ -83,7 +83,7 @@ const AddReminderModal: React.FC<AddReminderModalProps> = ({
                         <input
                             type="text"
                             placeholder="Ej: Cobrar a Mario Gomez"
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden placeholder-slate-400 dark:placeholder-slate-500"
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                             autoFocus
@@ -95,7 +95,7 @@ const AddReminderModal: React.FC<AddReminderModalProps> = ({
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Descripción (opcional)</label>
                         <textarea
                             placeholder="Detalles adicionales..."
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20 placeholder-slate-400 dark:placeholder-slate-500"
+                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden resize-none h-20 placeholder-slate-400 dark:placeholder-slate-500"
                             value={description}
                             onChange={e => setDescription(e.target.value)}
                         />
@@ -108,7 +108,7 @@ const AddReminderModal: React.FC<AddReminderModalProps> = ({
                         </label>
                         <input
                             type="date"
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden"
                             value={dueDate}
                             onChange={e => setDueDate(e.target.value)}
                         />
@@ -120,7 +120,7 @@ const AddReminderModal: React.FC<AddReminderModalProps> = ({
                             <Link className="w-4 h-4" /> Vincular a (opcional)
                         </label>
                         <select
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden appearance-none"
                             value={entityType}
                             onChange={e => { setEntityType(e.target.value as ReminderEntityType | ''); setEntityId(''); }}
                         >
@@ -137,7 +137,7 @@ const AddReminderModal: React.FC<AddReminderModalProps> = ({
                         <div className="space-y-1">
                             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Seleccionar</label>
                             <select
-                                className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                                className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden appearance-none"
                                 value={entityId}
                                 onChange={e => setEntityId(e.target.value)}
                             >

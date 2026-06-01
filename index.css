@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+
+/* Fuente Inter self-hosteada (reemplaza fonts.googleapis.com) */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+/* CSS de Leaflet self-hosteado (reemplaza unpkg.com) */
+@import 'leaflet/dist/leaflet.css';
+
+/* Dark mode por clase (.dark en <html> via ThemeContext), NO por
+   prefers-color-scheme — que es el default de Tailwind v4. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Paridad con la config del CDN previo: colores dark.bg / dark.card +
+   fuente por defecto Inter. */
+@theme {
+  --color-dark-bg: #0f172a;
+  --color-dark-card: #1e293b;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Compat v3→v4: en v4 el color por defecto de border/divide pasó de
+   gray-200 a currentColor. Restauramos gray-200 para no alterar el look. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+/* ===== Estilos migrados desde el <style> inline de index.html ===== */
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f3f4f6; /* gris claro, feel de Google Maps */
+  overflow: hidden; /* feel app */
+  transition: background-color 0.5s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  background-color: #0f172a;
+}
+
+/* Scrollbar custom */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 100px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Overrides de Leaflet */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #e5e7eb;
+  z-index: 0;
+}
+
+/* Ocultar atribución para UI más limpia */
+.leaflet-control-attribution {
+  display: none;
+}
+
+/* Ocultar zoom en móvil — los gestos táctiles alcanzan */
+@media (max-width: 768px) {
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+}
+
+/* Controles de zoom más grandes y visibles (desktop) */
+.leaflet-control-zoom a {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  font-size: 20px !important;
+  font-weight: bold !important;
+  border-radius: 12px !important;
+  background: white !important;
+  color: #1f2937 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
+}
+.leaflet-control-zoom a:hover {
+  background: #f3f4f6 !important;
+}
+.leaflet-control-zoom {
+  border: none !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12) !important;
+}
