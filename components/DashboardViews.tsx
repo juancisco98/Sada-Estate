@@ -1442,6 +1442,28 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
   const [selectedPro, setSelectedPro] = useState<Professional | null>(null);
   const { maintenanceTasks } = useDataContext();
 
+  // Índices precomputados: evita un properties.find() + maintenanceTasks.filter()
+  // por cada profesional dentro del .map() de la grilla (Lección 13).
+  const assignedPropByPro = useMemo(() => {
+    const map = new Map<string, Property>();
+    for (const p of properties) {
+      if (p.assignedProfessionalId && !map.has(p.assignedProfessionalId)) {
+        map.set(p.assignedProfessionalId, p); // primer match, igual que .find()
+      }
+    }
+    return map;
+  }, [properties]);
+
+  const completedJobsByPro = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of maintenanceTasks) {
+      if (t.status === TaskStatus.COMPLETED && t.professionalId) {
+        map.set(t.professionalId, (map.get(t.professionalId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [maintenanceTasks]);
+
   if (selectedPro) {
     return (
       <ProfessionalDetailsView
@@ -1476,9 +1498,9 @@ export const ProfessionalsView: React.FC<ProfessionalsViewProps> = ({
       {/* Grid of Professionals */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {professionals.map(pro => {
-          const assignedProperty = properties.find(p => p.assignedProfessionalId === pro.id);
+          const assignedProperty = assignedPropByPro.get(pro.id);
           const isBusy = !!assignedProperty;
-          const completedJobs = maintenanceTasks.filter(t => t.professionalId === pro.id && t.status === TaskStatus.COMPLETED).length;
+          const completedJobs = completedJobsByPro.get(pro.id) ?? 0;
 
           return (
             <div
