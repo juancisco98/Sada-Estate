@@ -14,6 +14,12 @@ export const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
+// Nombres de mes abreviados (grillas, UI compacta).
+export const MONTH_NAMES_SHORT = [
+  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+];
+
 // Maintenance budget as percentage of total income
 export const MAINTENANCE_BUDGET_RATIO = 0.15;
 

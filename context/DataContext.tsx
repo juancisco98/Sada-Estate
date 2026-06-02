@@ -22,7 +22,7 @@ import { logger } from '../utils/logger';
 import { toast } from 'sonner';
 import { Upload, Bot } from 'lucide-react';
 
-interface DataContextType {
+export interface DataContextType {
     properties: Property[];
     setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
     professionals: Professional[];

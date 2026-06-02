@@ -21,9 +21,9 @@ export const dbToBuilding = (row: DbBuildingRow): Building => ({
     coordinates: row.coordinates as [number, number],
     country: row.country,
     currency: row.currency,
-    imageUrl: row.image_url,
-    notes: row.notes,
-    userId: row.user_id,
+    imageUrl: row.image_url ?? undefined,
+    notes: row.notes ?? undefined,
+    userId: row.user_id ?? undefined,
 });
 
 export const buildingToDb = (b: Building): Record<string, unknown> => ({
@@ -43,19 +43,19 @@ export const dbToProperty = (row: DbPropertyRow): Property => ({
     id: row.id,
     address: row.address,
     tenantName: row.tenant_name,
-    tenantPhone: row.tenant_phone,
-    imageUrl: row.image_url,
+    tenantPhone: row.tenant_phone ?? undefined,
+    imageUrl: row.image_url ?? undefined,
     status: row.status as PropertyStatus,
     monthlyRent: Number(row.monthly_rent),
     coordinates: row.coordinates as [number, number],
     contractEnd: row.contract_end,
     lastPaymentDate: row.last_payment_date,
-    assignedProfessionalId: row.assigned_professional_id,
-    professionalAssignedDate: row.professional_assigned_date,
-    maintenanceTaskDescription: row.maintenance_task_description,
-    notes: row.notes,
-    lastModifiedBy: row.last_modified_by,
-    rooms: row.rooms,
+    assignedProfessionalId: row.assigned_professional_id ?? undefined,
+    professionalAssignedDate: row.professional_assigned_date ?? undefined,
+    maintenanceTaskDescription: row.maintenance_task_description ?? undefined,
+    notes: row.notes ?? undefined,
+    lastModifiedBy: row.last_modified_by ?? undefined,
+    rooms: row.rooms ?? undefined,
     squareMeters: row.square_meters ? Number(row.square_meters) : undefined,
     country: row.country,
     currency: row.currency,
@@ -63,7 +63,7 @@ export const dbToProperty = (row: DbPropertyRow): Property => ({
     buildingId: row.building_id || undefined,
     unitLabel: row.unit_label || undefined,
     propertyType: (row.property_type as PropertyType) || (row.building_id ? 'edificio' : 'casa'),
-    userId: row.user_id,
+    userId: row.user_id ?? undefined,
     contractStart: row.contract_start || undefined,
     adjustmentMonths: row.adjustment_months || undefined,
 });
@@ -106,7 +106,7 @@ export const dbToProfessional = (row: DbProfessionalRow): Professional => ({
     zone: row.zone,
     phone: row.phone,
     reviews: row.reviews || [],
-    userId: row.user_id,
+    userId: row.user_id ?? undefined,
 });
 
 export const professionalToDb = (p: Professional): Record<string, unknown> => ({
@@ -123,7 +123,7 @@ export const professionalToDb = (p: Professional): Record<string, unknown> => ({
 
 export const dbToTask = (row: DbMaintenanceTaskRow): MaintenanceTask => ({
     id: row.id,
-    propertyId: row.property_id,
+    propertyId: row.property_id ?? null,
     professionalId: row.professional_id,
     description: row.description,
     status: row.status as TaskStatus,
@@ -132,7 +132,7 @@ export const dbToTask = (row: DbMaintenanceTaskRow): MaintenanceTask => ({
     cost: row.cost ? Number(row.cost) : undefined,
     endDate: row.end_date || undefined,
     partialExpenses: row.partial_expenses || [],
-    userId: row.user_id,
+    userId: row.user_id ?? undefined,
 });
 
 export const taskToDb = (t: MaintenanceTask): Record<string, unknown> => ({
@@ -156,8 +156,8 @@ export const dbToTenant = (row: DbTenantRow): Tenant => ({
     name: row.name,
     phone: row.phone || '',
     email: row.email || '',
-    propertyId: row.property_id,
-    userId: row.user_id,
+    propertyId: row.property_id ?? null,
+    userId: row.user_id ?? undefined,
 });
 
 export const tenantToDb = (t: Tenant): Record<string, unknown> => ({
@@ -172,7 +172,7 @@ export const tenantToDb = (t: Tenant): Record<string, unknown> => ({
 export const dbToPayment = (row: DbTenantPaymentRow): TenantPayment => ({
     id: row.id,
     tenantId: row.tenant_id,
-    propertyId: row.property_id,
+    propertyId: row.property_id ?? null,
     amount: Number(row.amount),
     currency: row.currency,
     month: row.month,
@@ -228,7 +228,7 @@ export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }):
     tenant_id: s.tenantId,
     month: s.month,
     year: s.year,
-    sheet_data: s.sheetData,
+    sheet_data: s.sheetData ?? [],
     sheet_name: s.sheetName,
     uploaded_by: s.uploadedBy,
     parsed_data: s.parsedData ?? null,
@@ -240,7 +240,7 @@ export const expenseSheetToDb = (s: Omit<ExpenseSheet, 'id'> & { id?: string }):
 
 export const dbToReminder = (row: DbReminderRow): ManualReminder => ({
     id: row.id,
-    userId: row.user_id,
+    userId: row.user_id ?? undefined,
     title: row.title,
     description: row.description ?? undefined,
     dueDate: row.due_date,

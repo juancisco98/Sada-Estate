@@ -159,7 +159,7 @@ const createSearchIcon = () => {
   });
 };
 
-const MapController = ({ center, properties }: { center?: [number, number]; properties: Property[] }) => {
+const MapController = ({ center, properties }: { center?: [number, number]; properties: Property[] }): null => {
   const map = useMap();
 
   // Fix: Force map resize calculation when component mounts (fixes gray bug)

@@ -106,7 +106,7 @@ const IncomeBreakdownPanel: React.FC<IncomeBreakdownPanelProps> = ({
                     <div className="p-3 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-white/5 flex justify-between items-center">
                         <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-slate-400" />
-                            <span className="font-bold text-slate-700 dark:text-slate-200" title={group.building.name}>{group.building.name}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200" title={group.building.address}>{group.building.address}</span>
                             <span className="text-xs text-slate-400">({group.units.length} un.)</span>
                         </div>
                         <span className="font-black text-slate-900 dark:text-white tabular-nums">{formatCurrency(group.total, currency)}</span>

@@ -184,7 +184,7 @@ export const useTenantData = (currentUserId?: string) => {
             const totalPayments = tenantPayments.length;
             let onTimePayments = 0;
             const uniqueByMonth = new Map<string, TenantPayment>();
-            const byMonthCurrentYear: TenantPayment[][] = Array.from({ length: 12 }, () => []);
+            const byMonthCurrentYear: TenantPayment[][] = Array.from({ length: 12 }, (): TenantPayment[] => []);
 
             for (const p of tenantPayments) {
                 if (p.paidOnTime) onTimePayments++;

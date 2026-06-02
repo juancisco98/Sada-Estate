@@ -212,6 +212,7 @@ const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         },
         cancel: {
           label: "Cancelar",
+          onClick: () => { },
         },
       });
     }

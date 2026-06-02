@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import { ExpensesAdmin } from '../types';
+import { normalizeEmail } from '../utils/email';
 import { UserPlus, UserMinus, Shield, Clock, Mail, User, AlertTriangle, Loader2 } from 'lucide-react';
 
 // UUID v4 generator (HTTP-safe)
@@ -58,7 +59,7 @@ const AdminSettings: React.FC = () => {
 
     // Add new expenses admin
     const handleAdd = async () => {
-        const trimmedEmail = newEmail.trim().toLowerCase();
+        const trimmedEmail = normalizeEmail(newEmail);
         const trimmedName = newName.trim();
 
         if (!trimmedName) { toast.error('Ingresá el nombre del empleado.'); return; }

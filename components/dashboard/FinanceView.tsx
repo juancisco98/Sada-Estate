@@ -16,6 +16,7 @@ import FinancialDetailsCard from '../FinancialDetailsCard';
 import IncomeBreakdownPanel from '../IncomeBreakdownPanel';
 import ExpenseBreakdownModal from '../ExpenseBreakdownModal';
 import { formatCurrency } from '../../utils/currency';
+import { MONTH_NAMES_SHORT as MONTH_NAMES } from '../../constants';
 
 // --- 2. Finanzas (Finance) ---
 interface FinanceViewProps {
@@ -26,8 +27,6 @@ interface FinanceViewProps {
   onClearPreSelection?: () => void;
   buildings?: Building[];
 }
-
-const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 export const FinanceView: React.FC<FinanceViewProps> = ({
   properties = [],
@@ -40,7 +39,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   const [selectedFinancialProperty, setSelectedFinancialProperty] = useState<Property | null>(null);
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [expandedSection, setExpandedSection] = useState<'ARS' | 'USD' | null>(null);
+  const [expandedSection, setExpandedSection] = useState<'ARS' | 'USD' | 'maintenance' | null>(null);
   const [selectedExpenseMonth, setSelectedExpenseMonth] = useState<number | null>(null);
 
   // Auto-select property if passed from parent.

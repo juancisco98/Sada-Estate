@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Tenant, TenantPayment, Property, MaintenanceTask } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { getPropertyDisplayInfo } from '../utils/property';
+import { normalizeEmail } from '../utils/email';
 import { UserPlus, DollarSign, Home, FileText, Loader, Clock, Users, Search, RefreshCw } from 'lucide-react';
 import { uploadFile } from '../services/storage';
 import { supabase } from '../services/supabaseClient';
@@ -106,7 +107,7 @@ const TenantsView: React.FC<TenantsViewProps> = ({
             id: editingTenantId || generateUUID(),
             name: newTenant.name.trim(),
             phone: newTenant.phone.trim(),
-            email: newTenant.email.trim().toLowerCase(),
+            email: normalizeEmail(newTenant.email),
             propertyId: newTenant.propertyId || null,
         };
         onSaveTenant(tenant);
