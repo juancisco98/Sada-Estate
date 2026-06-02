@@ -58,6 +58,7 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     );
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
     // Only locked when APPROVED — tenant can re-upload when REVISION
     const isLocked = existingPayment?.status === 'APPROVED';
@@ -156,20 +157,27 @@ const UploadReceiptModal: React.FC<UploadReceiptModalProps> = ({
     const { loadExpenseSheetData } = useDataContext();
 
     const handleDownloadExcel = async () => {
-        if (!expenseSheet) return;
-        let data = expenseSheet.sheetData;
-        if (!data || data.length === 0) {
-            const loaded = await loadExpenseSheetData(expenseSheet.id);
-            if (!loaded || loaded.length === 0) {
-                toast.error('No hay datos de Excel para descargar.');
-                return;
+        if (!expenseSheet || isDownloadingExcel) return;
+        setIsDownloadingExcel(true);
+        try {
+            let data = expenseSheet.sheetData;
+            if (!data || data.length === 0) {
+                const loaded = await loadExpenseSheetData(expenseSheet.id);
+                if (!loaded || loaded.length === 0) {
+                    toast.error('No hay datos de Excel para descargar.');
+                    return;
+                }
+                data = loaded;
             }
-            data = loaded;
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, expenseSheet.sheetName || 'Expensas');
+            XLSX.writeFile(wb, `Expensas_${MONTH_NAMES[month - 1]}_${year}.xlsx`);
+        } catch (error: any) {
+            toast.error(error?.message || 'No se pudo descargar el Excel.');
+        } finally {
+            setIsDownloadingExcel(false);
         }
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, expenseSheet.sheetName || 'Expensas');
-        XLSX.writeFile(wb, `Expensas_${MONTH_NAMES[month - 1]}_${year}.xlsx`);
     };
 
     const handleDownloadPDF = () => {
@@ -232,6 +240,7 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
                     <button
                         onClick={onClose}
                         disabled={isSubmitting}
+                        aria-label="Cerrar"
                         className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-95"
                     >
                         <X className="w-5 h-5" />
@@ -355,9 +364,10 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
                                                             <button
                                                                 type="button"
                                                                 onClick={handleDownloadExcel}
-                                                                className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 bg-white dark:bg-white/5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 transition-colors"
+                                                                disabled={isDownloadingExcel}
+                                                                className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 bg-white dark:bg-white/5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                             >
-                                                                <FileSpreadsheet className="w-3 h-3" /> Excel
+                                                                {isDownloadingExcel ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileSpreadsheet className="w-3 h-3" />} Excel
                                                             </button>
                                                         </>
                                                     )}
@@ -427,10 +437,11 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
 
                                         {/* Monto */}
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Monto abonado</label>
+                                            <label htmlFor="expense-amount" className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Monto abonado</label>
                                             <div className="relative">
                                                 <span className="absolute left-4 top-3 text-slate-500 dark:text-slate-400 font-bold">$</span>
                                                 <input
+                                                    id="expense-amount"
                                                     type="number"
                                                     value={expenseAmount}
                                                     onChange={(e) => setExpenseAmount(e.target.value)}
@@ -473,7 +484,7 @@ tr.total td{background:#ede9fe;color:#4c1d95;font-weight:700;font-size:14px;padd
                                                         </>
                                                     )}
                                                 </div>
-                                                <input type="file" className="hidden" accept="*/*" onChange={handleFileChange} />
+                                                <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
                                             </label>
                                         </div>
                                     </div>

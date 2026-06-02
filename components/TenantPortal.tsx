@@ -23,7 +23,7 @@ interface TenantPortalProps {
 }
 
 const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) => {
-    const { tenants, payments, properties, setPayments, expenseSheets, setExpenseSheets } = useDataContext();
+    const { tenants, payments, properties, setPayments, expenseSheets, setExpenseSheets, isLoading } = useDataContext();
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -89,7 +89,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
             const { data } = await supabase
                 .from('notifications')
                 .select('*')
-                .eq('recipient_email', currentUser.email)
+                .ilike('recipient_email', currentUser.email)
                 .eq('read', false)
                 .order('created_at', { ascending: false });
             if (data) setNotifications(data as Notification[]);
@@ -136,6 +136,16 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
         markNotificationsRead(n.payment_id);
         setShowNotifDropdown(false);
     };
+
+    // Loading: datos del contexto aún cargando (evita el flash de "perfil no encontrado").
+    if (isLoading && tenants.length === 0) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors duration-300" role="status" aria-live="polite">
+                <div className="w-10 h-10 border-4 border-indigo-200 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
+                <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">Cargando tu información…</p>
+            </div>
+        );
+    }
 
     // If no tenant record is found (shouldn't happen due to login check, but fallback)
     if (!tenantRecord) {
@@ -202,6 +212,8 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                             onClick={() => setShowNotifDropdown(v => !v)}
                             className="p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-all flex items-center justify-center relative"
                             title="Notificaciones"
+                            aria-label={`Notificaciones${notifications.length > 0 ? ` (${notifications.length} sin leer)` : ''}`}
+                            aria-expanded={showNotifDropdown}
                         >
                             <Bell className="w-6 h-6" />
                             {notifications.length > 0 && (
@@ -247,6 +259,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         onClick={onLogout}
                         className="p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-all group flex items-center justify-center"
                         title="Cerrar sesión"
+                        aria-label="Cerrar sesión"
                     >
                         <LogOut className="w-6 h-6 group-hover:scale-110 transition-transform" />
                     </button>
@@ -336,8 +349,8 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                     )}
                                     {status === 'PENDING' && (
                                         <>
-                                            <Calendar className="text-slate-300 dark:text-slate-600 w-6 h-6 group-hover:text-indigo-400 dark:group-hover:text-indigo-400 transition-colors" />
-                                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-wider mt-0.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Pendiente</span>
+                                            <Calendar className="text-slate-400 dark:text-slate-500 w-6 h-6 group-hover:text-indigo-400 dark:group-hover:text-indigo-400 transition-colors" />
+                                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Pendiente</span>
                                         </>
                                     )}
                                 </div>

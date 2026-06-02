@@ -221,14 +221,14 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         setPayments(prev => prev.map(p => p.id === payment.id ? { ...p, status: 'APPROVED' } : p));
         const tenant = tenants.find(t => t.id === payment.tenantId);
         if (tenant?.email) {
-            await supabase.from('notifications').insert({
+            await supabase.from('notifications').insert([{
                 recipient_email: tenant.email,
                 title: 'Pago aprobado ✓',
                 message: `Tu pago de expensas de ${MONTH_NAMES[payment.month - 1]} ${payment.year} fue aprobado.`,
                 type: 'PAYMENT_APPROVED',
                 payment_id: payment.id,
                 read: false,
-            });
+            }]);
         }
         toast.success(`Pago de ${MONTH_NAMES[payment.month - 1]} aprobado.`);
     };
@@ -244,14 +244,14 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
         ));
         const tenant = tenants.find(t => t.id === payment.tenantId);
         if (tenant?.email) {
-            await supabase.from('notifications').insert({
+            await supabase.from('notifications').insert([{
                 recipient_email: tenant.email,
                 title: 'Pago devuelto para corrección',
                 message: `Tu pago de ${MONTH_NAMES[payment.month - 1]} ${payment.year} requiere correcciones: ${reason}`,
                 type: 'PAYMENT_RETURNED',
                 payment_id: payment.id,
                 read: false,
-            });
+            }]);
         }
         toast.warning(`Pago de ${MONTH_NAMES[payment.month - 1]} devuelto.`);
     };
@@ -334,6 +334,8 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                     <div className="relative" ref={notifRef}>
                         <button
                             onClick={() => setShowNotif(v => !v)}
+                            aria-label={`Notificaciones${myUnreadCount > 0 ? ` (${myUnreadCount} sin leer)` : ''}`}
+                            aria-expanded={showNotif}
                             className="relative w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                         >
                             <Bell className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -365,7 +367,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                                 className={`px-4 py-3 border-b border-slate-50 dark:border-white/5 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-colors ${!n.read ? 'bg-indigo-50/50 dark:bg-indigo-500/10' : ''}`}
                                             >
                                                 <p className={`text-sm font-semibold ${!n.read ? 'text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>{n.title}</p>
-                                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
                                                 <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">{new Date(n.createdAt).toLocaleDateString('es-AR')}</p>
                                             </div>
                                         ))
