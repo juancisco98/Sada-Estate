@@ -4,8 +4,42 @@ import { useDataContext } from '../context/DataContext';
 import { MONTH_NAMES } from '../constants';
 import { supabase } from '../services/supabaseClient';
 import { dbToExpenseSheet } from '../utils/mappers';
+import { parseExpenseSheet } from '../utils/expenseSheetParser';
 import UploadReceiptModal from './UploadReceiptModal';
-import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, ExternalLink, Bell, RotateCcw } from 'lucide-react';
+import PaymentDetailModal from './PaymentDetailModal';
+import { LogOut, Calendar, Clock, CheckCircle, AlertCircle, Home, Bell, RotateCcw, Wallet, Receipt, ChevronRight, ChevronDown, Plus, FileText, X } from 'lucide-react';
+
+// Vencimiento por convención: día 15 del mes siguiente a la liquidación.
+const computeDueDate = (month: number, year: number): string => {
+    const m = month === 12 ? 1 : month + 1;
+    const y = month === 12 ? year + 1 : year;
+    return `15-${String(m).padStart(2, '0')}-${y}`;
+};
+
+// ISO (YYYY-MM-DD) → DD-MM-YYYY para mostrar al inquilino.
+const formatDate = (iso?: string): string => {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return d ? `${d}-${m}-${y}` : iso;
+};
+
+type MonthStatus = 'PENDING' | 'PAID' | 'REVISION' | 'RETURNED';
+
+// Chip de estado reutilizable (colores semánticos de CLAUDE.md).
+const StatusChip: React.FC<{ status: MonthStatus }> = ({ status }) => {
+    const map = {
+        PAID: { label: 'Pagado', Icon: CheckCircle, cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+        REVISION: { label: 'En revisión', Icon: Clock, cls: 'text-amber-700 bg-amber-50 border-amber-200' },
+        RETURNED: { label: 'Corregir', Icon: RotateCcw, cls: 'text-amber-800 bg-amber-50 border-amber-300' },
+        PENDING: { label: 'Pendiente', Icon: Calendar, cls: 'text-slate-600 bg-slate-50 border-slate-200' },
+    }[status];
+    const { label, Icon, cls } = map;
+    return (
+        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full border whitespace-nowrap ${cls}`}>
+            <Icon className="w-3 h-3" /> {label}
+        </span>
+    );
+};
 
 interface Notification {
     id: string;
@@ -25,6 +59,9 @@ interface TenantPortalProps {
 const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) => {
     const { tenants, payments, properties, setPayments, expenseSheets, setExpenseSheets, isLoading } = useDataContext();
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+    const [selectedPayment, setSelectedPayment] = useState<TenantPayment | null>(null);
+    const [showMonthPicker, setShowMonthPicker] = useState(false);
+    const [showDetail, setShowDetail] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [showNotifDropdown, setShowNotifDropdown] = useState(false);
     const currentYear = new Date().getFullYear();
@@ -127,7 +164,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
     const getNotifIcon = (type: string) => {
         if (type === 'PAYMENT_APPROVED') return <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />;
         if (type === 'PAYMENT_REVISION') return <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />;
-        return <Bell className="w-4 h-4 text-indigo-500 shrink-0" />;
+        return <Bell className="w-4 h-4 text-slate-500 shrink-0" />;
     };
 
     const handleNotifClick = (n: Notification) => {
@@ -140,9 +177,9 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
     // Loading: datos del contexto aún cargando (evita el flash de "perfil no encontrado").
     if (isLoading && tenants.length === 0) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors duration-300" role="status" aria-live="polite">
-                <div className="w-10 h-10 border-4 border-indigo-200 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
-                <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">Cargando tu información…</p>
+            <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 transition-colors duration-300" role="status" aria-live="polite">
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin" />
+                <p className="mt-4 text-sm font-medium text-slate-500">Cargando tu información…</p>
             </div>
         );
     }
@@ -150,14 +187,14 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
     // If no tenant record is found (shouldn't happen due to login check, but fallback)
     if (!tenantRecord) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors duration-300">
-                <div className="bg-white dark:bg-slate-900 border border-white/40 dark:border-white/10 p-8 rounded-3xl shadow-xl text-center max-w-md w-full">
+            <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 transition-colors duration-300">
+                <div className="bg-white border border-white/40 p-8 rounded-3xl shadow-xl text-center max-w-md w-full">
                     <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">No se encontró tu perfil</h2>
-                    <p className="text-gray-600 dark:text-slate-400 mb-6">Contactate con la administración para que vinculen tu cuenta de correo.</p>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">No se encontró tu perfil</h2>
+                    <p className="text-gray-600 mb-6">Contactate con la administración para que vinculen tu cuenta de correo.</p>
                     <button
                         onClick={onLogout}
-                        className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold hover:bg-indigo-700 transition-all active:scale-95"
+                        className="w-full bg-slate-600 text-white py-3 rounded-2xl font-bold hover:bg-slate-700 transition-all active:scale-95"
                     >
                         Cerrar Sesión
                     </button>
@@ -186,10 +223,35 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
         return 'PENDING';
     };
 
+    // ── Datos derivados estilo "home banking" ──────────────────────────────
+    // Liquidaciones del inquilino ordenadas (más reciente primero).
+    const sheetsOrdered = [...tenantExpenseSheetsThisYear].sort((a, b) => b.month - a.month);
+
+    // Cuenta actual = liquidación más reciente cuyo pago aún no fue aprobado.
+    const currentSheet = sheetsOrdered.find(s => getMonthStatus(s.month - 1) !== 'PAID') ?? null;
+    const currentParsed = currentSheet
+        ? (currentSheet.parsedData ?? (currentSheet.sheetData?.length ? parseExpenseSheet(currentSheet.sheetData) : null))
+        : null;
+    const balance = currentParsed?.total ?? 0;
+
+    // Informes de pago = comprobantes subidos por el inquilino (más reciente primero).
+    const informes = [...tenantPaymentsThisYear]
+        .filter(p => p.proofOfExpenses || p.proofOfPayment)
+        .sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || ''));
+
+    const handleInformarPago = () => {
+        const pendientes = sheetsOrdered.filter(s => getMonthStatus(s.month - 1) !== 'PAID');
+        if (pendientes.length === 1) {
+            setSelectedMonth(pendientes[0].month);
+        } else {
+            setShowMonthPicker(true);
+        }
+    };
+
     return (
-        <div className="h-screen bg-gray-50 dark:bg-slate-950 flex flex-col transition-colors duration-300">
+        <div className="h-screen bg-gray-100 flex flex-col transition-colors duration-300">
             {/* HEADER */}
-            <header className="bg-gradient-to-r from-indigo-600 to-violet-700 dark:from-indigo-900 dark:to-violet-900 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between sticky top-0 z-10 shadow-lg shadow-indigo-900/20 shrink-0">
+            <header className="bg-gradient-to-r from-slate-600 to-slate-700 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between sticky top-0 z-10 shadow-lg shadow-slate-900/20 shrink-0">
                 <div className="flex items-center gap-4">
                     {currentUser.photoURL ? (
                         <img src={currentUser.photoURL} alt="Avatar" className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-white/20 shadow-md bg-white/10" />
@@ -200,7 +262,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                     )}
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold leading-tight">Hola, {currentUser.name.split(' ')[0]}</h1>
-                        <p className="text-indigo-100/90 text-sm font-medium flex items-center gap-1.5 mt-0.5">
+                        <p className="text-slate-100/90 text-sm font-medium flex items-center gap-1.5 mt-0.5">
                             <Home className="w-3.5 h-3.5" /> {tenantProperty ? tenantProperty.address : 'Miembro Inquilino'}
                         </p>
                     </div>
@@ -224,11 +286,11 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                         </button>
                         {/* Dropdown */}
                         {showNotifDropdown && (
-                            <div className="absolute right-0 top-14 w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/10">
-                                    <span className="font-bold text-slate-800 dark:text-white text-sm">Notificaciones</span>
+                            <div className="absolute right-0 top-14 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                                    <span className="font-bold text-slate-800 text-sm">Notificaciones</span>
                                     {notifications.length > 0 && (
-                                        <button onClick={markAllNotificationsRead} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                                        <button onClick={markAllNotificationsRead} className="text-xs text-slate-600 hover:underline">
                                             Marcar todas leídas
                                         </button>
                                     )}
@@ -236,17 +298,17 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                 {notifications.length === 0 ? (
                                     <p className="text-center text-slate-400 text-sm py-6">Sin notificaciones</p>
                                 ) : (
-                                    <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
+                                    <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
                                         {notifications.map(n => (
                                             <button
                                                 key={n.id}
                                                 onClick={() => handleNotifClick(n)}
-                                                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left"
+                                                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
                                             >
                                                 {getNotifIcon(n.type)}
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{n.title}</p>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                                                    <p className="text-sm font-semibold text-slate-800 truncate">{n.title}</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
                                                 </div>
                                             </button>
                                         ))}
@@ -268,20 +330,94 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
 
             {/* BODY */}
             <main className="flex-1 overflow-y-auto min-h-0 max-w-3xl w-full mx-auto p-4 sm:p-6 pb-20">
-                <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Panel de Pagos {currentYear}</h2>
-                    <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm sm:text-base">
-                        Seleccioná el mes correspondiente para subir tus comprobantes de alquiler y expensas.
-                        <span className="font-semibold text-indigo-600 dark:text-indigo-400 ml-1">Los comprobantes son revisados por la administración. Si hay algún error, serás notificado.</span>
-                    </p>
+                {/* TARJETA DE SALDO (Mi Cuenta) */}
+                <div className="mb-5 rounded-3xl bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-xl shadow-slate-900/20 overflow-hidden">
+                    <div className="px-6 pt-6 pb-5">
+                        <div className="flex items-center gap-2 text-slate-100/90 text-xs font-semibold uppercase tracking-wider">
+                            <Wallet className="w-4 h-4" /> Mi cuenta
+                        </div>
+                        {currentSheet ? (
+                            <>
+                                <p className="mt-3 text-xs font-medium text-slate-100/80">Saldo a pagar</p>
+                                {balance > 0 ? (
+                                    <p className="text-4xl sm:text-5xl font-black tabular-nums leading-tight">
+                                        ${balance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                    </p>
+                                ) : (
+                                    <p className="text-3xl font-black leading-tight mt-0.5">A confirmar</p>
+                                )}
+                                <p className="mt-2 text-sm text-slate-100/90">
+                                    {MONTH_NAMES[currentSheet.month - 1]} {currentSheet.year} · Vence el {computeDueDate(currentSheet.month, currentSheet.year)}
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <p className="mt-3 text-3xl font-black leading-tight">{sheetsOrdered.length > 0 ? 'Estás al día' : 'Sin liquidaciones'}</p>
+                                <p className="mt-2 text-sm text-slate-100/90">
+                                    {sheetsOrdered.length > 0 ? 'No tenés expensas pendientes de pago.' : 'Todavía no hay liquidaciones cargadas.'}
+                                </p>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Toggle: ver detalle de la cuenta */}
+                    {currentSheet && (
+                        <button
+                            onClick={() => setShowDetail(v => !v)}
+                            className="w-full flex items-center justify-center gap-1.5 py-3 bg-black/15 hover:bg-black/25 transition-colors text-sm font-semibold border-t border-white/10"
+                            aria-expanded={showDetail}
+                        >
+                            Ver detalle de la cuenta
+                            <ChevronDown className={`w-4 h-4 transition-transform ${showDetail ? 'rotate-180' : ''}`} />
+                        </button>
+                    )}
+
+                    {/* Desglose de la liquidación */}
+                    {currentSheet && showDetail && (
+                        <div className="bg-white text-slate-800">
+                            {currentParsed && currentParsed.items.length > 0 ? (
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="text-left px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wider">Concepto</th>
+                                            <th className="text-right px-5 py-2.5 font-semibold text-slate-500 text-xs uppercase tracking-wider">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentParsed.items.map((it, i) => (
+                                            <tr key={i} className="border-t border-slate-100">
+                                                <td className="px-5 py-2.5 text-slate-700">{it.concept}</td>
+                                                <td className="px-5 py-2.5 text-right tabular-nums text-slate-700">
+                                                    ${it.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        <tr className="border-t-2 border-slate-200 bg-slate-50/60">
+                                            <td className="px-5 py-3 font-black text-slate-900">TOTAL A PAGAR</td>
+                                            <td className="px-5 py-3 text-right font-black tabular-nums text-slate-900">
+                                                ${currentParsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <button
+                                    onClick={() => setSelectedMonth(currentSheet.month)}
+                                    className="w-full px-5 py-4 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-between"
+                                >
+                                    Ver liquidación completa <ChevronRight className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* REVISION NOTIFICATIONS BANNER */}
                 {revisionNotifications.length > 0 && (
-                    <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
                         <Bell className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                         <div className="flex-1">
-                            <p className="text-sm font-bold text-amber-800 dark:text-amber-400 mb-1">
+                            <p className="text-sm font-bold text-amber-800 mb-1">
                                 La administración requiere correcciones en tus comprobantes
                             </p>
                             {revisionNotifications.map(n => {
@@ -290,7 +426,7 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                                     <button
                                         key={n.id}
                                         onClick={() => { if (payment) setSelectedMonth(payment.month); }}
-                                        className="block text-xs text-amber-700 dark:text-amber-300 mt-1 hover:underline text-left"
+                                        className="block text-xs text-amber-700 mt-1 hover:underline text-left"
                                     >
                                         → {n.message}
                                     </button>
@@ -300,103 +436,78 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                     </div>
                 )}
 
-                {/* CALENDAR GRID */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                    {MONTH_NAMES.map((monthName, index) => {
-                        const status = getMonthStatus(index);
-                        const payment = tenantPaymentsThisYear.find(p => p.month === index + 1);
-                        const sheet = tenantExpenseSheetsThisYear.find(s => s.month === index + 1);
-                        const sheetTotal = sheet?.parsedData?.total ?? 0;
+                {/* EXPENSAS — liquidaciones cargadas por la administración */}
+                <section className="mb-5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 px-1 flex items-center gap-1.5">
+                        <Receipt className="w-3.5 h-3.5" /> Expensas
+                    </h3>
+                    <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
+                        {sheetsOrdered.length === 0 ? (
+                            <p className="px-4 py-6 text-center text-sm text-slate-400">Todavía no hay liquidaciones cargadas.</p>
+                        ) : sheetsOrdered.map(sheet => {
+                            const status = getMonthStatus(sheet.month - 1) as MonthStatus;
+                            return (
+                                <button
+                                    key={sheet.id}
+                                    onClick={() => setSelectedMonth(sheet.month)}
+                                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors text-left"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+                                        <Receipt className="w-5 h-5 text-slate-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-slate-800">Liquidación {MONTH_NAMES[sheet.month - 1]} {sheet.year}</p>
+                                        <p className="text-xs text-slate-500">Vence el {computeDueDate(sheet.month, sheet.year)}</p>
+                                    </div>
+                                    <StatusChip status={status} />
+                                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </section>
 
-                        return (
-                            <button
-                                key={monthName}
-                                onClick={() => setSelectedMonth(index + 1)}
-                                className={`flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl cursor-pointer shadow-xs
-                  ${status === 'PAID' ? 'border-emerald-200 dark:border-emerald-500/30 bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-500/10 dark:to-emerald-500/5 shadow-emerald-100 dark:shadow-none' : ''}
-                  ${status === 'REVISION' ? 'border-amber-200 dark:border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-500/10 dark:to-amber-500/5 shadow-amber-100 dark:shadow-none' : ''}
-                  ${status === 'RETURNED' ? 'border-amber-300 dark:border-amber-400/40 bg-gradient-to-br from-amber-50 to-amber-100/60 dark:from-amber-500/15 dark:to-amber-500/5 shadow-amber-100 dark:shadow-none' : ''}
-                  ${status === 'PENDING' ? 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-indigo-100 dark:hover:shadow-none' : ''}
-                `}
-                            >
-                                <span className={`text-base sm:text-lg font-bold mb-1.5 transition-colors
-                  ${status === 'PAID' ? 'text-emerald-800 dark:text-emerald-400' : ''}
-                  ${status === 'REVISION' ? 'text-amber-800 dark:text-amber-400' : ''}
-                  ${status === 'RETURNED' ? 'text-amber-900 dark:text-amber-300' : ''}
-                  ${status === 'PENDING' ? 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white' : ''}
-                `}>
-                                    {monthName}
-                                </span>
+                {/* INFORMES DE PAGO — comprobantes subidos por el inquilino */}
+                <section className="mb-5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 px-1 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5" /> Informes de pago
+                    </h3>
+                    <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
+                        {informes.length === 0 ? (
+                            <p className="px-4 py-6 text-center text-sm text-slate-400">Todavía no informaste ningún pago.</p>
+                        ) : informes.map(p => {
+                            const status = getMonthStatus(p.month - 1) as MonthStatus;
+                            const amount = p.expenseAmount ?? p.amount ?? 0;
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => setSelectedPayment(p)}
+                                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors text-left"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                                        <FileText className="w-5 h-5 text-emerald-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-slate-500">{formatDate(p.paymentDate)} · {MONTH_NAMES[p.month - 1]}</p>
+                                        <p className="text-sm font-bold text-slate-800 tabular-nums">
+                                            {p.paymentMethod === 'CASH' ? 'Efectivo' : 'Transferencia'} ${amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                        </p>
+                                    </div>
+                                    <StatusChip status={status} />
+                                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </section>
 
-                                <div className="flex flex-col items-center gap-1 mt-1">
-                                    {status === 'PAID' && (
-                                        <>
-                                            <CheckCircle className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
-                                            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mt-0.5">Aprobado</span>
-                                        </>
-                                    )}
-                                    {status === 'REVISION' && (
-                                        <>
-                                            <Clock className="text-amber-600 dark:text-amber-400 w-6 h-6" />
-                                            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mt-0.5">En Revisión</span>
-                                        </>
-                                    )}
-                                    {status === 'RETURNED' && (
-                                        <>
-                                            <RotateCcw className="text-amber-600 dark:text-amber-300 w-6 h-6" />
-                                            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider mt-0.5">Corregir</span>
-                                        </>
-                                    )}
-                                    {status === 'PENDING' && (
-                                        <>
-                                            <Calendar className="text-slate-400 dark:text-slate-500 w-6 h-6 group-hover:text-indigo-400 dark:group-hover:text-indigo-400 transition-colors" />
-                                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Pendiente</span>
-                                        </>
-                                    )}
-                                </div>
-                                {sheetTotal > 0 && (
-                                    <div className="mt-3 pt-2.5 border-t border-black/5 dark:border-white/10 w-full text-center">
-                                        <span className="text-[10px] text-violet-500 dark:text-violet-400 uppercase tracking-wider font-medium">Expensas</span>
-                                        <span className="block text-[13px] font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">${sheetTotal.toLocaleString('es-AR')}</span>
-                                    </div>
-                                )}
-                                {status === 'RETURNED' && payment?.notes && (
-                                    <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-400/20 w-full text-center">
-                                        <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-tight line-clamp-2">{payment.notes}</p>
-                                    </div>
-                                )}
-                                {(status === 'PAID' || status === 'REVISION' || status === 'RETURNED') && (
-                                    <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t border-black/5 dark:border-white/10 w-full">
-                                        {payment?.proofOfPayment && (
-                                            <a
-                                                href={payment.proofOfPayment}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-                                                title="Ver comprobante de alquiler"
-                                                onClick={e => e.stopPropagation()}
-                                            >
-                                                <ExternalLink className="w-3 h-3" /> Alquiler
-                                            </a>
-                                        )}
-                                        {payment?.proofOfExpenses && (
-                                            <a
-                                                href={payment.proofOfExpenses}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-                                                title="Ver comprobante de expensas"
-                                                onClick={e => e.stopPropagation()}
-                                            >
-                                                <ExternalLink className="w-3 h-3" /> Expensas
-                                            </a>
-                                        )}
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
+                {/* INFORMAR PAGO */}
+                <button
+                    onClick={handleInformarPago}
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-600 hover:bg-slate-700 text-white font-bold shadow-lg shadow-slate-600/20 transition-all active:scale-[0.99]"
+                >
+                    <Plus className="w-5 h-5" /> Informar Pago
+                </button>
 
             </main>
 
@@ -412,6 +523,53 @@ const TenantPortal: React.FC<TenantPortalProps> = ({ currentUser, onLogout }) =>
                     onClose={() => setSelectedMonth(null)}
                     onSuccess={handleUploadComplete}
                 />
+            )}
+
+            {/* MODAL Detalle de pago */}
+            {selectedPayment && (
+                <PaymentDetailModal
+                    payment={selectedPayment}
+                    property={tenantProperty}
+                    onClose={() => setSelectedPayment(null)}
+                />
+            )}
+
+            {/* MODAL Selector de mes para informar pago */}
+            {showMonthPicker && (
+                <div className="fixed inset-0 z-[1500] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowMonthPicker(false)}>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity" />
+                    <div
+                        className="bg-white border border-white/40 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md flex flex-col max-h-[90vh] relative animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0 rounded-t-3xl sm:rounded-t-2xl">
+                            <h2 className="text-lg font-bold text-slate-800">Elegí el mes a informar</h2>
+                            <button onClick={() => setShowMonthPicker(false)} aria-label="Cerrar" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all active:scale-95">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-4 grid grid-cols-3 gap-2.5">
+                            {MONTH_NAMES.map((monthName, index) => {
+                                const status = getMonthStatus(index) as MonthStatus;
+                                return (
+                                    <button
+                                        key={monthName}
+                                        onClick={() => { setShowMonthPicker(false); setSelectedMonth(index + 1); }}
+                                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all active:scale-95
+                                            ${status === 'PAID' ? 'border-emerald-200 bg-emerald-50' : ''}
+                                            ${status === 'REVISION' || status === 'RETURNED' ? 'border-amber-200 bg-amber-50' : ''}
+                                            ${status === 'PENDING' ? 'border-slate-200 bg-white hover:border-slate-300' : ''}`}
+                                    >
+                                        <span className="text-sm font-bold text-slate-700">{monthName.slice(0, 3)}</span>
+                                        {status === 'PAID' && <CheckCircle className="w-4 h-4 text-emerald-600" />}
+                                        {(status === 'REVISION' || status === 'RETURNED') && <Clock className="w-4 h-4 text-amber-600" />}
+                                        {status === 'PENDING' && <Calendar className="w-4 h-4 text-slate-400" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

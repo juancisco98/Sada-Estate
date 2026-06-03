@@ -262,7 +262,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
                 <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-xs">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-xl bg-slate-600 flex items-center justify-center">
                             <FileSpreadsheet className="w-5 h-5 text-white" />
                         </div>
                         <div>
@@ -285,7 +285,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                 : `No se encontró el edificio Vélez Sársfield. Buildings disponibles: ${buildings.map(b => b.address).join(', ')}`
                             }
                         </p>
-                        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 transition-colors">
+                        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-slate-600 text-white rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">
                             Recargar página
                         </button>
                     </div>
@@ -320,7 +320,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
             {/* ── Header ─────────────────────────────────────────────────── */}
             <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between shadow-xs">
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-xl bg-slate-600 flex items-center justify-center">
                         <FileSpreadsheet className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -351,7 +351,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/10">
                                     <span className="text-sm font-bold text-slate-800 dark:text-white">Notificaciones</span>
                                     {myUnreadCount > 0 && (
-                                        <button onClick={markAllNotificationsRead} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                                        <button onClick={markAllNotificationsRead} className="text-xs text-slate-600 dark:text-slate-400 hover:underline">
                                             Marcar todo leído
                                         </button>
                                     )}
@@ -364,7 +364,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                             <div
                                                 key={n.id}
                                                 onClick={() => markNotificationRead(n.id)}
-                                                className={`px-4 py-3 border-b border-slate-50 dark:border-white/5 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-colors ${!n.read ? 'bg-indigo-50/50 dark:bg-indigo-500/10' : ''}`}
+                                                className={`px-4 py-3 border-b border-slate-50 dark:border-white/5 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-colors ${!n.read ? 'bg-slate-50/50 dark:bg-slate-500/10' : ''}`}
                                             >
                                                 <p className={`text-sm font-semibold ${!n.read ? 'text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>{n.title}</p>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
@@ -388,7 +388,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                     {onSwitchMode && (
                         <button
                             onClick={onSwitchMode}
-                            className="flex items-center gap-1.5 text-sm text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 transition-colors px-3 py-2 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-500/10"
+                            className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300 transition-colors px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-500/10"
                         >
                             <ArrowLeftRight className="w-4 h-4" />
                             <span className="hidden sm:inline">Cambiar modo</span>
@@ -421,7 +421,7 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                 {/* ── Tenant Grid ─────────────────────────────────────────── */}
                 <section>
                     <h2 className="text-base font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 px-1">
-                        <Users className="w-5 h-5 text-violet-500" />
+                        <Users className="w-5 h-5 text-slate-500" />
                         Inquilinos — Vélez Sársfield 134
                     </h2>
 
@@ -438,12 +438,12 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                                     <button
                                         key={tenant.id}
                                         onClick={() => { setSelectedTenantId(tenant.id); setViewYear(currentYear); }}
-                                        className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-4 shadow-xs hover:shadow-lg hover:shadow-violet-500/10 dark:hover:border-violet-500/40 hover:scale-[1.02] transition-all duration-200 group"
+                                        className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-4 shadow-xs hover:shadow-lg hover:shadow-slate-500/10 dark:hover:border-slate-500/40 hover:scale-[1.02] transition-all duration-200 group"
                                     >
                                         <div className="flex items-start gap-2.5 mb-2">
                                             <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : approvedCount > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-200 dark:bg-slate-700'}`} />
                                             <div className="min-w-0">
-                                                <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors truncate">
+                                                <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors truncate">
                                                     {tenant.name}
                                                 </h3>
                                                 {property?.unitLabel && (
