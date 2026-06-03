@@ -6,9 +6,10 @@ import { MONTH_NAMES } from '../../constants';
 import { parseExpenseSheet } from '../../utils/expenseSheetParser';
 import { uploadFile } from '../../services/storage';
 import { useDataContext } from '../../context/DataContext';
+import EditTenantProfileModal from './EditTenantProfileModal';
 import {
     ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, Clock, RotateCcw,
-    FileSpreadsheet, ExternalLink, Upload, X, Trash2
+    FileSpreadsheet, ExternalLink, Upload, X, Trash2, Pencil
 } from 'lucide-react';
 
 interface ExpensesTenantDetailProps {
@@ -38,6 +39,9 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
     // Sheet viewer
     const [viewingSheet, setViewingSheet] = useState<ExpenseSheet | null>(null);
     const { loadExpenseSheetData } = useDataContext();
+
+    // Editar nombre + departamento del inquilino
+    const [editingProfile, setEditingProfile] = useState(false);
 
     const openSheetViewer = async (sheet: ExpenseSheet) => {
         setViewingSheet(sheet);
@@ -215,8 +219,16 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                         <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                     </button>
                     <div className="min-w-0">
-                        <h1 className="text-base font-bold text-slate-800 dark:text-white leading-tight truncate">
-                            {tenant.name}
+                        <h1 className="text-base font-bold text-slate-800 dark:text-white leading-tight truncate flex items-center gap-1.5">
+                            <span className="truncate">{tenant.name}</span>
+                            <button
+                                onClick={() => setEditingProfile(true)}
+                                aria-label="Editar nombre y departamento"
+                                title="Editar nombre y departamento"
+                                className="p-1 -my-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                            >
+                                <Pencil className="w-3.5 h-3.5" />
+                            </button>
                         </h1>
                         <p className="text-xs text-slate-400 dark:text-slate-500">
                             {property?.unitLabel && `${property.unitLabel} · `}Vélez Sársfield 134
@@ -663,6 +675,15 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ── Editar nombre + departamento ──────────────────────────────── */}
+            {editingProfile && (
+                <EditTenantProfileModal
+                    tenant={tenant}
+                    property={property}
+                    onClose={() => setEditingProfile(false)}
+                />
             )}
         </div>
     );

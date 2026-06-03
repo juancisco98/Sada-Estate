@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { User, TenantPayment, ParsedExpenseSheet } from '../types';
+import { User, TenantPayment, ParsedExpenseSheet, Tenant, Property } from '../types';
 import { useDataContext } from '../context/DataContext';
 import { supabase } from '../services/supabaseClient';
 import { dbToExpenseSheet } from '../utils/mappers';
@@ -9,10 +9,11 @@ import { MONTH_NAMES } from '../constants';
 import {
     LogOut, Bell, FileSpreadsheet,
     AlertCircle, Users, Clock, ArrowLeftRight,
-    Home, Sun, Moon
+    Home, Sun, Moon, Pencil
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import ExpensesTenantDetail from './expenses/ExpensesTenantDetail';
+import EditTenantProfileModal from './expenses/EditTenantProfileModal';
 
 interface ExpensesAdminPortalProps {
     currentUser: User;
@@ -71,6 +72,8 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
     // ── State ────────────────────────────────────────────────────────────────
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
     const [viewYear, setViewYear] = useState(new Date().getFullYear());
+    // Editar nombre + departamento desde la grilla
+    const [editingTenant, setEditingTenant] = useState<{ tenant: Tenant; property: Property | null } | null>(null);
 
     // Bell / notifications dropdown
     const [showNotif, setShowNotif] = useState(false);
@@ -435,44 +438,65 @@ const ExpensesAdminPortal: React.FC<ExpensesAdminPortalProps> = ({ currentUser, 
                             {tenantMonthlyStatus.map(({ tenant, pendingCount, totalExpenses, approvedCount }) => {
                                 const property = properties.find(p => p.id === tenant.propertyId);
                                 return (
-                                    <button
+                                    <div
                                         key={tenant.id}
-                                        onClick={() => { setSelectedTenantId(tenant.id); setViewYear(currentYear); }}
-                                        className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-4 shadow-xs hover:shadow-lg hover:shadow-slate-500/10 dark:hover:border-slate-500/40 hover:scale-[1.02] transition-all duration-200 group"
+                                        className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/10 p-4 shadow-xs hover:shadow-lg hover:shadow-slate-500/10 dark:hover:border-slate-500/40 hover:scale-[1.02] transition-all duration-200 group"
                                     >
-                                        <div className="flex items-start gap-2.5 mb-2">
-                                            <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : approvedCount > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                                            <div className="min-w-0">
-                                                <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors truncate">
-                                                    {tenant.name}
-                                                </h3>
-                                                {property?.unitLabel && (
-                                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate flex items-center gap-1">
-                                                        <Home size={10} />
-                                                        {property.unitLabel}
-                                                    </p>
+                                        <button
+                                            onClick={() => { setSelectedTenantId(tenant.id); setViewYear(currentYear); }}
+                                            className="block w-full text-left"
+                                        >
+                                            <div className="flex items-start gap-2.5 mb-2 pr-7">
+                                                <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${pendingCount > 0 ? 'bg-amber-400' : approvedCount > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                                                <div className="min-w-0">
+                                                    <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors truncate">
+                                                        {tenant.name}
+                                                    </h3>
+                                                    {property?.unitLabel && (
+                                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate flex items-center gap-1">
+                                                            <Home size={10} />
+                                                            {property.unitLabel}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                {pendingCount > 0 && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-500/30">
+                                                        {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
+                                                    </span>
+                                                )}
+                                                {totalExpenses > 0 && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/30">
+                                                        ${totalExpenses.toLocaleString('es-AR')}
+                                                    </span>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            {pendingCount > 0 && (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-500/30">
-                                                    {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
-                                                </span>
-                                            )}
-                                            {totalExpenses > 0 && (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/30">
-                                                    ${totalExpenses.toLocaleString('es-AR')}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </button>
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingTenant({ tenant, property: property ?? null })}
+                                            aria-label={`Editar ${tenant.name}`}
+                                            title="Editar nombre y departamento"
+                                            className="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-300 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors z-10"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 );
                             })}
                         </div>
                     )}
                 </section>
             </main>
+
+            {/* ── Editar nombre + departamento (desde la grilla) ──────────── */}
+            {editingTenant && (
+                <EditTenantProfileModal
+                    tenant={editingTenant.tenant}
+                    property={editingTenant.property}
+                    onClose={() => setEditingTenant(null)}
+                />
+            )}
         </div>
     );
 };
