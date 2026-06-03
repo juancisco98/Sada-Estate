@@ -276,9 +276,9 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                 </div>
             </div>
 
-            {/* ── Month cards ─────────────────────────────────────────────── */}
-            <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-                <div className="max-w-4xl mx-auto space-y-2">
+            {/* ── Month cards (2 columnas × 6 filas: Ene-Jun | Jul-Dic, sin scroll en desktop) ─ */}
+            <main className="flex-1 overflow-y-auto sm:overflow-hidden px-4 sm:px-6 py-3 sm:py-4">
+                <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-6 sm:grid-flow-col gap-x-4 gap-y-2 sm:h-full">
                     {MONTH_NAMES.map((monthName, i) => {
                         const monthNum = i + 1;
                         const payment = yearPayments.find(p => p.month === monthNum);
@@ -289,7 +289,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                         const isLoading = actionLoading === payment?.id;
 
                         return (
-                            <div key={monthName} className={`rounded-xl border p-4 transition-all ${
+                            <div key={monthName} className={`rounded-xl border p-3 sm:p-4 transition-all sm:overflow-y-auto ${
                                 status === 'APPROVED' ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20' :
                                 status === 'REVISION' ? 'bg-amber-50/50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20' :
                                 status === 'RETURNED' ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-400/30' :
@@ -330,7 +330,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                     {sheet ? (
                                         <button
                                             onClick={() => openSheetViewer(sheet)}
-                                            className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
+                                            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/10 hover:bg-slate-100 dark:hover:bg-slate-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
                                         >
                                             <FileSpreadsheet size={12} />
                                             Ver liquidación
@@ -342,7 +342,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                                 setUploadParsedData(null);
                                                 setUploadFileName('');
                                             }}
-                                            className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 px-2.5 py-1.5 rounded-lg transition-colors border border-dashed border-violet-200 dark:border-violet-500/30"
+                                            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/10 hover:bg-slate-100 dark:hover:bg-slate-500/20 px-2.5 py-1.5 rounded-lg transition-colors border border-dashed border-slate-200 dark:border-slate-500/30"
                                         >
                                             <Upload size={12} />
                                             Cargar liquidación
@@ -355,7 +355,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                             href={payment.proofOfExpenses}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
+                                            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/10 hover:bg-slate-100 dark:hover:bg-slate-500/20 px-2.5 py-1.5 rounded-lg transition-colors"
                                         >
                                             <ExternalLink size={12} />
                                             Comprobante expensas
@@ -376,7 +376,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                                     setUploadParsedData(null);
                                                     setUploadFileName('');
                                                 }}
-                                                className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 hover:text-violet-500 dark:hover:text-violet-400 px-2 py-1 rounded-sm transition-colors"
+                                                className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-500 dark:hover:text-slate-400 px-2 py-1 rounded-sm transition-colors"
                                             >
                                                 <Upload size={10} />
                                                 Reemplazar
@@ -495,7 +495,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                 <div className="flex flex-col items-center gap-2 p-4 text-center">
                                     <FileSpreadsheet className="w-7 h-7 text-slate-300 dark:text-slate-600" />
                                     {uploadFileName ? (
-                                        <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{uploadFileName}</p>
+                                        <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">{uploadFileName}</p>
                                     ) : (
                                         <>
                                             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Seleccioná el archivo</p>
@@ -529,7 +529,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                             Vista previa{uploadParsed.period ? ` — ${uploadParsed.period}` : ''}
                                         </p>
-                                        <span className="text-sm font-bold text-violet-600 dark:text-violet-400 tabular-nums">
+                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-400 tabular-nums">
                                             Total: ${uploadParsed.total.toLocaleString('es-AR')}
                                         </span>
                                     </div>
@@ -548,9 +548,9 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                                         <td className="px-3 py-1.5 text-right tabular-nums text-slate-700 dark:text-slate-300">${it.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                                     </tr>
                                                 ))}
-                                                <tr className="border-t-2 border-violet-200 dark:border-violet-500/30 bg-violet-50/60 dark:bg-violet-500/10 font-bold">
-                                                    <td className="px-3 py-2 text-violet-800 dark:text-violet-200">TOTAL</td>
-                                                    <td className="px-3 py-2 text-right tabular-nums text-violet-800 dark:text-violet-200">${uploadParsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                                <tr className="border-t-2 border-slate-200 dark:border-slate-500/30 bg-slate-50/60 dark:bg-slate-500/10 font-bold">
+                                                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200">TOTAL</td>
+                                                    <td className="px-3 py-2 text-right tabular-nums text-slate-800 dark:text-slate-200">${uploadParsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -575,7 +575,7 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                             <button
                                 onClick={handleUploadConfirm}
                                 disabled={isUploading || (uploadType === 'excel' ? !uploadParsedData : !uploadPdfFile)}
-                                className="flex items-center gap-1.5 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed px-4 py-2 rounded-xl transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-semibold text-white bg-slate-600 hover:bg-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed px-4 py-2 rounded-xl transition-colors"
                             >
                                 {isUploading ? (
                                     <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -615,13 +615,13 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between gap-2 flex-wrap">
                                         <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                                            Total: <span className="text-violet-600 dark:text-violet-400 tabular-nums">${(viewingSheet.parsedData?.total ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                                            Total: <span className="text-slate-600 dark:text-slate-400 tabular-nums">${(viewingSheet.parsedData?.total ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                                         </span>
                                         <a
                                             href={viewingSheet.pdfUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                                            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/10 hover:bg-slate-100 dark:hover:bg-slate-500/20 px-3 py-1.5 rounded-lg transition-colors"
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" /> Abrir PDF
                                         </a>
@@ -652,9 +652,9 @@ const ExpensesTenantDetail: React.FC<ExpensesTenantDetailProps> = ({
                                                     <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">${it.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                                 </tr>
                                             ))}
-                                            <tr className="border-t-2 border-violet-200 dark:border-violet-500/30 bg-violet-50/60 dark:bg-violet-500/10 font-bold">
-                                                <td className="px-3 py-2 text-violet-800 dark:text-violet-200">TOTAL</td>
-                                                <td className="px-3 py-2 text-right tabular-nums text-violet-800 dark:text-violet-200">${parsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                            <tr className="border-t-2 border-slate-200 dark:border-slate-500/30 bg-slate-50/60 dark:bg-slate-500/10 font-bold">
+                                                <td className="px-3 py-2 text-slate-800 dark:text-slate-200">TOTAL</td>
+                                                <td className="px-3 py-2 text-right tabular-nums text-slate-800 dark:text-slate-200">${parsed.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                             </tr>
                                         </tbody>
                                     </table>
