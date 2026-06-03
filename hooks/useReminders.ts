@@ -238,7 +238,7 @@ export const useReminders = (currentUserId?: string) => {
                             tenantName: prop?.tenantName || '',
                             month: p.month,
                             year: p.year,
-                            status: p.status,
+                            status: p.status ?? 'PENDING',
                             paymentDate: p.paymentDate,
                             amount: p.amount,
                         };

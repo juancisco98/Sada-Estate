@@ -1,7 +1,7 @@
 import { TenantPayment } from '../../types';
 
-// Nombres de mes abreviados — usados por las grillas mensuales y el modal de pago.
-export const MONTH_NAMES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+// Nombres de mes abreviados — fuente única en constants.ts (re-export por conveniencia).
+export { MONTH_NAMES_SHORT } from '../../constants';
 
 // Formulario de alta/edición de inquilino.
 export interface NewTenantForm {
@@ -21,7 +21,7 @@ export interface NewPaymentForm {
     paymentMethod: 'CASH' | 'TRANSFER';
     proofOfPayment: string;
     proofOfExpenses: string;
-    status: 'PENDING' | 'REVISION' | 'APPROVED';
+    status: 'PENDING' | 'REVISION' | 'APPROVED' | 'RETURNED';
     notes: string;
 }
 

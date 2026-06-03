@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createElement } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { createSupabaseMock, getActiveSupabaseClient, type SupabaseMock } from '../mocks/supabase';
+import { createSupabaseMock, getActiveSupabaseClient, type SupabaseMock, type SeedData } from '../mocks/supabase';
 
 // Mock del cliente real (lee del registro de mock activo).
 vi.mock('@/services/supabaseClient', () => ({
@@ -31,7 +31,7 @@ const sessionFor = (email: string, id = 'uid-1') => ({
   user: { id, email, user_metadata: { full_name: 'Usuario Test' } },
 });
 
-const seedBase = () => ({
+const seedBase = (): SeedData => ({
   professionals: [],
   properties: [],
   maintenance_tasks: [],

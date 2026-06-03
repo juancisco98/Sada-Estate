@@ -3,6 +3,7 @@ import { createElement, type ReactNode } from 'react';
 import { render as rtlRender } from '@testing-library/react';
 import { createSupabaseMock, getActiveSupabaseClient } from '../mocks/supabase';
 import { ThemeProvider } from '@/context/ThemeContext';
+import type { DataContextType } from '@/context/DataContext';
 import type { User } from '@/types';
 
 vi.mock('@/services/supabaseClient', () => ({
@@ -15,7 +16,7 @@ vi.mock('@/services/supabaseClient', () => ({
 
 // DataContext mockeado: provider passthrough + value completo y vacío.
 const noop = () => {};
-const ctxValue = {
+const ctxValue: DataContextType = {
   properties: [],
   setProperties: noop,
   professionals: [],
